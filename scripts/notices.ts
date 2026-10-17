@@ -13,6 +13,10 @@ const packages = [
   ['fflate', 'LICENSE', 'https://github.com/101arrowz/fflate'],
   ['zod', 'LICENSE', 'https://github.com/colinhacks/zod'],
   ['occt-import-js', 'LICENSE.md', 'https://github.com/kovacsv/occt-import-js'],
+  ['@gltf-transform/core', 'LICENSE.md', 'https://github.com/donmccurdy/glTF-Transform'],
+  ['@gltf-transform/functions', 'LICENSE.md', 'https://github.com/donmccurdy/glTF-Transform'],
+  ['@gltf-transform/extensions', 'LICENSE.md', 'https://github.com/donmccurdy/glTF-Transform'],
+  ['gltf-validator', 'LICENSE', 'https://github.com/KhronosGroup/glTF-Validator'],
 ];
 let text =
   '# Third-party notices\n\nGenerated from the exact installed package versions. License texts below are retained verbatim. No changes were made to vendor sources.\n\nOriginal mechanical/story geometry and procedural Gaussian cloud were authored for VirtualWorld Studio. STEP cubes are test fixtures from occt-import-js, distributed with that upstream package. CAD WASM and fixtures are prepared locally from npm; the static player excludes the CAD parser.\n\n';

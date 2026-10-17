@@ -1,0 +1,17 @@
+{
+  "name": "@virtualworld/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/runtime.ts",
+    "./geometry": "./src/geometry.ts",
+    "./transforms": "./src/transforms.ts"
+  },
+  "dependencies": {
+    "@virtualworld/asset-runtime": "*",
+    "@virtualworld/interaction": "*",
+    "@virtualworld/scene-schema": "*",
+    "three": "0.180.0"
+  }
+}

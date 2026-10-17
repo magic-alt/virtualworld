@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "id": "stardust",
+  "source": "source/builtin/stardust.recipe.json",
+  "sourceSha256": "574ea60620dfe84ed7be0f4a9cc5903daa0a55e2f4e1c92b314b5be14fa89940",
+  "output": "optimized/builtin/stardust.ply",
+  "outputSha256": "4ac22a8ff86b31913b9354b18eae144d129524bfc1eaf70f38be244884b3b5ba",
+  "bytes": 82073,
+  "tools": {
+    "generator": "scripts/fixtures.ts:original-gaussian-cloud-v1"
+  },
+  "validation": {
+    "gaussianCount": 1200
+  }
+}

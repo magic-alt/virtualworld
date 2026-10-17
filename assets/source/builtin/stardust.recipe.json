@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "id": "stardust",
+  "generator": "scripts/fixtures.ts:original-gaussian-cloud-v1",
+  "count": 1200,
+  "angularStep": 2.399963,
+  "license": "Original project content"
+}

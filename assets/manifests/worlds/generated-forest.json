@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "worldId": "generated-forest",
+  "requestHash": "ec3b26f9d59eef22a007710184a47f697c2883bc4276785764b7a300da3cbf36",
+  "planner": "builtin-procedural-v1",
+  "assetProvider": "builtin",
+  "descriptionSha256": "991ab9224e7bb2f4bfb77fa408cbbea0604111f1365e3b3ea4cb7cb42e2e9c5e",
+  "sceneSha256": "e3333840497ca28e69045683717d618ae6139458dddde8cd237bce1127a93b3c",
+  "assets": [],
+  "tools": {
+    "builder": "scene-builder/1"
+  },
+  "createdAt": "2026-10-17T16:01:20.185Z"
+}

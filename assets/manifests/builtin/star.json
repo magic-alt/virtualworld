@@ -1,0 +1,22 @@
+{
+  "id": "builtin-star",
+  "recipe": "source/builtin/star.recipe.json",
+  "recipeSha256": "df56e42f97776e286a67a25fef95f5aa376b0269292b17d92072ee1678731086",
+  "source": "source/builtin/star.glb",
+  "output": "optimized/builtin/star.glb",
+  "version": 1,
+  "sourceSha256": "d9ab86d0a9ade68aa94dab9512e15b257d3ec1b521e2b136ade3af61efccc0ac",
+  "outputSha256": "d919fad3e5a8444876473e214361ba2d0d8379f53255e3a906ee71fbbebcf977",
+  "sourceBytes": 1520,
+  "outputBytes": 1720,
+  "tools": {
+    "pipeline": "scene-builder/1",
+    "gltfTransform": "v4.5.1",
+    "validator": "2.0.0-dev.3.10"
+  },
+  "validation": {
+    "errors": 0,
+    "warnings": 0,
+    "messages": []
+  }
+}

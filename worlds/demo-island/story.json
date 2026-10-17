@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "worldId": "demo-world",
+  "tasks": [
+    {
+      "flag": "met-keeper",
+      "label": "与守灯人交谈"
+    },
+    {
+      "flag": "found-star",
+      "label": "在晶石花园寻找星核"
+    },
+    {
+      "flag": "sent-letter",
+      "label": "将星核送到星门"
+    }
+  ],
+  "interactions": {
+    "gate": {
+      "title": "归航星门",
+      "text": "星核点亮了沉睡的星门。\n信已寄出，远方的你终会收到。\n\n谢谢你，让这座小岛重新拥有了星光。",
+      "requires": ["found-star"],
+      "gives": "sent-letter",
+      "completes": true
+    },
+    "keeper": {
+      "title": "守灯人 · 诺亚",
+      "text": "欢迎来到星屿，旅人。\n我有一封写给远方的信，却失去了点亮星门的星核。\n去右边的晶石花园找找吧，那里的光从未熄灭。",
+      "gives": "met-keeper",
+      "choices": [
+        {
+          "label": "这是什么地方？",
+          "text": "星屿是遗失的信件短暂停留的地方。每一束星光，都在等待一个愿意倾听的人。"
+        },
+        {
+          "label": "我会帮你找回星核",
+          "text": "谢谢你。沿着花园的微光，你会找到它。"
+        }
+      ]
+    },
+    "star": {
+      "title": "遗失的星核",
+      "text": "你轻轻拾起星核。温柔的光在掌心亮起。\n带它前往岛屿北侧的归航星门。",
+      "requires": ["met-keeper"],
+      "gives": "found-star"
+    },
+    "letter": {
+      "title": "未寄出的信",
+      "text": "「如果你看见这片星光，请记得：\n再遥远的旅途，也有一盏灯为你亮着。」"
+    }
+  }
+}

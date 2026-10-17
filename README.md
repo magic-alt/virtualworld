@@ -1,80 +1,104 @@
-# VirtualWorld Studio
+# AI 3D World Generator
 
-本机运行的 AI Web 3D 创作工作室。工业展示与故事世界共用 SceneSpec、编辑器、运行时和静态导出流程。
+本地运行的 AI Web 3D 创作工程，按[分享方案](https://chatgpt.com/share/6ad3932f-7324-83ec-901a-2e1392061887)拆分生成器、运行引擎、交互和资产系统。React 工作室、工业展示及故事体验共用 SceneSpec，可导出独立静态网页。
 
 ## 启动
 
-需要 Node.js 24 和 npm；本项目已在 Windows 上运行验证。
+需要 Node.js 24、npm。已在 Windows 验证。
 
 ```powershell
 npm ci
 npm run dev
 ```
 
-打开 http://127.0.0.1:5173 。首次启动自动准备 CAD WASM 和样例资源。首次使用导出功能前，另开终端运行 `npm run build`。
+打开 http://127.0.0.1:5173 。首次启动会准备 CAD WASM 和内置资产。导出前运行 `npm run build`。也可以 `npm run build` 后执行 `npm start`，打开 http://127.0.0.1:3001 。
 
-仅运行构建后的本机工作室：
+## 目录
 
-```powershell
-npm run build
-npm start
+```text
+apps/web/                  React 编辑器、本地 server、独立 player
+packages/engine/           Three.js 渲染、编辑与诊断
+packages/scene-schema/     SceneSpec、命令、事务与撤销
+packages/interaction/      角色物理、剧情状态、独立进度存档
+packages/asset-runtime/    GLB/Splat 加载、缓存、实例与释放
+generators/planner/        LLM 规划与编辑提案
+generators/tripo/          Tripo v3 任务与恢复
+generators/blender/        固定 Python 批处理
+generators/scene-builder/  场景编译、资产优化、本地 CLI
+assets/{source,optimized,manifests}/
+worlds/demo-island/{scene,story,assets}.json
+worlds/demo-industrial/{scene,story,assets}.json
+tests/{assets,engine,e2e}/
+docs/
 ```
 
-打开 http://127.0.0.1:3001 。服务默认仅绑定本机回环地址。
+包之间使用公开 workspace 入口；这些目录都有实际调用代码。完整职责与缓存/数据协议见 [架构说明](docs/architecture.md)。
 
-## 两个完整样例
+## 从描述生成世界
 
-- **精密关节 · J-01**：零件选择、高亮、隔离、PBR 材质、爆炸图、关节运动、产品说明。样例是原创参数化展示模型，参数不作为制造或仿真依据。
-- **星屿来信**：原创浮岛世界、Mesh 与 1,200 个真实 Gaussian Splats 混合渲染。体验模式中通过 WASD 移动、空格跳跃、E 附近互动，完成守灯人 → 星核 → 星门的任务。
-
-拖动旋转、右键平移、滚轮缩放。选择对象后可编辑名称、变换、材质、爆炸方向、关节、说明和碰撞代理。工具栏可将当前镜头设为默认视角；点击环境设置可编辑镜头、角色出生点和任务手记。Ctrl+S 保存，Ctrl+Z 撤销，Ctrl+Shift+Z 重做，Esc 退出体验。
-
-## 连接真实 AI
+无密钥可先运行明确的程序化模式，验证相同流程接受不同描述：
 
 ```powershell
-Copy-Item .env.example .env
+npm run world:generate -- --id my-forest --description "蓝色晶石与古树环绕的森林" --planner builtin
+npm run world:validate -- --world worlds/my-forest
 ```
 
-在 `.env` 填写下列服务端配置，然后重启服务：
+生成结果写入 `worlds/my-forest/` 的三份 JSON 和 `assets/manifests/` 的记录，重新打开工作室的项目菜单即可读取。`builtin` 不调用模型，也不支持参考图。相同输入会复用验证后的结果；同 ID 的不同内容不会被覆盖。
+
+连接真实服务时复制 `.env.example` 为 `.env`，填写服务端配置：
 
 ```dotenv
 LLM_BASE_URL=https://your-compatible-endpoint/v1
 LLM_MODEL=your-model-name
 LLM_API_KEY=your-key
+TRIPO_BASE_URL=https://openapi.tripo3d.ai/v3
+TRIPO_MODEL=v3.1-20260211
+TRIPO_API_KEY=your-tripo-key
 ```
 
-接口需接受 `POST {LLM_BASE_URL}/chat/completions` 的 `model`、`messages`、`temperature`，返回 `choices[0].message.content`。AI 根据场景和选中对象生成结构化修改提案；预览差异后应用，支持撤销。无效输出最多修复一次，单次请求超时 90 秒，可取消。密钥不会进入浏览器构建或导出包。
+```powershell
+npm run world:generate -- --id ai-garden --description "有向导、星核与归航任务的花园" --planner llm --assets tripo --reference ./reference.png
+```
 
-无密钥时，两个样例、手动编辑、导入、验证和导出均可使用；AI 显示未配置状态。自动测试中的模型 HTTP 服务是本地受控测试夹具，不能当作真实付费供应商验收。
+LLM 负责布局、剧情和资产请求；Tripo 生成模型，glTF Transform 优化，Khronos Validator 检查，再发布世界。参考图需模型接口支持图片消息。`--assets tripo` 会使用真实付费接口；默认 `--assets builtin` 仅使用程序化造型。密钥仅由服务端/CLI 读取，不进入播放器。
 
-## 导入与交付
+任务请求先写账本，创建 POST 不自动重试；超时保留 task ID。发现结果不明时，从 Tripo 控制台找回任务并追加 `--task-id task_...`，多资产时追加 `--task-node <节点ID>`。恢复说明见 [资产记录](assets/manifests/README.md)。
 
-支持每文件最多 **100 MiB** 的 STEP/STP、自包含 GLB、SPZ 和 Gaussian PLY。
+## 可选 Blender 与资产处理
 
-- STEP 在本机浏览器 Worker 中通过 OCCT 转换，输出统一为米，保留可用层级、名称、面颜色。转换后缓存为 GLB，原始 STEP 一并保存。
-- GLB 按层级导入，保留局部变换及原材质。首版要求资源自包含，不接收外部纹理/缓冲引用或 Draco/KTX2 压缩；不编辑导入文件中的骨骼和动画轨道。
-- SPZ/PLY 支持整体移动、旋转、缩放和显示控制；3DGS 不会自动产生碰撞或工程结构。
-- 关节轴、枢轴与运动范围应通过对象层级和属性人工配置。AI 提出的关节始终保持“等待人工确认”。
+```powershell
+npm run asset:optimize -- --input ./model.glb --output ./output/model.glb
+# 安装 Blender 后设置 BLENDER_BIN，再使用固定批处理：
+npm run asset:optimize -- --input ./model.glb --output ./output/model.glb --blender
+```
 
-右侧资源页可下载 10 mm STEP 测试立方体。项目源数据存于 `data/projects/`，资源按 SHA-256 保存在 `data/assets/`。`data/` 和 `.env` 不进入 Git；备份时复制整个 `data/` 目录。
+输入输出均做 GLB 校验并记录 SHA-256、工具版本与警告。Blender 可选，默认优化流程无需安装 Blender；MCP 服务尚未接入。
 
-「导出网页」会验证并下载 ZIP，包含 SceneSpec、播放器、资源、运行时依赖及许可证。解压后通过静态 HTTP 服务打开 `index.html`，支持子目录与 iframe 嵌入。`file://` 不适用于模块和 WASM。导出体验无需本地编辑服务、模型 API 或 CDN。CAD 解析器不进入播放器。
+## 两个内置体验
 
-## 开发与验证
+- **精密关节 · J-01**：选择、隔离、PBR 材质、爆炸图、关节演示和产品说明。原创参数化模型用于展示，尺寸不作为制造依据。
+- **星屿来信**：原创浮岛，程序化 Mesh + GLB 星核 + 1,200 个 Gaussian Splats。WASD 移动、空格跳跃、E 互动，依次完成向导、星核与星门任务。进度保存在浏览器，可继续或重置。
+
+编辑器支持属性修改、添加节点、环境/镜头/出生点/任务设置、撤销重做、AI 局部提案和保存。Ctrl+S 保存，Ctrl+Z 撤销，Esc 退出体验。
+
+支持每文件最多 100 MiB 的 STEP/STP、自包含 GLB、SPZ 和 Gaussian PLY。STEP 在浏览器 Worker 内通过 OCCT 转换为米制 GLB，保留可用层级/名称/颜色及原始 CAD；AI 视觉模型不能替代可信工程数据。首版不接受外部纹理/缓冲或需要 Draco/KTX2/Meshopt 解码器的 GLB，不编辑骨骼动画轨道。
+
+项目编辑位于 `data/projects/`；原始资产、运行资产和处理记录分别位于 `assets/source/`、`assets/optimized/`、`assets/manifests/`。旧 `data/assets/` 仍可读取。备份时保留 `data/`、`assets/` 和 `worlds/`；用户资产与密钥默认不进入 Git。
+
+「导出网页」生成包含 SceneSpec、相对资源、独立播放器和许可证的 ZIP。解压后通过 HTTP 服务打开 `index.html`，支持子目录与 iframe，无需编辑服务、模型接口或 CDN；不能直接使用 `file://`。
+
+## 验证
 
 ```powershell
 npm test
 npm run check
 npm run build
+npm run world:validate
 npm run test:browser
 npm run format:check
 npm audit
 ```
 
-浏览器检查优先使用本机 Edge 或 Chrome；其他环境先执行 `npx playwright install chromium`，也可设置 `PLAYWRIGHT_EXECUTABLE_PATH`。脚本使用隔离的临时项目目录和 3133–3136 端口，产物位于 `output/playwright/`，不会覆盖 `data/`。
+浏览器检查使用本机 Edge/Chrome；可设置 `PLAYWRIGHT_EXECUTABLE_PATH`，或安装 Playwright Chromium。脚本用临时数据与 3133–3136 端口，产物在 `output/playwright/`。
 
-测试包括真实 STEP 转换、Rapier 碰撞、场景事务、文件持久化、受控 HTTP 模型请求，以及浏览器内的编辑、保存、任务完成和独立网页导出。实际执行结果与未执行边界见 [验证报告](docs/validation.md)。
-
-主要模块：`packages/scene` 定义场景与命令；`packages/runtime` 编译并运行场景；`apps/studio` 提供编辑和 CAD 导入；`apps/server` 处理本地文件、AI 和导出；`apps/player` 提供独立体验。
-
-公开接口与扩展方法见 [架构说明](docs/architecture.md)。第三方来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。首版不包含多人云协作、计费或外部 3D 生成服务。
+实际测试与未执行范围见 [验证报告](docs/validation.md)。目前不包含球面行走、多世界切换、多人协作、计费或云生成队列。第三方来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

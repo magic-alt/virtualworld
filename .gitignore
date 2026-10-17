@@ -9,3 +9,16 @@ output/
 public/cad/occt-import-js.js
 public/cad/occt-import-js.wasm
 public/fixtures/
+assets/source/**/*.glb
+assets/source/vendor/
+assets/source/uploads/
+assets/source/generated/
+assets/optimized/**/*.glb
+assets/optimized/**/*.ply
+assets/optimized/**/*.spz
+assets/manifests/uploads/
+assets/manifests/generated/
+assets/manifests/plans/
+assets/manifests/jobs/
+assets/manifests/worlds/
+__pycache__/

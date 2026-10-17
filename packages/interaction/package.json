@@ -1,0 +1,16 @@
+{
+  "name": "@virtualworld/interaction",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./character": "./src/character.ts"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.19.3",
+    "@virtualworld/scene-schema": "*",
+    "three": "0.180.0",
+    "zod": "3.25.76"
+  }
+}

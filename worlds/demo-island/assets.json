@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "worldId": "demo-world",
+  "assets": [
+    {
+      "id": "stardust",
+      "name": "星尘 · Gaussian Splat",
+      "type": "splat",
+      "url": "/assets/optimized/builtin/stardust.ply",
+      "bytes": 82073
+    },
+    {
+      "id": "builtin-star",
+      "name": "星核 · GLB",
+      "type": "glb",
+      "url": "/assets/optimized/builtin/star.glb",
+      "bytes": 1720
+    }
+  ]
+}

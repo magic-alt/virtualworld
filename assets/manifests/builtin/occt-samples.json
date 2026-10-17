@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "provider": "occt-import-js",
+  "versionPinned": "0.0.23",
+  "license": "LGPL-2.1",
+  "source": "https://github.com/kovacsv/occt-import-js/tree/0.0.23/test/testfiles",
+  "files": [
+    {
+      "path": "source/vendor/occt/cube-mm.step",
+      "sha256": "d9022a4f2d38577451ccb9b6c6b4381d1405e21c28d65b151694e80fecb1d993",
+      "bytes": 9404
+    },
+    {
+      "path": "source/vendor/occt/cube-units.step",
+      "sha256": "e98c309bf845ed521d0d7c45e672fe7f42287328a4a04720ed120558b8c6d4d1",
+      "bytes": 18998
+    },
+    {
+      "path": "source/vendor/occt/cube.step",
+      "sha256": "f2e8c17cddf0421e925db847412080bac15713396dfaf134f195e9dad216a3f2",
+      "bytes": 8247
+    },
+    {
+      "path": "source/vendor/occt/assembly.step",
+      "sha256": "038be659c54b16c9f3da8d7b2da7b63e3fd8879d3abe5b7826108336a7c0bae9",
+      "bytes": 441968
+    }
+  ]
+}

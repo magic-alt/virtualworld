@@ -1,5 +1,10 @@
 # VirtualWorld Studio contributor guide
 
+- Workspace structure: apps/web (src/server/player); packages/scene-schema, engine, interaction, asset-runtime; generators/planner, tripo, blender, scene-builder. Use public @virtualworld package entry points and declare workspace dependencies.
+- Runtime packages never import applications, generators or Node-only asset processing. World bundles in worlds/ compile through assembleWorld; do not reintroduce hardcoded demo definitions in the engine.
+- Keep source/optimized/manifests distinct. Never automatically retry a paid task creation or bypass its persisted ledger when credentials rotate. Verify cached output hashes, recover from retained source, and retain validator warnings.
+- Persist story progress separately from SceneSpec. Shared editor/player controls must support progress reset and tolerate disabled browser storage.
+
 - Use Node.js 24 and npm. `npm ci`, then `npm run dev`. `npm run build` builds studio and standalone player; `npm test` prepares fixtures and runs unit/integration checks.
 - Keep SceneSpec as the only serialized source of truth. All edits, including AI proposals, use validated atomic SceneCommands. Preserve metres, Y-up, radians and stable IDs.
 - AI returns declarative proposals. Never evaluate generated code. Keep provider keys server-side. AI must not mark engineering parameters as human-confirmed.

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "worldId": "generated-desert",
+  "requestHash": "53388e5eb3385e9f499d9d1e0f537effb4b78320431328942406818c5396d16d",
+  "planner": "builtin-procedural-v1",
+  "assetProvider": "builtin",
+  "descriptionSha256": "e8fdc8993c9446047ffcc60b861b8ea423a53cb04ac5cee68f369e9d6df4e67c",
+  "sceneSha256": "b31a2e661968df24d49ad90f1d9a028a33263c25678514ba3cae3a214c8fc3ef",
+  "assets": [],
+  "tools": {
+    "builder": "scene-builder/1"
+  },
+  "createdAt": "2026-10-17T16:01:21.088Z"
+}

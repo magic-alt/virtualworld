@@ -1,0 +1,25 @@
+{
+  "name": "@virtualworld/scene-builder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./io": "./src/io.ts",
+    "./pipeline": "./src/pipeline.ts",
+    "./asset-library": "./src/asset-library.ts"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
+    "@virtualworld/asset-runtime": "*",
+    "@virtualworld/blender": "*",
+    "@virtualworld/planner": "*",
+    "@virtualworld/scene-schema": "*",
+    "@virtualworld/tripo": "*",
+    "gltf-validator": "2.0.0-dev.3.10",
+    "three": "0.180.0",
+    "zod": "3.25.76"
+  }
+}

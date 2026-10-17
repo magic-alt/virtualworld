@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "builtin-star",
+  "geometry": "OctahedronGeometry",
+  "radius": 0.5,
+  "scale": [0.65, 1.3, 0.65],
+  "color": "#a4ecf0",
+  "emissive": 0.8,
+  "license": "Original project content"
+}

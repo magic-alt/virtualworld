@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "worldId": "generated-desert",
+  "tasks": [
+    {
+      "flag": "met-keeper",
+      "label": "与向导交谈"
+    },
+    {
+      "flag": "found-star",
+      "label": "找到遗失的星核"
+    },
+    {
+      "flag": "sent-letter",
+      "label": "点亮归航星门"
+    }
+  ],
+  "interactions": {
+    "keeper": {
+      "title": "旅程向导",
+      "text": "欢迎来到金色岩石与失落星门组成的沙漠绿洲。找到右侧的星核，再前往北侧星门。",
+      "gives": "met-keeper"
+    },
+    "star": {
+      "title": "星核",
+      "text": "你找到了星核。把它送到星门吧。",
+      "requires": ["met-keeper"],
+      "gives": "found-star"
+    },
+    "gate": {
+      "title": "归航星门",
+      "text": "星门亮起，新的旅程正在等待你。",
+      "requires": ["found-star"],
+      "gives": "sent-letter",
+      "completes": true
+    }
+  }
+}
