@@ -1,0 +1,52 @@
+{
+  "name": "virtualworld-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "predev": "npm run fixtures",
+    "prebuild": "npm run fixtures && npm run notices",
+    "pretest": "npm run fixtures",
+    "format": "prettier --write apps packages tests scripts *.ts *.json *.html",
+    "format:check": "prettier --check apps packages tests scripts *.ts *.json *.html",
+    "dev": "concurrently -k -n api,web \"tsx watch apps/server/src/index.ts\" \"vite --host 127.0.0.1\"",
+    "build": "tsc --noEmit && vite build && vite build --config vite.player.config.ts",
+    "start": "tsx apps/server/src/index.ts",
+    "test": "vitest run",
+    "check": "tsc --noEmit",
+    "test:browser": "node scripts/browser-check.mjs",
+    "fixtures": "tsx scripts/fixtures.ts",
+    "notices": "tsx scripts/notices.ts"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "0.19.3",
+    "@sparkjsdev/spark": "2.3.1",
+    "dotenv": "17.2.3",
+    "fastify": "5.12.7",
+    "fflate": "0.8.3",
+    "lucide-react": "0.468.0",
+    "occt-import-js": "0.0.23",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "three": "0.180.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "@types/three": "0.180.0",
+    "@vitejs/plugin-react": "5.1.0",
+    "concurrently": "9.2.5",
+    "playwright": "1.56.1",
+    "prettier": "3.6.2",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vite": "7.3.7",
+    "vitest": "4.1.11"
+  }
+}

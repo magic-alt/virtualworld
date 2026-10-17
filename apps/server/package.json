@@ -1,0 +1,5 @@
+{
+  "name": "@virtualworld/server",
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+data/
+.env
+.npm-cache/
+output/
+.superpowers/
+*.log
+public/cad/occt-import-js.js
+public/cad/occt-import-js.wasm
+public/fixtures/
