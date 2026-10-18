@@ -26,8 +26,8 @@ generators/tripo/          Tripo v3 任务与恢复
 generators/blender/        固定 Python 批处理
 generators/scene-builder/  场景编译、资产优化、本地 CLI
 assets/{source,optimized,manifests}/
-worlds/demo-island/{scene,story,assets}.json
-worlds/demo-industrial/{scene,story,assets}.json
+worlds/demo-harmonic-joint/{scene,story,assets}.json
+worlds/little-prince/campaign.json + chapters/*/{scene,story,assets}.json
 tests/{assets,engine,e2e}/
 docs/
 ```
@@ -91,10 +91,11 @@ npm run demos:validate
 
 固定 Python 配方在 `generators/blender/{prince,harmonic}/`；可编辑 `.blend` 在本地 `assets/source/showcase/`，不进入 Git。章节与工程语义见 [案例说明](docs/blender-showcases.md)。导出任一小王子章节会打包完整三章及去重资源，播放器可独立解锁、继续和重置。
 
-## 保留的基础体验
+## 案例目录
 
-- **精密关节 · J-01**：选择、隔离、PBR 材质、爆炸图、关节演示和产品说明。原创参数化模型用于展示，尺寸不作为制造依据。
-- **星屿来信**：原创浮岛，程序化 Mesh + GLB 星核 + 1,200 个 Gaussian Splats。WASD 移动、空格跳跃、E 互动，依次完成向导、星核与星门任务。进度保存在浏览器，可继续或重置。
+内置案例仅保留 H-100 谐波关节和小王子三章。
+
+旧 J-01、星屿来信、沙漠绿洲、宁静森林已移出产品目录及接口；旧 ID 返回 404，旧保存文件不会使案例重新出现。回归所需几何仅作为 `tests/fixtures/` 中的测试数据保留，不会显示在正常项目菜单。新建项目使用空白 SceneSpec。
 
 编辑器支持属性修改、添加节点、环境/镜头/出生点/任务设置、撤销重做、AI 局部提案和保存。Ctrl+S 保存，Ctrl+Z 撤销，Esc 退出体验。
 

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "worldId": "generated-forest",
+  "worldId": "test-generated-desert",
   "tasks": [
     {
       "flag": "met-keeper",
@@ -18,7 +18,7 @@
   "interactions": {
     "keeper": {
       "title": "旅程向导",
-      "text": "欢迎来到蓝色晶石与古树环绕的宁静森林。找到右侧的星核，再前往北侧星门。",
+      "text": "欢迎来到金色岩石与失落星门组成的沙漠绿洲。找到右侧的星核，再前往北侧星门。",
       "gives": "met-keeper"
     },
     "star": {

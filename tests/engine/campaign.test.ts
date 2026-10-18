@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { CampaignSchema } from '@virtualworld/scene-schema';
 import { CampaignProgress } from '@virtualworld/interaction/campaign';
 import { SaveSystem, advanceStory, initialStory } from '@virtualworld/interaction';
-import { worldDemo } from '@virtualworld/scene-builder';
+import { worldDemo } from '../fixtures/scenes';
 
 function fixture() {
   const manifest = CampaignSchema.parse({

@@ -1,10 +1,7 @@
 import { expect, it } from 'vitest';
-import {
-  assembleWorld,
-  splitWorld,
-  worldDemo,
-  industrialDemo,
-} from '../../generators/scene-builder/src/index';
+import { assembleWorld, splitWorld } from '../../generators/scene-builder/src/index';
+import { worldDemo } from '../fixtures/scenes';
+import { industrialDemo } from '../fixtures/scenes';
 
 it('compiles both split demo bundles without losing runtime content', () => {
   for (const scene of [worldDemo(), industrialDemo()]) {

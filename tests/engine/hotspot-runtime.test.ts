@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import * as THREE from 'three';
 import { StudioRuntime } from '../../packages/engine/src/runtime';
-import { worldDemo } from '@virtualworld/scene-builder';
+import { worldDemo } from '../fixtures/scenes';
 it('projects empty planar interaction anchors to finite visible screen coordinates', () => {
   const spec = worldDemo();
   spec.nodes = [

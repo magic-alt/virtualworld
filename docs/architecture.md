@@ -23,8 +23,6 @@ assets/
   source/              原始 CAD、下载模型、图片、程序化源配方
   optimized/           供浏览器直接读取的 GLB / Gaussian PLY / SPZ
   manifests/           输入输出哈希、版本、Provider / 模型 / 任务与校验记录
-worlds/demo-island/     scene.json + story.json + assets.json
-worlds/demo-industrial/ 同样的文档结构
 worlds/demo-harmonic-joint/ 参数化关节三文档
 worlds/little-prince/    campaign.json + chapters/* 的三文档
 tests/{assets,engine,e2e}/
@@ -58,7 +56,7 @@ flowchart LR
 
 `scene.json` 存几何、变换、环境、镜头与出生点；`story.json` 存任务和按稳定节点 ID 索引的交互；`assets.json` 存运行资产。三者都是版本 1，并通过 `worldId` 与场景 ID 对齐。`assembleWorld` 拒绝身份不一致、悬空故事引用及无效 SceneSpec，`splitWorld` 提供可逆拆分。
 
-编译后的 SceneSpec 是编辑器、引擎和导出的统一协议。项目编辑仍保存到 `data/projects/<id>.json`，不会同时改写模板与生成配方；磁盘上的项目编辑优先于同 ID 的世界模板。未编辑的世界由 `worlds/` 读取并列入项目菜单。原有 `demo-world`、`demo-industrial` ID 保持可用。
+编译后的 SceneSpec 是编辑器、引擎和导出的统一协议。项目编辑仍保存到 `data/projects/<id>.json`，不会同时改写模板与生成配方；磁盘上的项目编辑优先于同 ID 的世界模板。未编辑的世界由 `worlds/` 读取并列入项目菜单。内置目录仅包含 H-100 和小王子三章；J-01、星屿来信、沙漠绿洲、宁静森林的四个旧 ID 已退役，旧持久文件不会使它们重现。回归几何仅在 `tests/fixtures` 保留，应用和生成器入口不依赖测试案例。新建项目使用空白 SceneSpec。
 
 所有编辑通过 `applyCommands(scene, baseRevision, commands)`，整批克隆、校验并增加修订。场景校验包括 ID、父子环、有限数值、正尺寸、资源类型、关节范围、剧情先决条件可达性。`SceneHistory` 支持 100 次会话撤销。异步导入和模型请求绑定项目 ID 和切换代次，旧结果不能写入新项目。
 

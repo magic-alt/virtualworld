@@ -1,4 +1,5 @@
-import { node, worldDemo } from '@virtualworld/scene-builder';
+import { node } from '@virtualworld/scene-builder';
+import { worldDemo } from '../fixtures/scenes';
 import { CharacterController } from '@virtualworld/interaction/character';
 import { primitive } from '@virtualworld/engine/geometry';
 import { it, expect } from 'vitest';

@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile, rename, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { assertScene, type SceneSpec } from '@virtualworld/scene-schema';
-import { industrialDemo, worldDemo } from '@virtualworld/scene-builder';
 import { listWorlds, listCampaigns } from '@virtualworld/scene-builder/io';
 export class HttpError extends Error {
   constructor(
@@ -12,6 +11,12 @@ export class HttpError extends Error {
     super(message);
   }
 }
+const retiredProjects = new Set([
+  'demo-industrial',
+  'demo-world',
+  'generated-desert',
+  'generated-forest',
+]);
 export class ProjectStore {
   private queues = new Map<string, Promise<unknown>>();
   constructor(
@@ -23,6 +28,7 @@ export class ProjectStore {
     return join(this.root, 'projects', `${id}.json`);
   }
   async checkChapter(scene: SceneSpec) {
+    if (retiredProjects.has(scene.id)) throw new HttpError(400, '该示例已删除');
     const manifests = await this.campaigns();
     const manifest = manifests.find((m) => m.chapters.some((c) => c.id === scene.id));
     if (manifest) {
@@ -37,14 +43,13 @@ export class ProjectStore {
     return scene;
   }
   async get(id: string): Promise<SceneSpec> {
+    if (retiredProjects.has(id)) throw new HttpError(404, '该示例已删除');
     try {
       return await this.checkChapter(
         assertScene(JSON.parse(await readFile(this.path(id), 'utf8'))),
       );
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-      if (id === 'demo-industrial') return industrialDemo();
-      if (id === 'demo-world') return worldDemo();
       const world = (await listWorlds(this.worldsRoot)).find((w) => w.scene.id === id);
       if (world) return world.scene;
       throw new HttpError(404, '项目不存在');
@@ -60,10 +65,12 @@ export class ProjectStore {
   }
   async list() {
     await mkdir(join(this.root, 'projects'), { recursive: true });
-    const ids = new Set(['demo-industrial', 'demo-world']);
-    for (const world of await listWorlds(this.worldsRoot)) ids.add(world.scene.id);
+    const ids = new Set<string>();
+    for (const world of await listWorlds(this.worldsRoot))
+      if (!retiredProjects.has(world.scene.id)) ids.add(world.scene.id);
     for (const file of await readdir(join(this.root, 'projects')))
-      if (file.endsWith('.json')) ids.add(file.slice(0, -5));
+      if (file.endsWith('.json') && !retiredProjects.has(file.slice(0, -5)))
+        ids.add(file.slice(0, -5));
     return Promise.all(
       [...ids].map(async (id) => {
         const s = await this.get(id);

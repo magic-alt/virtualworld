@@ -1,4 +1,20 @@
 import type { SceneSpec, SceneNode, Vector3Tuple } from './schema';
+export function emptyScene(mode: SceneSpec['mode'] = 'industrial'): SceneSpec {
+  return {
+    version: 1,
+    id: 'untitled',
+    name: '未命名项目',
+    description: '',
+    mode,
+    revision: 0,
+    assets: [],
+    nodes: [],
+    tasks: [],
+    environment: { background: '#101722', lightIntensity: 3, ambientIntensity: 1.5 },
+    camera: { position: [3, 2.5, 3], target: [0, 0, 0] },
+    spawn: [0, 1, 3],
+  };
+}
 export function node(
   id: string,
   name: string,
