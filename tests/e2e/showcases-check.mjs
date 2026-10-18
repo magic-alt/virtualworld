@@ -348,9 +348,9 @@ try {
   page.on('console', (m) => {
     if (m.type() === 'error') report.errors.push(m.text());
   });
-  await page.goto(origin);
+  await page.goto(`${origin}/?edit=1`);
   await ready(page, 'demo-harmonic-joint');
-  check('New default is the real harmonic engineering showcase');
+  check('Advanced editing retains the real harmonic engineering showcase');
   const baseline = await page.evaluate(() => {
     const r = window.virtualworld;
     return {
@@ -467,7 +467,7 @@ try {
   assert.equal(campaign.scenes.length, 3);
   for (let i = 0; i < campaign.scenes.length; i++) {
     const scene = campaign.scenes[i];
-    await page.goto(`${origin}/?project=${scene.id}`);
+    await page.goto(`${origin}/?project=${scene.id}&edit=1`);
     await ready(page, scene.id);
     const before = await options(page, '故事章节');
     if (i < 2) assert.equal(before[i + 1].disabled, true);

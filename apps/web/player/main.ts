@@ -1,6 +1,9 @@
 import { StudioRuntime } from '@virtualworld/engine';
 import { assertScene, CampaignSchema, type SceneSpec } from '@virtualworld/scene-schema';
 import { CampaignProgress } from '@virtualworld/interaction/campaign';
+import { mountExperienceControls } from '../shared/experience-controls';
+import '../shared/experience.css';
+document.body.classList.add('standalone-experience');
 const css = document.createElement('style');
 css.textContent = `*{box-sizing:border-box}body{margin:0;color:#e3dfd4;font-family:Inter,Segoe UI,Microsoft YaHei,sans-serif}#viewport{position:fixed;inset:0}canvas{display:block;outline:0}.title{position:fixed;top:30px;left:34px;pointer-events:none}.title small{font-size:9px;letter-spacing:3px;color:#b1a07f}.title h1{font-size:27px;font-weight:400;letter-spacing:4px;margin:14px 0 9px}.title p{font-size:11px;color:#9faebe;letter-spacing:1px}.toolbar{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);display:flex;gap:16px;align-items:center;background:#182332e8;border:1px solid #7e8e9c44;border-radius:8px;padding:12px 18px;font-size:10px;white-space:nowrap}button{font:inherit;cursor:pointer;border:1px solid #6a76864d;border-radius:5px;padding:7px 12px;background:#ffffff08;color:#d7c19e}input{accent-color:#cfb88e}label{display:flex;align-items:center;gap:10px}.quest{position:fixed;top:147px;left:34px;width:230px;background:#152030d9;border:1px solid #8195ad33;border-radius:8px;padding:20px;font-size:11px;backdrop-filter:blur(12px)}.quest h3{font-size:13px;font-weight:400;margin:0 0 20px;letter-spacing:1px}.quest p{color:#9baab9;line-height:1.8;margin:13px 0}.quest p.done{color:#c3d6ae}.dialog{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);width:min(440px,92vw);max-height:70vh;overflow:auto;background:#1b2635f5;border:1px solid #a7acb04d;border-radius:10px;padding:24px 28px;backdrop-filter:blur(14px);box-shadow:0 20px 70px #0005}.dialog h2{font-size:18px;font-weight:400;letter-spacing:1px}.dialog p{white-space:pre-line;line-height:2;font-size:11px;color:#afbdca}.dialog button{display:block;width:100%;text-align:left;margin-top:12px}.error{position:fixed;bottom:85px;left:30px;right:30px;background:#392725;padding:16px;font-size:12px;border-radius:7px;color:#e4baa7}.status{position:fixed;right:24px;top:30px;font-size:9px;color:#92a1b4}kbd{border:1px solid #8795a44d;border-radius:3px;padding:3px 5px;font-size:9px;margin:0 5px}@media(max-width:600px){.title{left:20px;top:20px}.title h1{font-size:23px}.quest{top:125px;left:20px;width:180px;font-size:9px}.toolbar{max-width:96vw;white-space:normal;font-size:9px;gap:8px}.title p{max-width:80vw;line-height:1.8}}`;
 document.head.append(css);
@@ -20,6 +23,7 @@ const errorBox = el('div', 'error');
 errorBox.hidden = true;
 document.body.append(errorBox);
 let runtime: StudioRuntime | undefined;
+let experienceControls: ReturnType<typeof mountExperienceControls> | undefined;
 let generation = 0;
 let disposed = false;
 window.addEventListener(
@@ -27,6 +31,7 @@ window.addEventListener(
   () => {
     disposed = true;
     generation++;
+    experienceControls?.dispose();
     runtime?.dispose();
   },
   { once: true },
@@ -77,6 +82,7 @@ try {
   async function showScene(scene: SceneSpec) {
     if (disposed) return;
     const version = ++generation;
+    experienceControls?.dispose();
     runtime?.dispose();
     runtime = undefined;
     dialog?.remove();
@@ -116,9 +122,11 @@ try {
           row.textContent = `${done ? '✓' : '○'}  ${scene.tasks[i].label}`;
         });
         refreshChapters();
+        experienceControls?.update(active.getDiagnostics());
         if (!node?.interaction) return;
         dialog?.remove();
         dialog = el('div', 'dialog');
+        experienceControls?.setDialogOpen(true);
         dialog.setAttribute('role', 'dialog');
         dialog.append(el('h2', '', node.interaction.title));
         const text = el('p', '', state.message);
@@ -131,16 +139,34 @@ try {
           dialog.append(button);
         }
         const close = el('button', '', state.completed ? '本章已完成 · 继续探索' : '继续');
-        close.onclick = () => dialog?.remove();
+        close.onclick = () => {
+          dialog?.remove();
+          experienceControls?.setDialogOpen(false);
+        };
         dialog.append(close);
         document.body.append(dialog);
       },
       onMetrics: (m) => {
         if (version !== generation) return;
-        status.textContent = `${m.fps} FPS · WebGL 2${m.splats ? ` · ${m.splats.toLocaleString()} splats` : ''}${m.mechanism ? ` · 输出 ${m.mechanism.outputRpm.toFixed(3)} RPM · 传动比 ${(-scene.mechanism!.flexTeeth / (scene.mechanism!.ringTeeth - scene.mechanism!.flexTeeth)).toFixed(0)}:1` : ''}`;
+        experienceControls?.update(m);
+        status.textContent = m.loading ? '正在加载世界…' : '';
       },
     });
     runtime = active;
+    experienceControls = mountExperienceControls(active, {
+      onCloseDialog: () => {
+        dialog?.remove();
+        experienceControls?.setDialogOpen(false);
+      },
+      onError: showError,
+      onReset: progress
+        ? () => {
+            progress!.reset();
+            void showScene(progress!.select(progress!.current())).catch(showError);
+          }
+        : undefined,
+    });
+    document.body.append(experienceControls.element);
     (window as any).virtualworld = active;
     if (scene.mode === 'world') {
       toolbar.append(el('span', '', 'WASD 移动 · 空格跳跃 · 拖动调整镜头'));
@@ -150,6 +176,7 @@ try {
       const reset = el('button', '', progress ? '重置全部旅程' : '重置旅程');
       reset.onclick = () => {
         dialog?.remove();
+        experienceControls?.setDialogOpen(false);
         if (progress) {
           progress.reset();
           void showScene(progress.select(progress.current())).catch(showError);
@@ -207,7 +234,7 @@ try {
       active.dispose();
       return;
     }
-    await active.play();
+    await active.setMode(scene.mode === 'world' ? 'explore' : 'view');
   }
   function showError(error: unknown) {
     errorBox.hidden = false;

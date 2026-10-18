@@ -64,6 +64,13 @@ export class CampaignProgress {
     }
     return this.scenes.find((scene) => scene.id === id)!;
   }
+  updateScene(scene: SceneSpec) {
+    if (!this.scenes.some((chapter) => chapter.id === scene.id))
+      throw new Error('Chapter is unknown');
+    this.scenes = this.scenes.map((chapter) =>
+      chapter.id === scene.id ? structuredClone(scene) : chapter,
+    );
+  }
   reset() {
     this.scenes.forEach((scene) => this.saves.reset(scene));
     selections.delete(this.key());

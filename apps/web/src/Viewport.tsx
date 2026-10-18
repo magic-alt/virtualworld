@@ -11,11 +11,13 @@ export function Viewport({
   selected,
   callbacks,
   onRuntime,
+  preview = false,
 }: {
   scene: SceneSpec;
   selected?: string;
   callbacks: RuntimeCallbacks;
   onRuntime: (runtime: StudioRuntime) => void;
+  preview?: boolean;
 }) {
   const container = useRef<HTMLDivElement>(null),
     runtime = useRef<StudioRuntime | null>(null),
@@ -41,7 +43,19 @@ export function Viewport({
       cb.current.onError?.(`WebGL 2 初始化失败：${String(error)}`);
       return;
     }
+    let visible = true;
+    const updateVisibility = () => view.setSuspended(!visible || document.hidden);
+    const observer = preview
+      ? new IntersectionObserver((entries) => {
+          visible = entries[0].isIntersecting;
+          updateVisibility();
+        })
+      : undefined;
+    observer?.observe(container.current!);
+    if (preview) document.addEventListener('visibilitychange', updateVisibility);
     return () => {
+      observer?.disconnect();
+      document.removeEventListener('visibilitychange', updateVisibility);
       view.dispose();
       runtime.current = null;
       delete window.virtualworld;

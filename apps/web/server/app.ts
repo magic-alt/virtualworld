@@ -8,6 +8,7 @@ import { ProjectStore, HttpError } from './store';
 import { AgentInput, propose, type LlmConfig } from '@virtualworld/planner';
 import { createExport, within } from './export';
 import { recordUpload, readUpload } from '@virtualworld/scene-builder/asset-library';
+import { GenerationService } from './generation';
 const LIMIT = 100 * 1024 * 1024;
 const types: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -84,6 +85,23 @@ export async function createApp(
     ok: true,
     aiConfigured: !!(config.baseUrl && config.key && config.model),
   }));
+  const generation = new GenerationService(root, projectRoot, config);
+  await generation.init();
+  app.addHook('onClose', () => generation.close());
+  app.get('/api/generation/capabilities', async () => generation.capabilities());
+  app.post<{ Querystring: { name?: string } }>('/api/generation/references', async (req) => {
+    if (!Buffer.isBuffer(req.body)) throw new HttpError(400, '请上传图片文件');
+    return generation.upload(req.query.name || '', req.body);
+  });
+  app.post('/api/generations', async (req, reply) =>
+    reply.code(202).send(await generation.create(req.body)),
+  );
+  app.get<{ Params: { id: string } }>('/api/generations/:id', async (req) =>
+    generation.get(req.params.id),
+  );
+  app.post<{ Params: { id: string } }>('/api/generations/:id/resume', async (req, reply) =>
+    reply.code(202).send(await generation.resume(req.params.id, req.body)),
+  );
   app.get('/api/projects', async () => ({
     projects: await store.list(),
     aiConfigured: !!(config.baseUrl && config.key && config.model),

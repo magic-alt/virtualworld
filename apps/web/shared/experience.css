@@ -1,0 +1,190 @@
+.experience-controls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+  color: #fffaf0;
+  font:
+    13px 'Segoe UI',
+    'Microsoft YaHei',
+    sans-serif;
+}
+.standalone-experience .experience-controls {
+  position: fixed;
+}
+.standalone-experience .toolbar {
+  bottom: 95px;
+  border-radius: 24px;
+  background: #18251fdd;
+}
+.standalone-experience .title {
+  top: 26px;
+  left: 30px;
+}
+.standalone-experience .title h1 {
+  font-size: 24px;
+  letter-spacing: 1px;
+}
+.standalone-experience .quest {
+  display: none;
+}
+.standalone-experience .dialog {
+  z-index: 25;
+  bottom: 155px;
+  background: #1d2b23f2;
+  border-radius: 20px;
+}
+.experience-controls [hidden] {
+  display: none !important;
+}
+.experience-controls button,
+.experience-controls select {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid #ffffff22;
+  border-radius: 30px;
+  background: #ffffff0d;
+  padding: 10px 15px;
+}
+.experience-controls button:hover {
+  background: #ffffff20;
+}
+.experience-controls button:focus-visible,
+.experience-controls select:focus-visible {
+  outline: 2px solid #dfd2b1;
+  outline-offset: 3px;
+}
+.experience-dock {
+  position: absolute;
+  bottom: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  border: 1px solid #ffffff24;
+  background: #151d20d9;
+  padding: 7px;
+  border-radius: 38px;
+  backdrop-filter: blur(20px);
+  pointer-events: auto;
+  box-shadow: 0 10px 45px #0003;
+  white-space: nowrap;
+}
+.experience-dock button {
+  border: 0;
+}
+.experience-journal,
+.experience-settings {
+  pointer-events: auto;
+  position: absolute;
+  left: 28px;
+  top: 115px;
+  width: min(280px, calc(100vw - 40px));
+  padding: 23px;
+  border-radius: 18px;
+  background: #17201eea;
+  border: 1px solid #ffffff26;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 15px 50px #0003;
+}
+.experience-controls h3 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0 0 16px;
+}
+.experience-controls p {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #d0d1c9;
+  margin: 12px 0;
+}
+.experience-journal p.done {
+  color: #c6e4ac;
+}
+.experience-settings {
+  top: auto;
+  left: auto;
+  right: 25px;
+  bottom: 95px;
+}
+.experience-settings label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.experience-settings select {
+  background: #28312d;
+}
+.experience-settings button {
+  margin: 6px 3px 0 0;
+}
+.experience-touch {
+  display: none;
+  position: absolute;
+  inset: auto 0 100px;
+  height: 115px;
+  pointer-events: none;
+}
+.experience-stick {
+  position: absolute;
+  bottom: 0;
+  left: 24px;
+  width: 100px;
+  height: 100px;
+  border: 1px solid #ffffff4d;
+  border-radius: 50%;
+  background: #ffffff12;
+  pointer-events: auto;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.experience-stick span {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #ffffff45;
+  border: 1px solid #ffffff55;
+  pointer-events: none;
+}
+.experience-touch button {
+  position: absolute;
+  bottom: 10px;
+  right: 24px;
+  min-width: 58px;
+  height: 58px;
+  background: #25302bd9;
+  pointer-events: auto;
+  touch-action: none;
+}
+.experience-touch button:first-of-type {
+  right: 93px;
+}
+@media (pointer: coarse) {
+  .experience-touch {
+    display: block;
+  }
+}
+@media (max-width: 640px) {
+  .experience-dock {
+    bottom: max(16px, env(safe-area-inset-bottom));
+    padding: 5px;
+    gap: 1px;
+    max-width: calc(100vw - 20px);
+  }
+  .experience-controls button {
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+  .experience-journal {
+    top: 100px;
+    left: 20px;
+  }
+  .experience-settings {
+    right: 20px;
+    bottom: 85px;
+  }
+}

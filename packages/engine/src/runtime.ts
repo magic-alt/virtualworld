@@ -11,6 +11,8 @@ import { advanceStory, initialStory, SaveSystem, type StoryState } from '@virtua
 import { primitive } from './geometry';
 import type { CharacterController } from '@virtualworld/interaction/character';
 import { captureTransform } from './transforms';
+export type PresentationMode = 'view' | 'explore' | 'edit';
+export type RenderQuality = 'low' | 'balanced' | 'high';
 export type RuntimeCallbacks = {
   onSelect?: (id: string) => void;
   onTransform?: (id: string, patch: Partial<SceneNode>) => void;
@@ -20,6 +22,9 @@ export type RuntimeCallbacks = {
   onReady?: () => void;
 };
 export type RuntimeMetrics = {
+  mode?: PresentationMode;
+  paused?: boolean;
+  quality?: RenderQuality;
   mechanism?: ReturnType<typeof harmonicState> & { section: boolean };
   radialUp?: number[];
   actorClip?: string;
@@ -51,6 +56,19 @@ export class StudioRuntime {
   private disposed = false;
   private generation = 0;
   private playing = false;
+  private mode: PresentationMode = 'edit';
+  private paused = false;
+  private quality: RenderQuality = 'balanced';
+  private movement = { x: 0, y: 0, jump: false };
+  private cameraTransition?: {
+    start: number;
+    from: THREE.Vector3;
+    to: THREE.Vector3;
+    fromTarget: THREE.Vector3;
+    toTarget: THREE.Vector3;
+    fromUp: THREE.Vector3;
+    toUp: THREE.Vector3;
+  };
   private playRequest = 0;
   private char?: CharacterController;
   private keys = new Set<string>();
@@ -95,10 +113,10 @@ export class StudioRuntime {
       alpha: false,
       preserveDrawingBuffer: true,
     });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = 1;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     const pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -147,6 +165,65 @@ export class StudioRuntime {
     this.camera.aspect = Math.max(1, width) / Math.max(1, height);
     this.camera.updateProjectionMatrix();
   }
+  async setMode(mode: PresentationMode) {
+    const from = this.camera.position.clone(),
+      fromTarget = this.controls.target.clone(),
+      fromUp = this.camera.up.clone();
+    this.cameraTransition = undefined;
+    this.mode = mode;
+    this.setPaused(false);
+    if (mode === 'explore') await this.play();
+    else {
+      this.stop();
+      this.select(mode === 'edit' ? this.selectedId : undefined);
+    }
+    if (this.disposed || this.mode !== mode) return;
+    const grid = this.content.getObjectByName('editor-grid');
+    if (grid) grid.visible = mode === 'edit' && this.spec.mode === 'industrial';
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches && mode !== 'edit') {
+      this.cameraTransition = {
+        start: performance.now(),
+        from,
+        fromTarget,
+        fromUp,
+        to: this.camera.position.clone(),
+        toTarget: this.controls.target.clone(),
+        toUp: this.camera.up.clone(),
+      };
+    }
+  }
+  setPaused(paused: boolean) {
+    this.paused = paused;
+    this.keys.clear();
+    this.movement = { x: 0, y: 0, jump: false };
+    this.controls.enabled = !paused;
+    this.last = 0;
+  }
+  setSuspended(suspended: boolean) {
+    if (this.disposed) return;
+    this.last = 0;
+    this.renderer.setAnimationLoop(suspended ? null : this.frame);
+  }
+  setMovement(input: { x: number; y: number; jump: boolean }) {
+    this.movement = {
+      x: Number.isFinite(input.x) ? THREE.MathUtils.clamp(input.x, -1, 1) : 0,
+      y: Number.isFinite(input.y) ? THREE.MathUtils.clamp(input.y, -1, 1) : 0,
+      jump: !!input.jump,
+    };
+  }
+  setQuality(quality: RenderQuality) {
+    this.quality = quality;
+    const settings = { low: [1, 512], balanced: [1.5, 1024], high: [2, 2048] }[quality];
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, settings[0]));
+    this.content.traverse((object) => {
+      if (object instanceof THREE.DirectionalLight && object.castShadow) {
+        object.shadow.mapSize.set(settings[1], settings[1]);
+        object.shadow.map?.dispose();
+        object.shadow.map = null;
+      }
+    });
+    this.resize();
+  }
   load(spec: SceneSpec) {
     const loading = this.loadScene(spec);
     this.loadComplete = loading;
@@ -193,7 +270,8 @@ export class StudioRuntime {
     sun.target.position.copy(target);
     this.content.add(sun.target);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    const resolution = { low: 512, balanced: 1024, high: 2048 }[this.quality];
+    sun.shadow.mapSize.set(resolution, resolution);
     sun.shadow.camera.left = -span;
     sun.shadow.camera.right = span;
     sun.shadow.camera.top = span;
@@ -212,7 +290,8 @@ export class StudioRuntime {
       '#202936',
     );
     grid.position.y = -0.43;
-    grid.visible = spec.mode === 'industrial';
+    grid.name = 'editor-grid';
+    grid.visible = spec.mode === 'industrial' && this.mode === 'edit';
     this.content.add(grid);
     if (!preserveView) this.resetCamera();
     else updateOrbitControls(this.controls);
@@ -317,6 +396,26 @@ export class StudioRuntime {
     if (this.disposed || version !== this.generation) return;
     this.content.updateMatrixWorld(true);
     this.setSection(false);
+    // Fit shadows to visible scene geometry, including millimetre-scale imports.
+    const bounds = new THREE.Box3();
+    for (const [id, object] of this.objects) {
+      if (this.spec.nodes.find((n) => n.id === id)?.kind !== 'light' && this.objectVisible(object))
+        bounds.expandByObject(object);
+    }
+    if (!bounds.isEmpty()) {
+      const center = bounds.getCenter(new THREE.Vector3()),
+        radius = Math.max(0.03, bounds.getSize(new THREE.Vector3()).length() / 2);
+      sun.position
+        .copy(center)
+        .add(new THREE.Vector3(0.5, 1, 0.4).normalize().multiplyScalar(radius * 2.5));
+      sun.target.position.copy(center);
+      sun.shadow.camera.left = sun.shadow.camera.bottom = -radius;
+      sun.shadow.camera.right = sun.shadow.camera.top = radius;
+      sun.shadow.camera.near = radius * 0.01;
+      sun.shadow.camera.far = radius * 5;
+      sun.shadow.normalBias = radius * 0.0005;
+      sun.shadow.camera.updateProjectionMatrix();
+    }
     this.metrics.loading = false;
     this.select(this.selectedId);
     this.callbacks.onReady?.();
@@ -337,7 +436,7 @@ export class StudioRuntime {
     }
     this.transform.detach();
     const object = id ? this.objects.get(id) : undefined;
-    if (object && !this.playing) {
+    if (object && !this.playing && this.mode === 'edit') {
       this.selector = new THREE.BoxHelper(object, '#d8bd8c');
       this.world.add(this.selector);
       if (!object.userData.isSplat) this.transform.attach(object);
@@ -465,6 +564,7 @@ export class StudioRuntime {
     }
   }
   stop() {
+    this.cameraTransition = undefined;
     this.playRequest++;
     this.animateJoints(false);
     this.playing = false;
@@ -491,10 +591,12 @@ export class StudioRuntime {
     this.story = initialStory();
   }
   interact(id?: string) {
+    if (this.mode === 'view' || this.paused) return;
     const target = id ? this.spec.nodes.find((n) => n.id === id) : this.nearest();
     if (!target?.interaction) return;
     if (this.playing && this.char && this.nodeDistance(target.id) > 2.6) return;
     this.interactUntil = performance.now() + 1200;
+    if (this.spec.actor && this.char) this.setActorClip(this.spec.actor.clips.interact);
     this.story = advanceStory(this.spec, this.story, target.id);
     if (this.playing) this.saves.save(this.spec, this.story);
     this.callbacks.onStory?.(this.story, target);
@@ -539,6 +641,9 @@ export class StudioRuntime {
   getDiagnostics(): RuntimeMetrics {
     return {
       ...this.metrics,
+      mode: this.mode,
+      paused: this.paused,
+      quality: this.quality,
       mechanism: this.spec.mechanism
         ? {
             ...harmonicState(
@@ -602,11 +707,12 @@ export class StudioRuntime {
   }
   private frame = (now: number) => {
     if (this.disposed) return;
-    const dt = this.last ? Math.min((now - this.last) / 1000, 0.05) : 1 / 60;
+    const dt = this.paused ? 0 : this.last ? Math.min((now - this.last) / 1000, 0.05) : 1 / 60;
     this.last = now;
     this.metricFrames++;
-    if (this.char) {
+    if (this.char && !this.paused) {
       this.char.keys = this.keys;
+      this.char.movement = this.movement;
       this.camera.getWorldDirection(this.char.cameraForward);
       const oldUp = this.char.up.clone();
       const previous = this.char.object.position.clone();
@@ -634,7 +740,7 @@ export class StudioRuntime {
       this.inputAngle += ((this.inputRpm * Math.PI * 2) / 60) * dt;
       this.applyMechanism(true);
     }
-    if (this.moving && !this.spec.mechanism)
+    if (this.moving && !this.spec.mechanism && !this.paused)
       for (const node of this.spec.nodes)
         if (node.joint) {
           const o = this.objects.get(node.id);
@@ -644,7 +750,16 @@ export class StudioRuntime {
               (node.joint.min + node.joint.max) / 2 +
               (Math.sin(now / 1300) * (node.joint.max - node.joint.min)) / 2;
         }
-    updateOrbitControls(this.controls);
+    if (this.cameraTransition && !this.paused) {
+      const t = THREE.MathUtils.clamp((now - this.cameraTransition.start) / 700, 0, 1),
+        eased = t * t * (3 - 2 * t),
+        transition = this.cameraTransition;
+      this.camera.position.lerpVectors(transition.from, transition.to, eased);
+      this.controls.target.lerpVectors(transition.fromTarget, transition.toTarget, eased);
+      this.camera.up.lerpVectors(transition.fromUp, transition.toUp, eased).normalize();
+      if (t === 1) this.cameraTransition = undefined;
+    }
+    if (!this.paused) updateOrbitControls(this.controls);
     this.selector?.update();
     this.renderer.render(this.world, this.camera);
     if (now - this.metricAt > 700) {
@@ -662,10 +777,13 @@ export class StudioRuntime {
     }
   };
   private pointerDown = (event: PointerEvent) => {
+    this.cameraTransition = undefined;
     this.dragStart = new THREE.Vector2(event.clientX, event.clientY);
   };
   private pointerUp = (event: PointerEvent) => {
     if (
+      this.mode === 'view' ||
+      this.paused ||
       !this.dragStart ||
       this.dragStart.distanceTo(new THREE.Vector2(event.clientX, event.clientY)) > 5 ||
       this.transform.dragging
@@ -693,6 +811,7 @@ export class StudioRuntime {
     }
   };
   private keyDown = (event: KeyboardEvent) => {
+    if (this.paused || this.mode === 'view') return;
     const el = event.target as HTMLElement;
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable) return;
     if (
@@ -706,7 +825,10 @@ export class StudioRuntime {
   private keyUp = (event: KeyboardEvent) => {
     this.keys.delete(event.code);
   };
-  private blur = () => this.keys.clear();
+  private blur = () => {
+    this.keys.clear();
+    this.setMovement({ x: 0, y: 0, jump: false });
+  };
   resetProgress() {
     this.saves.reset(this.spec);
     this.story = initialStory();

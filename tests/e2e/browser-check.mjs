@@ -141,7 +141,7 @@ try {
       'little-prince-earth',
     ].sort(),
   );
-  await page.goto('http://127.0.0.1:3133/');
+  await page.goto('http://127.0.0.1:3133/?edit=1');
   await page.waitForFunction(
     () =>
       window.virtualworld?.spec.id === 'demo-harmonic-joint' &&
@@ -176,7 +176,7 @@ try {
     'Product catalog contains only H-100 and three Prince chapters; retained navigation loads both experiences',
   );
   await seedFixtures('http://127.0.0.1:3133');
-  await page.goto('http://127.0.0.1:3133/?project=test-industrial');
+  await page.goto('http://127.0.0.1:3133/?project=test-industrial&edit=1');
   await page.getByRole('button', { name: '导出网页', exact: true }).waitFor();
   await ready();
   await page.screenshot({ path: join(output, 'industrial.png') });
@@ -557,7 +557,7 @@ try {
   await seedFixtures('http://127.0.0.1:3136');
   const aiPage = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   aiPage.on('pageerror', (e) => report.errors.push(e.message));
-  await aiPage.goto('http://127.0.0.1:3136/?project=test-industrial');
+  await aiPage.goto('http://127.0.0.1:3136/?project=test-industrial&edit=1');
   await aiPage.waitForFunction(
     () => window.virtualworld && !window.virtualworld.getDiagnostics().loading,
   );
