@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { harmonicState } from './mechanism';
+import { harmonicState, MechanismController, type MechanismState } from './mechanism';
+export type MechanismViewState = MechanismState & {
+  section: boolean;
+  explosion: number;
+  hiddenSubsystems: string[];
+  isolatedSubsystem?: string;
+};
 import { updateOrbitControls } from './sphere-camera';
 import { sphereOccludes } from '@virtualworld/interaction';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -25,7 +31,7 @@ export type RuntimeMetrics = {
   mode?: PresentationMode;
   paused?: boolean;
   quality?: RenderQuality;
-  mechanism?: ReturnType<typeof harmonicState> & { section: boolean };
+  mechanism?: MechanismViewState;
   radialUp?: number[];
   actorClip?: string;
   fps: number;
@@ -81,6 +87,11 @@ export class StudioRuntime {
   private inputAngle = 0;
   private inputRpm = 6;
   private section = false;
+  private mechanismController?: MechanismController;
+  private mechanismListeners = new Set<(state: MechanismViewState) => void>();
+  private hiddenSubsystems = new Set<string>();
+  private isolatedSubsystem?: string;
+  private mechanismView: 'default' | 'front' | 'side' | 'top' = 'default';
   private isolatedId?: string;
   private mixers: THREE.AnimationMixer[] = [];
   private actorSource?: THREE.Object3D;
@@ -194,6 +205,7 @@ export class StudioRuntime {
   }
   setPaused(paused: boolean) {
     this.paused = paused;
+    this.mechanismController?.tick(0, paused);
     this.keys.clear();
     this.movement = { x: 0, y: 0, jump: false };
     this.controls.enabled = !paused;
@@ -242,6 +254,23 @@ export class StudioRuntime {
     this.stop();
     this.transform.detach();
     this.clearContent();
+    this.mechanismController?.dispose();
+    this.hiddenSubsystems.clear();
+    this.isolatedSubsystem = undefined;
+    this.explosion = 0;
+    this.inputRpm = 6;
+    this.mechanismController = spec.mechanism
+      ? new MechanismController({
+          ...spec.mechanism,
+          hasBrake: !!spec.mechanism.subsystems?.some((s) => s.optional === 'brake'),
+        })
+      : undefined;
+    this.mechanismController?.subscribe((state) => {
+      this.inputAngle = state.inputAngle;
+      this.inputRpm = state.inputRpm;
+      this.applyMechanism(true);
+      this.notifyMechanism();
+    });
     this.metrics = {
       ...this.metrics,
       loading: true,
@@ -470,6 +499,8 @@ export class StudioRuntime {
     updateOrbitControls(this.controls);
   }
   explode(amount: number) {
+    if (!Number.isFinite(amount)) return;
+    amount = THREE.MathUtils.clamp(amount, 0, 1);
     this.explosion = amount;
     for (const n of this.spec.nodes) {
       const o = this.objects.get(n.id);
@@ -480,8 +511,13 @@ export class StudioRuntime {
           n.position[2] + (n.explode?.[2] || 0) * amount,
         );
     }
+    this.notifyMechanism();
   }
   animateJoints(enabled: boolean) {
+    if (this.spec.mechanism) {
+      this.mechanismController?.setMoving(enabled);
+      return;
+    }
     this.moving = enabled;
     if (!enabled) {
       this.inputAngle = 0;
@@ -644,17 +680,7 @@ export class StudioRuntime {
       mode: this.mode,
       paused: this.paused,
       quality: this.quality,
-      mechanism: this.spec.mechanism
-        ? {
-            ...harmonicState(
-              this.inputAngle,
-              this.inputRpm,
-              this.spec.mechanism.flexTeeth,
-              this.spec.mechanism.ringTeeth,
-            ),
-            section: this.section,
-          }
-        : undefined,
+      mechanism: this.spec.mechanism ? this.getMechanismState() : undefined,
       radialUp: this.char?.up.toArray(),
       actorClip: this.actorAction?.getClip().name,
       player: this.char?.object.position.toArray(),
@@ -736,10 +762,7 @@ export class StudioRuntime {
     }
     this.mixers.forEach((m) => m.update(dt));
     this.actorMixer?.update(dt);
-    if (this.moving && this.spec.mechanism) {
-      this.inputAngle += ((this.inputRpm * Math.PI * 2) / 60) * dt;
-      this.applyMechanism(true);
-    }
+    this.mechanismController?.tick(dt, this.paused);
     if (this.moving && !this.spec.mechanism && !this.paused)
       for (const node of this.spec.nodes)
         if (node.joint) {
@@ -845,11 +868,50 @@ export class StudioRuntime {
     this.actorAction = action;
   }
   setTransmissionSpeed(inputRpm: number) {
-    if (Number.isFinite(inputRpm)) this.inputRpm = THREE.MathUtils.clamp(inputRpm, -120, 120);
+    this.mechanismController?.setSpeed(inputRpm);
   }
   setSection(enabled: boolean) {
     this.section = enabled;
     this.isolate(this.isolatedId);
+    this.notifyMechanism();
+  }
+  getMechanismState(): MechanismViewState | undefined {
+    const state = this.mechanismController?.snapshot();
+    return state
+      ? {
+          ...state,
+          section: this.section,
+          explosion: this.explosion,
+          hiddenSubsystems: [...this.hiddenSubsystems],
+          isolatedSubsystem: this.isolatedSubsystem,
+        }
+      : undefined;
+  }
+  subscribeMechanism(listener: (state: MechanismViewState) => void) {
+    this.mechanismListeners.add(listener);
+    const state = this.getMechanismState();
+    if (state) listener(state);
+    return () => {
+      this.mechanismListeners.delete(listener);
+    };
+  }
+  private notifyMechanism() {
+    const state = this.getMechanismState();
+    if (state) this.mechanismListeners.forEach((listener) => listener(state));
+  }
+  resetMechanismMotion() {
+    this.mechanismController?.resetMotion();
+  }
+  stepMechanism(radians: number) {
+    this.mechanismController?.step(radians);
+  }
+  setBrakeInstalled(installed: boolean) {
+    this.mechanismController?.setBrakeInstalled(installed);
+    this.isolate(this.isolatedId);
+    this.notifyMechanism();
+  }
+  setBrakePowered(powered: boolean) {
+    this.mechanismController?.setBrakePowered(powered);
   }
   private applyMechanism(deform: boolean) {
     const m = this.spec.mechanism;
@@ -902,6 +964,8 @@ export class StudioRuntime {
   }
   dispose() {
     this.disposed = true;
+    this.mechanismController?.dispose();
+    this.mechanismListeners.clear();
     this.generation++;
     this.stop();
     this.renderer.setAnimationLoop(null);
