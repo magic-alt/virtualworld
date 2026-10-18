@@ -18,8 +18,10 @@ export type GenerateOptions = WorldInput & {
   signal?: AbortSignal;
   taskId?: string;
   taskNodeId?: string;
+  onPhase?: (phase: 'planning' | 'assets' | 'validating') => void | Promise<void>;
 };
 export async function generateWorld(options: GenerateOptions) {
+  await options.onPhase?.('planning');
   const root = resolve(options.root),
     assetRoot = join(root, 'assets');
   SceneSchema.shape.id.parse(options.id);
@@ -147,6 +149,7 @@ export async function generateWorld(options: GenerateOptions) {
   }
   const scene = plan.scene,
     assets: unknown[] = [];
+  await options.onPhase?.('assets');
   if (options.taskId && plan.assetRequests.length > 1 && !options.taskNodeId)
     throw new Error('Multiple asset requests: specify --task-node together with --task-id');
   if (options.taskNodeId && !plan.assetRequests.some((r) => r.nodeId === options.taskNodeId))
@@ -238,6 +241,7 @@ export async function generateWorld(options: GenerateOptions) {
       assets.push({ id: asset.id, manifest: `assets/manifests/generated/${buildHash}.json` });
     }
   }
+  await options.onPhase?.('validating');
   const compiled = assertScene(scene);
   const directory = await writeWorld(join(root, 'worlds'), compiled);
   const manifest = inside(assetRoot, `manifests/worlds/${options.id}.json`);

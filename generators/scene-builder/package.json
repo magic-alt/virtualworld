@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./io": "./src/io.ts",
+    "./generate": "./src/generate.ts",
     "./pipeline": "./src/pipeline.ts",
     "./asset-library": "./src/asset-library.ts"
   },

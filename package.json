@@ -19,7 +19,7 @@
     "start": "tsx apps/web/server/index.ts",
     "test": "vitest run",
     "check": "tsc --noEmit",
-    "test:browser": "node tests/e2e/browser-check.mjs",
+    "test:browser": "node tests/e2e/browser-check.mjs && node --import tsx tests/e2e/world-experience-check.mjs",
     "test:showcases": "node tests/e2e/showcases-check.mjs",
     "fixtures": "tsx scripts/fixtures.ts",
     "notices": "tsx scripts/notices.ts",

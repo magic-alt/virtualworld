@@ -76,6 +76,18 @@ it('keeps chapters playable within a session when browser storage is denied', ()
   expect(() => progress.select('second')).not.toThrow();
   progress.reset();
 });
+it('retains saved chapter revisions across selection and reset, including edited story validation', () => {
+  const { manifest, scenes, storage } = fixture();
+  const progress = new CampaignProgress(manifest, scenes, storage);
+  finish(scenes[0], new SaveSystem(storage));
+  const edited = { ...scenes[0], name: 'Saved chapter', revision: 4 };
+  progress.updateScene(edited);
+  progress.select('second');
+  expect(progress.select('first').revision).toBe(4);
+  progress.reset();
+  expect(progress.select('first').name).toBe('Saved chapter');
+  expect(() => progress.updateScene({ ...edited, id: 'unknown' })).toThrow(/unknown/);
+});
 it('prefers session selection after quota failure and resets even when stored data cannot be removed', () => {
   const { manifest, scenes, storage } = fixture();
   const saves = new SaveSystem(storage),

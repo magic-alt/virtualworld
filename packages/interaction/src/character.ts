@@ -11,6 +11,7 @@ export class CharacterController {
   controller: RAPIER.KinematicCharacterController;
   object: THREE.Object3D = character('#d6b7e7');
   keys = new Set<string>();
+  movement = { x: 0, y: 0, jump: false };
   readonly up = new THREE.Vector3(0, 1, 0);
   cameraForward = new THREE.Vector3(0, 0, -1);
   moving = false;
@@ -118,10 +119,12 @@ export class CharacterController {
     this.time += dt;
     const forward =
       (this.keys.has('KeyS') || this.keys.has('ArrowDown') ? 1 : 0) -
-      (this.keys.has('KeyW') || this.keys.has('ArrowUp') ? 1 : 0);
+      (this.keys.has('KeyW') || this.keys.has('ArrowUp') ? 1 : 0) +
+      this.movement.y;
     const right =
       (this.keys.has('KeyD') || this.keys.has('ArrowRight') ? 1 : 0) -
-      (this.keys.has('KeyA') || this.keys.has('ArrowLeft') ? 1 : 0);
+      (this.keys.has('KeyA') || this.keys.has('ArrowLeft') ? 1 : 0) +
+      this.movement.x;
     if (this.center)
       this.up.copy(radialUp(new THREE.Vector3().copy(this.body.translation()), this.center));
     const direction = this.center
@@ -136,10 +139,10 @@ export class CharacterController {
         new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.up),
         true,
       );
-    if (direction.lengthSq()) direction.normalize();
+    if (direction.lengthSq() > 1) direction.normalize();
     const grounded = this.controller.computedGrounded();
     if (grounded && this.velocityY < 0) this.velocityY = -0.1;
-    const jumping = this.keys.has('Space');
+    const jumping = this.keys.has('Space') || this.movement.jump;
     if (jumping && !this.jumpHeld && grounded) this.velocityY = 5.2;
     this.jumpHeld = jumping;
     this.velocityY -= 14 * dt;

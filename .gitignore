@@ -1,6 +1,7 @@
 node_modules/
 dist/
 data/
+worlds/world-*/
 .env
 .npm-cache/
 output/
