@@ -143,6 +143,20 @@ export const SceneSchema = z
     mechanism: z
       .object({
         kind: z.literal('harmonic'),
+        subsystems: z
+          .array(
+            z
+              .object({
+                id: identifier,
+                name: z.string().min(1).max(100),
+                description: z.string().min(1).max(2000),
+                nodeIds: z.array(identifier).min(1),
+                optional: z.literal('brake').optional(),
+              })
+              .strict(),
+          )
+          .optional(),
+        referenceNotes: z.string().max(6000).optional(),
         waveNodeId: identifier,
         flexNodeId: identifier,
         outputNodeId: identifier,
@@ -218,6 +232,17 @@ export function validateScene(input: unknown): string[] {
   if (scene.campaign && scene.campaign.chapterId !== scene.id) errors.push('章节 ID 与场景不一致');
   if (scene.mechanism) {
     const m = scene.mechanism;
+    const subsystemIds = new Set<string>(),
+      members = new Set<string>();
+    for (const subsystem of m.subsystems ?? []) {
+      if (subsystemIds.has(subsystem.id)) errors.push(`机构子系统 ID 重复: ${subsystem.id}`);
+      subsystemIds.add(subsystem.id);
+      for (const id of subsystem.nodeIds) {
+        if (!nodes.has(id)) errors.push(`机构子系统节点不存在: ${id}`);
+        if (members.has(id)) errors.push(`机构子系统成员重复: ${id}`);
+        members.add(id);
+      }
+    }
     for (const id of [
       m.waveNodeId,
       m.flexNodeId,
