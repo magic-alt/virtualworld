@@ -12,7 +12,10 @@ const executablePath =
     'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
     'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
   ].find(existsSync);
-const browser = await chromium.launch({ executablePath, headless: true });
+const browser = await chromium.launch({
+  executablePath,
+  headless: process.env.H100_HEADED !== '1',
+});
 mkdirSync('output/playwright/h100', { recursive: true });
 const results = [],
   errors = [],
@@ -99,7 +102,7 @@ async function exercise(page, name) {
   await page.waitForTimeout(200);
   assert.equal((await state(page)).explosion, 1);
   await page.screenshot({ path: `output/playwright/h100/${name}-exploded.png` });
-  for (const view of ['正视', '侧视', '顶视', '默认视角', '适配当前模型'])
+  for (const view of ['正视', '侧视', '顶视', '底视', '默认视角', '适配当前模型'])
     await page.getByRole('button', { name: view, exact: true }).click();
   for (const title of [
     '壳体与安装',
@@ -199,6 +202,40 @@ try {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(`${origin}/?project=demo-harmonic-joint`);
   await ready(page);
+  const exposed = await page.evaluate(() => {
+    const r = window.virtualworld,
+      object = r.objects.get('harmonic-housing-full');
+    let shellTop = -Infinity,
+      shellBottom = Infinity;
+    object.traverse((child) => {
+      if (child.isMesh) {
+        child.geometry.computeBoundingBox();
+        shellTop = Math.max(shellTop, child.geometry.boundingBox.max.y);
+        shellBottom = Math.min(shellBottom, child.geometry.boundingBox.min.y);
+      }
+    });
+    return {
+      shellTop,
+      shellBottom,
+      fullShellVisible: object.visible,
+      pillars: r.objects.get('harmonic-reducer-mount-pillars-4')?.visible,
+      bridges: r.objects.get('harmonic-output-bearing-bridges-4')?.visible,
+    };
+  });
+  assert.ok(Math.abs(exposed.shellTop - 0.106) < 1e-6);
+  assert.ok(Math.abs(exposed.shellBottom - 0.042) < 1e-6);
+  assert.equal(exposed.fullShellVisible, true);
+  assert.equal(exposed.pillars, true);
+  assert.equal(exposed.bridges, true);
+  await page.getByRole('button', { name: '顶视', exact: true }).click();
+  await page.screenshot({ path: 'output/playwright/h100/open-output-top.png' });
+  await page.getByRole('button', { name: '底视', exact: true }).click();
+  await page.screenshot({ path: 'output/playwright/h100/open-output-bottom.png' });
+  await page.getByRole('button', { name: '默认视角', exact: true }).click();
+  await page.screenshot({ path: 'output/playwright/h100/open-output-assembled.png' });
+  check(
+    'assembled reducer/output is exposed below the motor-only shell, with real support bays and inspection openings',
+  );
   await page.getByRole('button', { name: '全屏显示', exact: true }).click();
   await page.waitForFunction(() => !!document.fullscreenElement);
   assert.equal(

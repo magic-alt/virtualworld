@@ -76,6 +76,25 @@ holes=build_assembly(P,ring,box,combine,parts,materials)
 for ob in parts:
     bpy.ops.object.select_all(action='DESELECT');ob.select_set(True);bpy.context.view_layer.objects.active=ob
     bpy.ops.object.transform_apply(location=True,rotation=True,scale=True);ob.select_set(False)
+# Publish the requested output-down, drive-up frame as actual geometry, not a camera trick.
+# Proper 180-degree rotation about the XY diagonal preserves winding and cutaway quadrant.
+height=P['totalHeight']
+for ob in parts:
+    def frame(co):
+        x,y,z=co
+        return Vector((x,y,z+.0922)) if ob['subsystem']=='drive' else Vector((y,x,height-z))
+    if ob.data.shape_keys:
+        for key in ob.data.shape_keys.key_blocks:
+            for vertex in key.data:vertex.co=frame(vertex.co.copy())
+        basis=ob.data.shape_keys.key_blocks['Basis']
+        sine=ob.data.shape_keys.key_blocks['WaveSin']
+        # Axial frame reversal reverses local phase handedness; input remains positive world Y.
+        for i,vertex in enumerate(sine.data):vertex.co=2*basis.data[i].co-vertex.co
+        for i,vertex in enumerate(ob.data.vertices):vertex.co=basis.data[i].co
+    else:
+        for vertex in ob.data.vertices:vertex.co=frame(vertex.co.copy())
+for hole in holes:
+    x,y,z=hole['center'];hole['center']=[-z,height-y,-x]
 # Recalculate normals for the custom ring topology.
 for ob in parts:
     bpy.context.view_layer.objects.active=ob;ob.select_set(True)
@@ -94,7 +113,8 @@ checks=[]
 def check(name,actual,expected,tol=1e-6):checks.append({'name':name,'actual':actual,'expected':expected,'tolerance':tol,'pass':abs(actual-expected)<=tol})
 check('base diameter',bounds_data['base-flange'][1][0]-bounds_data['base-flange'][0][0],P['baseDiameter'])
 check('housing diameter',bounds_data['housing-full'][1][0]-bounds_data['housing-full'][0][0],P['housingDiameter'])
-check('flange top',bounds_data['output-flange'][1][2],P['totalHeight'])
+check('top fixed mounting ring',bounds_data['base-flange'][1][2],P['totalHeight'])
+check('bottom output face',bounds_data['output-flange'][0][2],0)
 check('through bore minimum radius',minimum_bore,P['boreDiameter']/2,2e-7)
 def radial_edge_min(ob):
     result=math.inf
@@ -107,10 +127,10 @@ def radial_edge_min(ob):
 def radial_vertices(name):
     return [math.hypot(v.co.x,v.co.y) for v in bpy.data.objects[name].data.vertices]
 check('radial motor air gap',radial_edge_min(bpy.data.objects['stator-teeth-18'])-max(radial_vertices('rotor-magnets-north')),P['airGap'],2e-7)
-check('cup to input support axial clearance',bounds_data['flex-cup'][0][2]-bounds_data['upper-bearing-support-plate'][1][2],.001)
+check('cup to input support axial clearance',bounds_data['upper-bearing-support-plate'][0][2]-bounds_data['flex-cup'][1][2],.001)
 check('output neck to input shaft radial clearance',min(radial_vertices('output-neck'))-max(radial_vertices('hollow-input-shaft')),.001)
-diaphragm_bottom=min(v.co.z for v in bpy.data.objects['flex-cup'].data.vertices if v.co.z>.085)
-check('wave bearing to diaphragm axial clearance',diaphragm_bottom-bounds_data['wave-bearing-outer-race'][1][2],.002)
+diaphragm_top=max(v.co.z for v in bpy.data.objects['flex-cup'].data.vertices if v.co.z<.025)
+check('wave bearing to diaphragm axial clearance',bounds_data['wave-bearing-outer-race'][0][2]-diaphragm_top,.002)
 assert all(c['pass'] for c in checks),checks
 SRC.mkdir(parents=True,exist_ok=True);OUT.parent.mkdir(parents=True,exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=str(SRC/'harmonic-joint.blend'))
@@ -160,6 +180,7 @@ for section,angle in [(s,a) for s in [False,True] for a in [0,math.pi/4,math.pi/
 report['references']=P['references']
 report['reconstruction']='original illustrative compact assembly, not vendor internal CAD; ideal permanent magnet brake, schematic PCB, no engineering confirmation'
 report['axialZones']=P['axialZones']
+report['outputExposure']=P['outputExposure']
 report['interference']=interference
 if interference['unexpected']:
     failure=ROOT/'output/harmonic-build-failure.json';failure.parent.mkdir(parents=True,exist_ok=True)

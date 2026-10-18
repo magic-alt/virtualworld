@@ -437,10 +437,11 @@ try {
   );
   await profile(page, 'harmonic');
   await page.getByRole('button', { name: '停止运动', exact: true }).click();
+  await page.evaluate(() => window.virtualworld.fitMechanismView('bottom'));
   const screen = await page.evaluate(() => {
     const r = window.virtualworld,
       o = r.objects.get('harmonic-output-flange'),
-      p = r.camera.position.clone().set(0.02, r.spec.mechanism.dimensions.totalHeight - 0.0001, 0);
+      p = r.camera.position.clone().set(0.031, 0.0001, 0);
     o.localToWorld(p);
     p.project(r.camera);
     const b = r.renderer.domElement.getBoundingClientRect();

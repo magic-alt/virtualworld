@@ -8,9 +8,10 @@ from mathutils import Vector
 
 def build_assembly(p, ring, box, combine, parts, materials):
     tau = math.tau
-    def array_boxes(name, count, radius, height, size, mat, parent='fixed', phase=0):
+    def array_boxes(name, count, radius, height, size, mat, parent='fixed', phase=0, omit_cutaway=False):
         obs=[]
         for i in range(count):
+            if omit_cutaway and i==0:continue
             a=tau*i/count+phase
             obs.append(box(name+'-element',(radius*math.cos(a),radius*math.sin(a),height),size,mat,parent,a))
         return combine(name,obs)
@@ -29,11 +30,14 @@ def build_assembly(p, ring, box, combine, parts, materials):
         ob['sectionOf']=name
         return ob
     bore=p['boreDiameter']/2
-    base=ring('base-flange',bore,.055,0,.004,'anodized-graphite')
+    base=ring('base-flange',.045,.055,0,.004,'anodized-graphite')
     holes=through_holes(base,.0022,.052,.002,8,.014)
-    ring('housing-full',.048,.050,.004,.103,'anodized-graphite')
-    ob=section('housing',.048,.050,.004,.103,'anodized-graphite');ob.name='housing-section';ob['sectionOf']='housing-full'
+    # The cylindrical cover belongs to the motor, never encloses the reducer/output.
+    shell_top=p['outputExposure']['motorHousingTop']
+    ring('housing-full',.048,.050,.004,shell_top,'anodized-graphite')
+    ob=section('housing',.048,.050,.004,shell_top,'anodized-graphite');ob.name='housing-section';ob['sectionOf']='housing-full'
     # Fixed rear drive support; real annular PCB and separated functional regions.
+    ring('drive-support-ring',.038,.048,.0033,.004,'machined-aluminium')
     ring('drive-board',.016,.044,.006,.0076,'encoder-pcb')
     array_boxes('drive-standoffs',4,.042,.005,(.003,.003,.002),'machined-aluminium',phase=.3)
     array_boxes('drive-power-stage',6,.023,.0092,(.005,.003,.003),'seal',phase=.2)
@@ -108,6 +112,9 @@ def build_assembly(p, ring, box, combine, parts, materials):
             dr=p['morphAmplitude']*math.cos(2*a-phase)*t
             if r: key.data[i].co.x=x+dr*x/r;key.data[i].co.y=y+dr*y/r
     ring('fixed-circular-spline-202',.0273,.048,.075,.086,'machined-aluminium',n=808,teeth=202,inward=True,bevel=0)
+    # Open mounting bays expose the reducer; fixed pillars replace the enclosing sleeve.
+    array_boxes('reducer-mount-pillars-4',4,.046,(shell_top+.075)/2,(.003,.004,.075-shell_top),'machined-aluminium',phase=math.pi/4)
+    ob=array_boxes('reducer-mount-pillars-4-section',4,.046,(shell_top+.075)/2,(.003,.004,.075-shell_top),'machined-aluminium',phase=math.pi/4,omit_cutaway=True);ob['sectionOf']='reducer-mount-pillars-4'
     for name,ri,ro,z0,z1,mat in [('elliptical-wave-cam',.012,.025,.076,.083,'gold'),('wave-bearing-inner-race',.025,.0252,.076,.083,'bearing-steel'),('wave-bearing-outer-race',.0257,.026,.075,.084,'bearing-steel')]:
         ob=ring(name,ri,ro,z0,z1,mat,'input',bevel=0)
         for v in ob.data.vertices:
@@ -127,8 +134,10 @@ def build_assembly(p, ring, box, combine, parts, materials):
     ring('output-encoder-code-ring',.013,.030,.0883,.0891,'gold','output')
     box('output-encoder-readhead',(.032,0,.087975),(.008,.004,.00035),'seal')
     ring('output-encoder-seat',.045,.048,.086,.0865,'machined-aluminium')
+    array_boxes('output-bearing-bridges-4',4,.047,.08825,(.0016,.003,.0035),'machined-aluminium',phase=math.pi/4)
+    ob=array_boxes('output-bearing-bridges-4-section',4,.047,.08825,(.0016,.003,.0035),'machined-aluminium',phase=math.pi/4,omit_cutaway=True);ob['sectionOf']='output-bearing-bridges-4'
     array_boxes('output-encoder-code-marks',64,.028,.0892,(.0015,.00025,.0002),'seal','output')
-    ring('output-bearing-carrier',.017,.033,.100,.103,'machined-aluminium','output')
+    output_carrier=ring('output-bearing-carrier',.017,.033,.100,.103,'machined-aluminium','output')
     ring('crossroller-inner-race',.028,.034,.090,.100,'bearing-steel','output')
     ring('crossroller-outer-race',.038,.048,.090,.100,'bearing-steel')
     rollers=[]
@@ -141,6 +150,19 @@ def build_assembly(p, ring, box, combine, parts, materials):
     combine('crossrollers-32-alternating-45deg',rollers)
     ring('outer-bearing-retainer',.040,.048,.100,.103,'anodized-graphite')
     flange=ring('output-flange',bore,.033,.103,p['totalHeight'],'machined-aluminium','output')
+    # Real inspection openings in both rotating plates, between the mounting holes.
+    # The flexspline diaphragm and annular hub/rim remain intact torque-path members.
+    windows=p['outputExposure']['inspectionWindows']
+    for i in range(windows['count']):
+        a=tau*i/windows['count']+.07+math.pi/8;r=windows['pitchRadius']
+        bpy.ops.mesh.primitive_cube_add(size=1,location=(r*math.cos(a),r*math.sin(a),.105))
+        cut=bpy.context.object;cut.dimensions=(windows['radialSize'],windows['tangentialSize'],.016)
+        cut.rotation_euler.z=a;bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+        for target in [output_carrier,flange]:
+            bpy.context.view_layer.objects.active=target
+            mod=target.modifiers.new('Open reducer-end inspection window','BOOLEAN');mod.operation='DIFFERENCE';mod.object=cut
+            bpy.ops.object.modifier_apply(modifier=mod.name)
+        bpy.data.objects.remove(cut,do_unlink=True)
     through_holes(flange,.00165,.025,.1065,8,.02)
     bolts=[]
     for i in range(8):
@@ -173,7 +195,7 @@ def build_assembly(p, ring, box, combine, parts, materials):
         elif name.startswith('drive-'): subsystem='drive'
         elif 'encoder' in name: subsystem='encoders'
         elif any(word in name for word in ['stator','rotor','winding','coil-former']): subsystem='motor'
-        elif any(word in name for word in ['flex-cup','wave-','circular-spline','input-shaft','input-bearing','bearing-seat','bearing-support','bearing-balls']): subsystem='reducer'
+        elif any(word in name for word in ['reducer-','flex-cup','wave-','circular-spline','input-shaft','input-bearing','bearing-seat','bearing-support','bearing-balls']): subsystem='reducer'
         elif any(word in name for word in ['output','crossroller','retainer']): subsystem='output'
         else: subsystem='housing'
         ob['subsystem']=subsystem

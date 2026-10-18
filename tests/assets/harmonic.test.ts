@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
+import { harmonicState } from '../../packages/engine/src/mechanism';
 const root = new URL('../../', import.meta.url);
 const json = (p: string) => JSON.parse(readFileSync(new URL(p, root), 'utf8'));
 it('retains verified SI dimensions, explicit engineering limits and 200/202 tooth kinematics', () => {
@@ -99,6 +100,47 @@ function assetData() {
       d.meshes.find((m: { name: string }) => m.name === name).primitives[0],
   };
 }
+it('ends both motor shell variants before the exposed reducer instead of enclosing the output assembly', () => {
+  const { accessor, primitive } = assetData();
+  for (const name of ['housing-full', 'housing-section']) {
+    const points = accessor(primitive(name).attributes.POSITION);
+    expect(Math.max(...points.map((p) => p[1]))).toBeCloseTo(0.106, 6);
+  }
+  const report = json('assets/manifests/showcase/harmonic-joint.json');
+  for (const name of ['reducer-mount-pillars-4', 'output-bearing-bridges-4'])
+    expect(
+      report.parts.some(
+        (p: { name: string; assembly: string }) => p.name === name && p.assembly === 'fixed',
+      ),
+    ).toBe(true);
+});
+it('leaves eight actual axial inspection openings through the output flange and carrier', () => {
+  const { accessor, primitive } = assetData();
+  for (const name of ['output-flange', 'output-bearing-carrier']) {
+    const part = primitive(name),
+      positions = accessor(part.attributes.POSITION),
+      indices = accessor(part.indices).flat();
+    const hits = (x: number, z: number) => {
+      for (let j = 0; j < indices.length; j += 3) {
+        const [a, b, c] = indices.slice(j, j + 3).map((i) => positions[i]);
+        const cross = (u: number[], v: number[]) =>
+          (v[0] - u[0]) * (z - u[2]) - (v[2] - u[2]) * (x - u[0]);
+        const area = (b[0] - a[0]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[0] - a[0]);
+        if (Math.abs(area) < 1e-14) continue;
+        if ([cross(a, b), cross(b, c), cross(c, a)].every((s) => s / area >= -1e-8)) return true;
+      }
+      return false;
+    };
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * Math.PI) / 4 + 0.07 + Math.PI / 8;
+      expect(
+        hits(0.02 * Math.sin(angle), -0.02 * Math.cos(angle)),
+        `${name} inspection opening ${i}`,
+      ).toBe(false);
+    }
+    expect(hits(0.031, 0), `${name} retains the outer load path`).toBe(true);
+  }
+});
 it('measures compact Y-up positions, exact tooth counts and 0.3mm radial morph amplitude', () => {
   const { d, accessor, primitive } = assetData();
   const base = accessor(primitive('base-flange').attributes.POSITION);
@@ -107,7 +149,7 @@ it('measures compact Y-up positions, exact tooth counts and 0.3mm radial morph a
     6,
   );
   expect(
-    Math.max(...accessor(primitive('output-flange').attributes.POSITION).map((p) => p[1])),
+    Math.max(...accessor(primitive('base-flange').attributes.POSITION).map((p) => p[1])),
   ).toBeCloseTo(0.11, 6);
   for (const [name, threshold, count, inside] of [
     ['flex-cup', 0.02694, 200, false],
@@ -170,7 +212,7 @@ it('contains eight real through holes rather than painted or capped circles', ()
   };
   for (const hole of json('assets/manifests/showcase/harmonic-joint.json').mountingHoles)
     expect(hits(hole.center[0], hole.center[2])).toBe(false);
-  expect(hits(0.04, 0)).toBe(true);
+  expect(hits(0.048, 0)).toBe(true);
   expect(hits(0, 0)).toBe(false);
 });
 it('contains drive electronics, independently mounted dual encoders and an optional permanent magnet brake', () => {
@@ -237,4 +279,63 @@ it('assembles through the public validated world pipeline', () => {
   expect(scene.assets[0].bytes).toBe(
     readFileSync(new URL('assets/optimized/showcase/harmonic-joint.glb', root)).length,
   );
+});
+
+it('orders actual serialized geometry from bottom reducer to motor, optional brake and top driver', () => {
+  const { accessor, primitive } = assetData();
+  const range = (name: string) => {
+    const ys = accessor(primitive(name).attributes.POSITION).map((p) => p[1]);
+    return [Math.min(...ys), Math.max(...ys)];
+  };
+  const output = range('output-flange'),
+    reducer = range('fixed-circular-spline-202'),
+    motor = range('stator-back-iron'),
+    brake = range('brake-yoke'),
+    board = range('drive-board'),
+    components = range('drive-bus-capacitors');
+  expect(output[0]).toBeCloseTo(0, 6);
+  expect(output[1]).toBeLessThan(reducer[0]);
+  expect(reducer[1]).toBeLessThan(motor[0]);
+  expect(motor[1]).toBeLessThan(brake[0]);
+  expect(brake[1]).toBeLessThan(board[0]);
+  expect(components[0]).toBeGreaterThanOrEqual(board[1] - 1e-7);
+  const scene = json('worlds/demo-harmonic-joint/scene.json');
+  const offset = (name: string) =>
+    scene.nodes.find((n: { id: string }) => n.id === 'harmonic-' + name).explode[1];
+  expect(offset('drive-board')).toBeGreaterThan(offset('brake-yoke'));
+  expect(offset('output-flange')).toBeLessThan(offset('fixed-circular-spline-202'));
+});
+it('keeps the flex major axis aligned with the input cam after reversing the axial assembly frame', () => {
+  const { accessor, primitive } = assetData(),
+    flex = primitive('flex-cup');
+  const positions = accessor(flex.attributes.POSITION),
+    cos = accessor(flex.targets[0].POSITION),
+    sin = accessor(flex.targets[1].POSITION);
+  const lip = positions.map((p, i) => ({ p, i })).filter(({ p }) => Math.abs(p[1] - 0.041) < 1e-7);
+  for (const input of [0, 0.173, -0.793, 1.271, 5.812]) {
+    const state = harmonicState(input, 6, 200, 202);
+    let best = { delta: -Infinity, angle: 0 };
+    for (const { p, i } of lip) {
+      const c = cos[i],
+        s = sin[i],
+        r = Math.hypot(p[0], p[2]);
+      const delta =
+        ((c[0] * state.cos + s[0] * state.sin) * p[0] +
+          (c[2] * state.cos + s[2] * state.sin) * p[2]) /
+        r;
+      if (delta > best.delta) best = { delta, angle: Math.atan2(-p[2], p[0]) + state.outputAngle };
+    }
+    expect(best.delta).toBeCloseTo(0.0003, 7);
+    // Opposed ellipse peaks share an axis. Grid discretization is at most pi/800.
+    expect(Math.abs(Math.sin(best.angle - Math.PI / 2 - input))).toBeLessThan(0.0041);
+  }
+});
+it('cuts matching support bays in section mode so pillars do not end in removed race quadrants', () => {
+  const { accessor, primitive } = assetData();
+  for (const name of ['reducer-mount-pillars-4', 'output-bearing-bridges-4']) {
+    const full = accessor(primitive(name).attributes.POSITION),
+      cut = accessor(primitive(name + '-section').attributes.POSITION);
+    expect(full.some((p) => p[0] > 0 && p[2] < 0)).toBe(true);
+    expect(cut.some((p) => p[0] > 0 && p[2] < 0)).toBe(false);
+  }
 });

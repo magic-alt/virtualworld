@@ -60,17 +60,17 @@ for (const p of report.parts) {
   const top = /output|crossroller|retainer/.test(p.name);
   const layer =
     {
-      drive: -0.075,
-      brake: -0.035,
+      drive: 0.075,
+      brake: 0.035,
       motor: 0,
-      encoders: top ? 0.105 : -0.005,
+      encoders: top ? -0.105 : 0.005,
       reducer:
         p.assembly === 'flex'
-          ? 0.085
+          ? -0.085
           : /input|bearing-seat|support-plate|bearing-balls/.test(p.name)
-            ? 0.025
-            : 0.055,
-      output: 0.135,
+            ? -0.025
+            : -0.055,
+      output: -0.135,
     }[p.subsystem] ?? 0;
   nodes.push({
     ...defaults,
@@ -91,7 +91,7 @@ const scene = {
   id: 'demo-harmonic-joint',
   name: 'H-100 · 谐波关节剖解',
   description:
-    '紧凑一体化结构演示 · Ø110 / Ø100 × 110 mm · 18 mm 贯通孔 · 官方资料参考 / 原创内部重建',
+    '从下往上：谐波减速器 → 无框电机 → 选配抱闸 → 驱动器 · Ø110 / Ø100 × 110 mm · 18 mm 贯通孔 · 官方资料参考 / 原创内部重建',
   mode: 'industrial',
   environment: { background: '#101722', lightIntensity: 3, ambientIntensity: 1.5 },
   camera: { position: [0.19, 0.15, -0.22], target: [0, 0.055, 0] },
@@ -113,7 +113,11 @@ const scene = {
     referenceNotes:
       '参考零差云控官方外形 STEP、Harmonic Drive 结构手册、意优及泰科公开集成架构。内部为原创结构模拟；PCB 为布局示意，抱闸为理想保持演示。非制造图，无额定载荷、制动性能或电气确认。',
     subsystems: [
-      ['housing', '壳体与安装', '铝合金壳体、安装法兰与密封示意；剖视显示内部装配。'],
+      [
+        'housing',
+        '壳体与安装',
+        '圆筒壳位于上部电机端；底部减速机及输出侧裸露。顶部固定安装环开放，驱动板元件朝上。',
+      ],
       ['motor', '无框力矩电机', '定子叠片、18 齿铜绕组、20 极永磁转子；0.4 mm 名义气隙。'],
       [
         'reducer',
@@ -123,7 +127,7 @@ const scene = {
       [
         'drive',
         '集成驱动板',
-        '环形 PCB、功率级、母线电容、控制器、电源／通信与三相端子。布局示意，不是已验证电路。',
+        '最上层环形 PCB、独立固定支撑、功率级、母线电容、控制器、电源／通信与三相端子。布局示意，不是已验证电路。',
       ],
       [
         'encoders',
@@ -133,9 +137,13 @@ const scene = {
       [
         'brake',
         '永磁掉电抱闸',
-        '选配磁轭、永磁体、释放线圈、衔铁与摩擦面。线圈通电释放、掉电理想保持；不计算制动距离。',
+        '电机上方、驱动器下方：选配磁轭、永磁体、释放线圈、衔铁与摩擦面。线圈通电释放、掉电理想保持；不计算制动距离。',
       ],
-      ['output', '输出支承', '交叉滚子轴承、固定外圈、输出内圈、连接颈、法兰与真实安装孔。'],
+      [
+        'output',
+        '输出支承',
+        '底部减速机输出端：交叉滚子轴承、开放支撑、旋转法兰与承载盘；八处贯穿观察孔位于安装孔之间，保留中心连接和外圈传力路径。观察结构并非制造图。',
+      ],
     ].map(([id, name, description]) => ({
       id,
       name,
@@ -164,7 +172,7 @@ const interactions = {
   },
   'harmonic-base-flange': {
     title: '名义尺寸与边界',
-    text: '底座直径 110 mm，壳体直径 100 mm，总高 110 mm。8 × Ø4.4 mm 底座通孔；输出 8 × Ø3.3 mm 孔。自绘演示尺寸，不是厂商商品复刻；没有工程确认或性能合格声明。',
+    text: '顶部固定安装环外径 110 mm，壳体直径 100 mm，总高 110 mm。8 × Ø4.4 mm 固定安装环通孔；输出 8 × Ø3.3 mm 孔。自绘演示尺寸，不是厂商商品复刻；没有工程确认或性能合格声明。',
   },
 };
 const dir = resolve(root, 'worlds/demo-harmonic-joint');

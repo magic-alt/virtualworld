@@ -37,3 +37,11 @@ Optional local visual review:
 ```
 
 This produces `assets/source/showcase/harmonic/section-preview.png` using the actual saved Blender scene and the same section alternatives. It does not modify the delivered GLB or world.
+
+### Output-down layout correction (2026-10-19)
+
+Published geometry is Y-up with the reducer/output at the bottom, then the frameless motor, optional brake, and drive at the top. Actual positions and axial-zone bounds are retained in the manifest. The authored primitive frame is converted with the proper rotation `(x,y,z) -> (y,x,0.110-z)` after baking transforms; drive parts retain their upward component face at `z+0.0922`. The flex sine delta reverses sign to retain phase alignment with a positive world-Y input. No negative node scale or camera inversion substitutes for this geometry change.
+
+The top fixed mounting rim is open (90 mm ID); the driver has its own support ring independent of the optional brake. The motor-side shell stops at Y=42 mm. Four fixed pillars expose the reducer and four fixed bridges support its output outer race. Matching section variants omit the cutaway-quadrant supports. Eight actual boolean inspection windows pierce the rotating output flange and carrier between mounting holes, preserving hub/rim and cup diaphragm. Original educational topology does not prove production strength or sealing.
+
+The [official Eyou exploded diagram](https://eyoubot.com/blog/harmonic-drive-systems-robot-joints), inspected directly, places the drive, brake, motor and reducer along the rear-to-output axis. The already-downloaded [ZeroErr official exterior STEP](https://www.zeroerr.cn/download/eRob.html) remains an envelope reference only; internal vendor CAD was not obtained. Raw vendor downloads and the inspected diagram remain ignored under `output/h100-reference/`.

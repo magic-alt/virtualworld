@@ -3,7 +3,7 @@
   "revision": 0,
   "id": "demo-harmonic-joint",
   "name": "H-100 · 谐波关节剖解",
-  "description": "紧凑一体化结构演示 · Ø110 / Ø100 × 110 mm · 18 mm 贯通孔 · 官方资料参考 / 原创内部重建",
+  "description": "从下往上：谐波减速器 → 无框电机 → 选配抱闸 → 驱动器 · Ø110 / Ø100 × 110 mm · 18 mm 贯通孔 · 官方资料参考 / 原创内部重建",
   "mode": "industrial",
   "environment": {
     "background": "#101722",
@@ -98,7 +98,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "36",
+      "assetNode": "37",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -114,9 +114,25 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "37",
+      "assetNode": "38",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
+    },
+    {
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#b8c8d8",
+      "visible": true,
+      "id": "harmonic-drive-support-ring",
+      "name": "drive-support-ring",
+      "kind": "mesh",
+      "shape": "glb",
+      "assetId": "harmonic-joint-glb",
+      "assetNode": "25",
+      "parentId": "joint-root",
+      "explode": [0, 0.075, 0]
     },
     {
       "position": [0, 0, 0],
@@ -132,7 +148,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "17",
       "parentId": "joint-root",
-      "explode": [0, -0.075, 0]
+      "explode": [0, 0.075, 0]
     },
     {
       "position": [0, 0, 0],
@@ -148,7 +164,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "24",
       "parentId": "joint-root",
-      "explode": [0, -0.075, 0]
+      "explode": [0, 0.075, 0]
     },
     {
       "position": [0, 0, 0],
@@ -164,7 +180,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "23",
       "parentId": "joint-root",
-      "explode": [0, -0.075, 0]
+      "explode": [0, 0.075, 0]
     },
     {
       "position": [0, 0, 0],
@@ -180,7 +196,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "18",
       "parentId": "joint-root",
-      "explode": [0, -0.075, 0]
+      "explode": [0, 0.075, 0]
     },
     {
       "position": [0, 0, 0],
@@ -196,7 +212,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "20",
       "parentId": "joint-root",
-      "explode": [0, -0.075, 0]
+      "explode": [0, 0.075, 0]
     },
     {
       "position": [0, 0, 0],
@@ -212,7 +228,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "22",
       "parentId": "joint-root",
-      "explode": [0, -0.075, 0]
+      "explode": [0, 0.075, 0]
     },
     {
       "position": [0, 0, 0],
@@ -228,7 +244,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "19",
       "parentId": "joint-root",
-      "explode": [0, -0.075, 0]
+      "explode": [0, 0.075, 0]
     },
     {
       "position": [0, 0, 0],
@@ -244,7 +260,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "21",
       "parentId": "joint-root",
-      "explode": [0, -0.075, 0]
+      "explode": [0, 0.075, 0]
     },
     {
       "position": [0, 0, 0],
@@ -260,7 +276,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "4",
       "parentId": "joint-root",
-      "explode": [0, -0.035, 0]
+      "explode": [0, 0.035, 0]
     },
     {
       "position": [0, 0, 0],
@@ -276,7 +292,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "6",
       "parentId": "joint-root",
-      "explode": [0, -0.035, 0]
+      "explode": [0, 0.035, 0]
     },
     {
       "position": [0, 0, 0],
@@ -292,7 +308,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "10",
       "parentId": "joint-root",
-      "explode": [0, -0.035, 0]
+      "explode": [0, 0.035, 0]
     },
     {
       "position": [0, 0, 0],
@@ -308,7 +324,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "8",
       "parentId": "joint-root",
-      "explode": [0, -0.035, 0]
+      "explode": [0, 0.035, 0]
     },
     {
       "position": [0, 0, 0],
@@ -324,7 +340,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "9",
       "parentId": "joint-root",
-      "explode": [0, -0.035, 0]
+      "explode": [0, 0.035, 0]
     },
     {
       "position": [0, 0, 0],
@@ -340,7 +356,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "3",
       "parentId": "joint-root",
-      "explode": [0, -0.035, 0]
+      "explode": [0, 0.035, 0]
     },
     {
       "position": [0, 0, 0],
@@ -356,7 +372,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "7",
       "parentId": "joint-root",
-      "explode": [0, -0.035, 0]
+      "explode": [0, 0.035, 0]
     },
     {
       "position": [0, 0, 0],
@@ -372,7 +388,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "1",
       "parentId": "wave-input",
-      "explode": [0, -0.035, 0]
+      "explode": [0, 0.035, 0]
     },
     {
       "position": [0, 0, 0],
@@ -388,7 +404,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "2",
       "parentId": "wave-input",
-      "explode": [0, -0.035, 0]
+      "explode": [0, 0.035, 0]
     },
     {
       "position": [0, 0, 0],
@@ -402,9 +418,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "35",
+      "assetNode": "36",
       "parentId": "wave-input",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -418,9 +434,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "39",
+      "assetNode": "40",
       "parentId": "joint-root",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -434,9 +450,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "40",
+      "assetNode": "41",
       "parentId": "joint-root",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -450,9 +466,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "42",
+      "assetNode": "43",
       "parentId": "wave-input",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -466,9 +482,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "43",
+      "assetNode": "44",
       "parentId": "joint-root",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -482,9 +498,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "38",
+      "assetNode": "39",
       "parentId": "joint-root",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -498,9 +514,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "70",
+      "assetNode": "75",
       "parentId": "wave-input",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -514,9 +530,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "71",
+      "assetNode": "76",
       "parentId": "joint-root",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -530,9 +546,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "67",
+      "assetNode": "72",
       "parentId": "joint-root",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -546,9 +562,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "68",
+      "assetNode": "73",
       "parentId": "joint-root",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -562,7 +578,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "58",
+      "assetNode": "63",
       "parentId": "wave-input",
       "explode": [0, 0, 0]
     },
@@ -578,7 +594,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "61",
+      "assetNode": "66",
       "parentId": "wave-input",
       "explode": [0, 0, 0]
     },
@@ -594,7 +610,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "59",
+      "assetNode": "64",
       "parentId": "wave-input",
       "explode": [0, 0, 0]
     },
@@ -610,7 +626,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "60",
+      "assetNode": "65",
       "parentId": "wave-input",
       "explode": [0, 0, 0]
     },
@@ -626,7 +642,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "62",
+      "assetNode": "67",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -642,7 +658,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "64",
+      "assetNode": "69",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -658,7 +674,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "66",
+      "assetNode": "71",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -706,9 +722,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "26",
+      "assetNode": "27",
       "parentId": "joint-root",
-      "explode": [0, -0.005, 0]
+      "explode": [0, 0.005, 0]
     },
     {
       "position": [0, 0, 0],
@@ -722,9 +738,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "29",
+      "assetNode": "30",
       "parentId": "wave-input",
-      "explode": [0, -0.005, 0]
+      "explode": [0, 0.005, 0]
     },
     {
       "position": [0, 0, 0],
@@ -738,9 +754,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "30",
+      "assetNode": "31",
       "parentId": "joint-root",
-      "explode": [0, -0.005, 0]
+      "explode": [0, 0.005, 0]
     },
     {
       "position": [0, 0, 0],
@@ -754,9 +770,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "27",
+      "assetNode": "28",
       "parentId": "joint-root",
-      "explode": [0, -0.005, 0]
+      "explode": [0, 0.005, 0]
     },
     {
       "position": [0, 0, 0],
@@ -770,9 +786,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "31",
+      "assetNode": "32",
       "parentId": "joint-root",
-      "explode": [0, -0.005, 0]
+      "explode": [0, 0.005, 0]
     },
     {
       "position": [0, 0, 0],
@@ -786,9 +802,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "28",
+      "assetNode": "29",
       "parentId": "wave-input",
-      "explode": [0, -0.005, 0]
+      "explode": [0, 0.005, 0]
     },
     {
       "position": [0, 0, 0],
@@ -802,9 +818,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "34",
+      "assetNode": "35",
       "parentId": "flex-motion",
-      "explode": [0, 0.085, 0]
+      "explode": [0, -0.085, 0]
     },
     {
       "position": [0, 0, 0],
@@ -818,9 +834,41 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "32",
+      "assetNode": "33",
       "parentId": "joint-root",
-      "explode": [0, 0.055, 0]
+      "explode": [0, -0.055, 0]
+    },
+    {
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#b8c8d8",
+      "visible": true,
+      "id": "harmonic-reducer-mount-pillars-4",
+      "name": "reducer-mount-pillars-4",
+      "kind": "mesh",
+      "shape": "glb",
+      "assetId": "harmonic-joint-glb",
+      "assetNode": "60",
+      "parentId": "joint-root",
+      "explode": [0, -0.055, 0]
+    },
+    {
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#b8c8d8",
+      "visible": false,
+      "id": "harmonic-reducer-mount-pillars-4-section",
+      "name": "reducer-mount-pillars-4-section",
+      "kind": "mesh",
+      "shape": "glb",
+      "assetId": "harmonic-joint-glb",
+      "assetNode": "61",
+      "parentId": "joint-root",
+      "explode": [0, -0.055, 0]
     },
     {
       "position": [0, 0, 0],
@@ -834,9 +882,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "25",
+      "assetNode": "26",
       "parentId": "wave-input",
-      "explode": [0, 0.055, 0]
+      "explode": [0, -0.055, 0]
     },
     {
       "position": [0, 0, 0],
@@ -850,9 +898,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "73",
+      "assetNode": "78",
       "parentId": "wave-input",
-      "explode": [0, 0.055, 0]
+      "explode": [0, -0.055, 0]
     },
     {
       "position": [0, 0, 0],
@@ -866,9 +914,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "74",
+      "assetNode": "79",
       "parentId": "wave-input",
-      "explode": [0, 0.055, 0]
+      "explode": [0, -0.055, 0]
     },
     {
       "position": [0, 0, 0],
@@ -882,9 +930,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "72",
+      "assetNode": "77",
       "parentId": "wave-input",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -898,9 +946,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "55",
+      "assetNode": "58",
       "parentId": "output-motion",
-      "explode": [0, 0.135, 0]
+      "explode": [0, -0.135, 0]
     },
     {
       "position": [0, 0, 0],
@@ -914,9 +962,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "47",
+      "assetNode": "50",
       "parentId": "joint-root",
-      "explode": [0, 0.105, 0]
+      "explode": [0, -0.105, 0]
     },
     {
       "position": [0, 0, 0],
@@ -930,9 +978,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "49",
+      "assetNode": "52",
       "parentId": "output-motion",
-      "explode": [0, 0.105, 0]
+      "explode": [0, -0.105, 0]
     },
     {
       "position": [0, 0, 0],
@@ -946,9 +994,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "50",
+      "assetNode": "53",
       "parentId": "joint-root",
-      "explode": [0, 0.105, 0]
+      "explode": [0, -0.105, 0]
     },
     {
       "position": [0, 0, 0],
@@ -962,9 +1010,41 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "51",
+      "assetNode": "54",
       "parentId": "joint-root",
-      "explode": [0, 0.105, 0]
+      "explode": [0, -0.105, 0]
+    },
+    {
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#b8c8d8",
+      "visible": true,
+      "id": "harmonic-output-bearing-bridges-4",
+      "name": "output-bearing-bridges-4",
+      "kind": "mesh",
+      "shape": "glb",
+      "assetId": "harmonic-joint-glb",
+      "assetNode": "47",
+      "parentId": "joint-root",
+      "explode": [0, -0.135, 0]
+    },
+    {
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#b8c8d8",
+      "visible": false,
+      "id": "harmonic-output-bearing-bridges-4-section",
+      "name": "output-bearing-bridges-4-section",
+      "kind": "mesh",
+      "shape": "glb",
+      "assetId": "harmonic-joint-glb",
+      "assetNode": "48",
+      "parentId": "joint-root",
+      "explode": [0, -0.135, 0]
     },
     {
       "position": [0, 0, 0],
@@ -978,9 +1058,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "48",
+      "assetNode": "51",
       "parentId": "output-motion",
-      "explode": [0, 0.105, 0]
+      "explode": [0, -0.105, 0]
     },
     {
       "position": [0, 0, 0],
@@ -994,9 +1074,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "46",
+      "assetNode": "49",
       "parentId": "output-motion",
-      "explode": [0, 0.135, 0]
+      "explode": [0, -0.135, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1012,7 +1092,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "13",
       "parentId": "output-motion",
-      "explode": [0, 0.135, 0]
+      "explode": [0, -0.135, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1028,7 +1108,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "14",
       "parentId": "joint-root",
-      "explode": [0, 0.135, 0]
+      "explode": [0, -0.135, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1044,7 +1124,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "16",
       "parentId": "joint-root",
-      "explode": [0, 0.135, 0]
+      "explode": [0, -0.135, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1058,9 +1138,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "44",
+      "assetNode": "45",
       "parentId": "joint-root",
-      "explode": [0, 0.135, 0]
+      "explode": [0, -0.135, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1074,9 +1154,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "53",
+      "assetNode": "56",
       "parentId": "output-motion",
-      "explode": [0, 0.135, 0]
+      "explode": [0, -0.135, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1090,9 +1170,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "52",
+      "assetNode": "55",
       "parentId": "output-motion",
-      "explode": [0, 0.135, 0]
+      "explode": [0, -0.135, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1106,9 +1186,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "57",
+      "assetNode": "62",
       "parentId": "joint-root",
-      "explode": [0, 0.135, 0]
+      "explode": [0, -0.135, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1122,9 +1202,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "54",
+      "assetNode": "57",
       "parentId": "output-motion",
-      "explode": [0, 0.135, 0]
+      "explode": [0, -0.135, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1138,7 +1218,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "56",
+      "assetNode": "59",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -1154,7 +1234,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "63",
+      "assetNode": "68",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -1170,7 +1250,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "65",
+      "assetNode": "70",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -1186,9 +1266,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "69",
+      "assetNode": "74",
       "parentId": "joint-root",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1202,9 +1282,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "41",
+      "assetNode": "42",
       "parentId": "joint-root",
-      "explode": [0, 0.025, 0]
+      "explode": [0, -0.025, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1220,7 +1300,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "5",
       "parentId": "joint-root",
-      "explode": [0, -0.035, 0]
+      "explode": [0, 0.035, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1234,9 +1314,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "33",
+      "assetNode": "34",
       "parentId": "joint-root",
-      "explode": [0, 0.055, 0]
+      "explode": [0, -0.055, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1252,7 +1332,7 @@
       "assetId": "harmonic-joint-glb",
       "assetNode": "15",
       "parentId": "joint-root",
-      "explode": [0, 0.135, 0]
+      "explode": [0, -0.135, 0]
     },
     {
       "position": [0, 0, 0],
@@ -1266,9 +1346,9 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "45",
+      "assetNode": "46",
       "parentId": "joint-root",
-      "explode": [0, 0.135, 0]
+      "explode": [0, -0.135, 0]
     }
   ],
   "mechanism": {
@@ -1280,6 +1360,7 @@
       "harmonic-base-flange",
       "harmonic-housing-full",
       "harmonic-housing-section",
+      "harmonic-drive-support-ring",
       "harmonic-drive-board",
       "harmonic-drive-standoffs",
       "harmonic-drive-power-stage",
@@ -1312,9 +1393,13 @@
       "harmonic-encoder-board-seat",
       "harmonic-encoder-support-tube",
       "harmonic-fixed-circular-spline-202",
+      "harmonic-reducer-mount-pillars-4",
+      "harmonic-reducer-mount-pillars-4-section",
       "harmonic-output-encoder-board",
       "harmonic-output-encoder-readhead",
       "harmonic-output-encoder-seat",
+      "harmonic-output-bearing-bridges-4",
+      "harmonic-output-bearing-bridges-4-section",
       "harmonic-crossroller-outer-race",
       "harmonic-crossrollers-32-alternating-45deg",
       "harmonic-outer-bearing-retainer",
@@ -1341,11 +1426,15 @@
       "harmonic-stator-back-iron",
       "harmonic-stator-housing-fit-sleeve",
       "harmonic-fixed-circular-spline-202",
+      "harmonic-reducer-mount-pillars-4",
+      "harmonic-output-bearing-bridges-4",
       "harmonic-crossroller-outer-race",
       "harmonic-outer-bearing-retainer"
     ],
     "sectionHousingIds": [
       "harmonic-housing-section",
+      "harmonic-reducer-mount-pillars-4-section",
+      "harmonic-output-bearing-bridges-4-section",
       "harmonic-stator-back-iron-section",
       "harmonic-stator-housing-fit-sleeve-section",
       "harmonic-upper-bearing-support-plate-section",
@@ -1366,7 +1455,7 @@
       {
         "id": "housing",
         "name": "壳体与安装",
-        "description": "铝合金壳体、安装法兰与密封示意；剖视显示内部装配。",
+        "description": "圆筒壳位于上部电机端；底部减速机及输出侧裸露。顶部固定安装环开放，驱动板元件朝上。",
         "nodeIds": [
           "harmonic-base-flange",
           "harmonic-housing-full",
@@ -1409,6 +1498,8 @@
           "harmonic-upper-bearing-support-plate",
           "harmonic-flex-cup",
           "harmonic-fixed-circular-spline-202",
+          "harmonic-reducer-mount-pillars-4",
+          "harmonic-reducer-mount-pillars-4-section",
           "harmonic-elliptical-wave-cam",
           "harmonic-wave-bearing-inner-race",
           "harmonic-wave-bearing-outer-race",
@@ -1421,8 +1512,9 @@
       {
         "id": "drive",
         "name": "集成驱动板",
-        "description": "环形 PCB、功率级、母线电容、控制器、电源／通信与三相端子。布局示意，不是已验证电路。",
+        "description": "最上层环形 PCB、独立固定支撑、功率级、母线电容、控制器、电源／通信与三相端子。布局示意，不是已验证电路。",
         "nodeIds": [
+          "harmonic-drive-support-ring",
           "harmonic-drive-board",
           "harmonic-drive-standoffs",
           "harmonic-drive-power-stage",
@@ -1454,7 +1546,7 @@
       {
         "id": "brake",
         "name": "永磁掉电抱闸",
-        "description": "选配磁轭、永磁体、释放线圈、衔铁与摩擦面。线圈通电释放、掉电理想保持；不计算制动距离。",
+        "description": "电机上方、驱动器下方：选配磁轭、永磁体、释放线圈、衔铁与摩擦面。线圈通电释放、掉电理想保持；不计算制动距离。",
         "nodeIds": [
           "harmonic-brake-mount-plate",
           "harmonic-brake-mount-sleeve",
@@ -1472,9 +1564,11 @@
       {
         "id": "output",
         "name": "输出支承",
-        "description": "交叉滚子轴承、固定外圈、输出内圈、连接颈、法兰与真实安装孔。",
+        "description": "底部减速机输出端：交叉滚子轴承、开放支撑、旋转法兰与承载盘；八处贯穿观察孔位于安装孔之间，保留中心连接和外圈传力路径。观察结构并非制造图。",
         "nodeIds": [
           "harmonic-output-neck",
+          "harmonic-output-bearing-bridges-4",
+          "harmonic-output-bearing-bridges-4-section",
           "harmonic-output-bearing-carrier",
           "harmonic-crossroller-inner-race",
           "harmonic-crossroller-outer-race",

@@ -91,7 +91,7 @@ export class StudioRuntime {
   private mechanismListeners = new Set<(state: MechanismViewState) => void>();
   private hiddenSubsystems = new Set<string>();
   private isolatedSubsystem?: string;
-  private mechanismView: 'default' | 'front' | 'side' | 'top' = 'default';
+  private mechanismView: 'default' | 'front' | 'side' | 'top' | 'bottom' = 'default';
   private mechanismInsets = { top: 100, bottom: 80, left: 20, right: 20 };
   private isolatedId?: string;
   private mixers: THREE.AnimationMixer[] = [];
@@ -946,7 +946,9 @@ export class StudioRuntime {
     if (Object.values(insets).every((v) => Number.isFinite(v) && v >= 0))
       this.mechanismInsets = { ...insets };
   }
-  fitMechanismView(view: 'default' | 'front' | 'side' | 'top' = this.mechanismView ?? 'default') {
+  fitMechanismView(
+    view: 'default' | 'front' | 'side' | 'top' | 'bottom' = this.mechanismView ?? 'default',
+  ) {
     this.mechanismView = view;
     const bounds = new THREE.Box3();
     for (const [id, object] of this.objects) {
@@ -973,14 +975,20 @@ export class StudioRuntime {
     const radius = Math.max(0.001, bounds.getSize(new THREE.Vector3()).length() / 2);
     const distance = (radius * 1.12) / Math.sin(halfAngle);
     const direction = new THREE.Vector3(
-      ...({ default: [1, 0.65, -1], front: [0, 0, -1], side: [1, 0, 0], top: [0, 1, 0] }[view] as [
+      ...({
+        default: [1, 0.65, -1],
+        front: [0, 0, -1],
+        side: [1, 0, 0],
+        top: [0, 1, 0],
+        bottom: [0, -1, 0],
+      }[view] as [number, number, number]),
+    ).normalize();
+    const up = new THREE.Vector3(
+      ...((view === 'top' || view === 'bottom' ? [0, 0, 1] : [0, 1, 0]) as [
         number,
         number,
         number,
       ]),
-    ).normalize();
-    const up = new THREE.Vector3(
-      ...((view === 'top' ? [0, 0, 1] : [0, 1, 0]) as [number, number, number]),
     );
     const right = up.clone().cross(direction).normalize();
     const actualUp = direction.clone().cross(right).normalize();

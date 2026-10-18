@@ -13,9 +13,6 @@
     ["base-flange", "lower-bearing-seat"],
     ["housing-full", "stator-housing-fit-sleeve"],
     ["housing-full", "upper-bearing-support-plate"],
-    ["housing-full", "fixed-circular-spline-202"],
-    ["housing-full", "crossroller-outer-race"],
-    ["housing-full", "outer-bearing-retainer"],
     ["stator-back-iron", "stator-housing-fit-sleeve"],
     ["stator-back-iron", "stator-teeth-18"],
     ["stator-back-iron", "coil-formers-18"],
@@ -47,11 +44,9 @@
     ["outer-bearing-retainer", "retainer-bolts-8"],
     ["output-fasteners-8", "output-flange"],
     ["output-fasteners-8", "output-bearing-carrier"],
-    ["base-flange", "drive-standoffs"],
     ["base-flange", "rear-bore-seal"],
     ["housing-full", "brake-mount-plate"],
     ["housing-full", "lower-bearing-support-plate"],
-    ["housing-full", "output-encoder-seat"],
     ["drive-board", "drive-standoffs"],
     ["drive-board", "drive-bus-capacitors"],
     ["drive-board", "drive-control-chip"],
@@ -83,15 +78,22 @@
     ["output-encoder-code-ring", "output-encoder-code-marks"],
     ["elliptical-wave-cam", "wave-bearing-inner-race"],
     ["wave-bearing-inner-race", "wave-bearing-balls-48"],
-    ["wave-bearing-outer-race", "wave-bearing-balls-48"]
+    ["wave-bearing-outer-race", "wave-bearing-balls-48"],
+    ["upper-bearing-support-plate", "reducer-mount-pillars-4"],
+    ["reducer-mount-pillars-4", "fixed-circular-spline-202"],
+    ["output-encoder-seat", "output-bearing-bridges-4"],
+    ["output-bearing-bridges-4", "crossroller-outer-race"],
+    ["housing-full", "drive-support-ring"],
+    ["drive-support-ring", "drive-standoffs"],
+    ["brake-mount-plate", "drive-support-ring"]
   ],
   "toothAmplitude": 0.00035,
   "axialZones": {
-    "drive": [0.004, 0.0145],
-    "brake": [0.0145, 0.0243],
-    "motor": [0.028, 0.064],
-    "reducer": [0.069, 0.088],
-    "output": [0.088, 0.11]
+    "output": [0, 0.022],
+    "reducer": [0.022, 0.041],
+    "motor": [0.046, 0.082],
+    "brake": [0.0857, 0.0955],
+    "drive": [0.0955, 0.1066]
   },
   "references": [
     {
@@ -114,6 +116,23 @@
       "url": "https://www.techsoft-robots.com/upfile/RJSIIZ%E7%B3%BB%E5%88%97%E5%85%B3%E8%8A%82%E6%A8%A1%E7%BB%84%E7%94%A8%E6%88%B7%E6%89%8B%E5%86%8CV1.0.pdf",
       "accessed": "2026-10-18",
       "scope": "Hollow frameless-motor/reducer/integrated-drive architecture."
+    },
+    {
+      "url": "https://eyoubot.com/blog/harmonic-drive-systems-robot-joints",
+      "accessed": "2026-10-18",
+      "scope": "Official exploded diagram: drive, brake, frameless motor, harmonic reducer from rear to output; output-down Y-up layout follows user requirement. Internal geometry remains original."
     }
-  ]
+  ],
+  "outputExposure": {
+    "motorHousingTop": 0.068,
+    "inspectionWindows": {
+      "count": 8,
+      "pitchRadius": 0.02,
+      "radialSize": 0.004,
+      "tangentialSize": 0.006
+    },
+    "motorHousingMinY": 0.042,
+    "motorHousingMaxY": 0.106,
+    "topMountOpeningRadius": 0.045
+  }
 }

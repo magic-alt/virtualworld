@@ -118,3 +118,15 @@ it('fits visible exploded geometry inside a narrow viewport safe area and preser
   r.fitMechanismView('top');
   expect(r.camera.position.toArray().every(Number.isFinite)).toBe(true);
 });
+
+it('shows the underside output face and preserves orbit orientation after bottom view', () => {
+  const r = fixture();
+  r.setMechanismViewportInsets({ top: 0, bottom: 0, left: 0, right: 0 });
+  r.fitMechanismView('bottom');
+  expect(r.camera.position.clone().sub(r.controls.target).normalize().y).toBeLessThan(-0.99);
+  (r.controls as any)._rotateLeft(Math.PI / 2);
+  r.controls.update();
+  expect(Math.abs(r.camera.position.clone().sub(r.controls.target).normalize().x)).toBeGreaterThan(
+    0.95,
+  );
+});

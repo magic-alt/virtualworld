@@ -118,6 +118,7 @@ export function mountMechanismControls(runtime: StudioRuntime) {
     ['front', '正视'],
     ['side', '侧视'],
     ['top', '顶视'],
+    ['bottom', '底视'],
   ] as const)
     button(label, () => runtime.fitMechanismView(view), views);
   button('适配当前模型', () => fit(), views);
