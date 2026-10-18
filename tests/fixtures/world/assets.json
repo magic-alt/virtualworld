@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "worldId": "demo-world",
+  "worldId": "test-world",
   "assets": [
     {
       "id": "stardust",

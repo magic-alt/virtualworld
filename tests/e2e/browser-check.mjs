@@ -47,6 +47,38 @@ const check = (message) => {
   report.checks.push(message);
   console.log('PASS', message);
 };
+async function seedFixtures(origin) {
+  for (const directory of ['industrial', 'world', 'generated-desert', 'generated-forest']) {
+    const read = (name) =>
+      JSON.parse(readFileSync(`tests/fixtures/${directory}/${name}.json`, 'utf8'));
+    const scene = read('scene'),
+      story = read('story'),
+      assets = read('assets');
+    const fixture = {
+      ...scene,
+      assets: assets.assets,
+      tasks: story.tasks,
+      nodes: scene.nodes.map((node) => ({
+        ...node,
+        ...(story.interactions[node.id] ? { interaction: story.interactions[node.id] } : {}),
+      })),
+    };
+    const response = await fetch(`${origin}/api/projects/${fixture.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scene: fixture, baseRevision: 0 }),
+    });
+    assert.equal(response.status, 200);
+  }
+}
+async function openIndustrial(page) {
+  await page.getByRole('button', { name: '切换项目', exact: true }).click();
+  await page.locator('.project-menu button').filter({ hasText: '工业测试场景' }).click();
+}
+async function openWorld(page) {
+  await page.getByRole('button', { name: '切换项目', exact: true }).click();
+  await page.locator('.project-menu button').filter({ hasText: '故事测试场景' }).click();
+}
 async function measureFrames(page) {
   return page.evaluate(
     () =>
@@ -99,7 +131,52 @@ try {
     );
     await page.waitForTimeout(1500);
   };
-  await page.goto('http://127.0.0.1:3133/?project=demo-industrial');
+  const liveCatalog = await (await fetch('http://127.0.0.1:3133/api/projects')).json();
+  assert.deepEqual(
+    liveCatalog.projects.map((p) => p.id).sort(),
+    [
+      'demo-harmonic-joint',
+      'little-prince-desert',
+      'little-prince-b612',
+      'little-prince-earth',
+    ].sort(),
+  );
+  await page.goto('http://127.0.0.1:3133/');
+  await page.waitForFunction(
+    () =>
+      window.virtualworld?.spec.id === 'demo-harmonic-joint' &&
+      !window.virtualworld.getDiagnostics().loading,
+  );
+  await ready();
+  await page.getByRole('button', { name: '切换项目', exact: true }).click();
+  const menuText = await page.locator('.project-menu').innerText();
+  for (const retiredName of [
+    'J-01',
+    '星屿来信',
+    '金色岩石与失落星门组成的沙漠绿洲',
+    '蓝色晶石与古树环绕的宁静森林',
+  ])
+    assert.ok(!menuText.includes(retiredName));
+  await page.screenshot({ path: join(output, 'catalog-cleanup.png') });
+  await page.getByRole('button', { name: '切换项目', exact: true }).click();
+  await page.getByRole('button', { name: '切换到故事世界', exact: true }).click();
+  await page.waitForFunction(
+    () =>
+      window.virtualworld?.spec.id === 'little-prince-desert' &&
+      !window.virtualworld.getDiagnostics().loading,
+  );
+  assert.equal(await page.getByLabel('故事章节', { exact: true }).locator('option').count(), 3);
+  await page.getByRole('button', { name: '切换到工业展示', exact: true }).click();
+  await page.waitForFunction(
+    () =>
+      window.virtualworld?.spec.id === 'demo-harmonic-joint' &&
+      !window.virtualworld.getDiagnostics().loading,
+  );
+  check(
+    'Product catalog contains only H-100 and three Prince chapters; retained navigation loads both experiences',
+  );
+  await seedFixtures('http://127.0.0.1:3133');
+  await page.goto('http://127.0.0.1:3133/?project=test-industrial');
   await page.getByRole('button', { name: '导出网页', exact: true }).waitFor();
   await ready();
   await page.screenshot({ path: join(output, 'industrial.png') });
@@ -107,7 +184,7 @@ try {
   const industrial = await page.evaluate(() => window.virtualworld.getDiagnostics());
   report.measurements.industrial = industrial;
   assert.equal(industrial.errors.length, 0);
-  for (const id of ['generated-forest', 'generated-desert']) {
+  for (const id of ['test-generated-forest', 'test-generated-desert']) {
     const generated = await (await fetch(`http://127.0.0.1:3133/api/projects/${id}`)).json();
     assert.equal(generated.id, id);
     await page.getByRole('button', { name: '切换项目', exact: true }).click();
@@ -123,11 +200,11 @@ try {
     await page.screenshot({ path: join(output, `${id}.png`) });
     await page.getByRole('button', { name: '退出体验', exact: true }).click();
   }
-  await page.getByRole('button', { name: '切换到工业展示', exact: true }).click();
-  await page.waitForFunction(() => window.virtualworld.spec.id === 'demo-industrial');
+  await openIndustrial(page);
+  await page.waitForFunction(() => window.virtualworld.spec.id === 'test-industrial');
   await ready();
   check(
-    'Both CLI-generated worlds load from the project catalog and start the shared playable runtime',
+    'Isolated generated-world fixtures load from the project catalog and start the shared playable runtime',
   );
   const cameraBefore = await page.evaluate(() => ({
     position: window.virtualworld.camera.position.toArray(),
@@ -271,7 +348,7 @@ try {
   }
   const industrialFiles = await exportCurrent('industrial');
   check('Industrial export includes converted CAD with relative asset URLs');
-  await page.getByRole('button', { name: '切换到故事世界', exact: true }).click();
+  await openWorld(page);
   await ready();
   const world = await page.evaluate(() => window.virtualworld.getDiagnostics());
   report.measurements.world = world;
@@ -477,9 +554,10 @@ try {
     } catch {}
     await new Promise((r) => setTimeout(r, 100));
   }
+  await seedFixtures('http://127.0.0.1:3136');
   const aiPage = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   aiPage.on('pageerror', (e) => report.errors.push(e.message));
-  await aiPage.goto('http://127.0.0.1:3136/?project=demo-industrial');
+  await aiPage.goto('http://127.0.0.1:3136/?project=test-industrial');
   await aiPage.waitForFunction(
     () => window.virtualworld && !window.virtualworld.getDiagnostics().loading,
   );
@@ -491,10 +569,10 @@ try {
   await aiPage.getByRole('button', { name: '生成编辑提案', exact: true }).click();
   for (let i = 0; i < 50 && !requests; i++) await aiPage.waitForTimeout(50);
   assert.ok(requests > 0);
-  await aiPage.getByRole('button', { name: '切换到故事世界', exact: true }).click();
+  await openWorld(aiPage);
   await aiPage.waitForFunction(
     () =>
-      window.virtualworld.spec.id === 'demo-world' && !window.virtualworld.getDiagnostics().loading,
+      window.virtualworld.spec.id === 'test-world' && !window.virtualworld.getDiagnostics().loading,
   );
   await aiPage.waitForTimeout(2200);
   assert.equal(await aiPage.getByTestId('ai-proposal').count(), 0);
@@ -503,10 +581,10 @@ try {
     '#151a30',
   );
   check('Delayed model responses are aborted and cannot cross project boundaries');
-  await aiPage.getByRole('button', { name: '切换到工业展示', exact: true }).click();
+  await openIndustrial(aiPage);
   await aiPage.waitForFunction(
     () =>
-      window.virtualworld.spec.id === 'demo-industrial' &&
+      window.virtualworld.spec.id === 'test-industrial' &&
       !window.virtualworld.getDiagnostics().loading,
   );
   await aiPage.route('**/api/assets?name=*', async (route) => {
@@ -520,10 +598,10 @@ try {
     .getByLabel('导入模型文件', { exact: true })
     .setInputFiles('public/fixtures/cube-mm.step');
   await uploading;
-  await aiPage.getByRole('button', { name: '切换到故事世界', exact: true }).click();
+  await openWorld(aiPage);
   await aiPage.waitForFunction(
     () =>
-      window.virtualworld.spec.id === 'demo-world' && !window.virtualworld.getDiagnostics().loading,
+      window.virtualworld.spec.id === 'test-world' && !window.virtualworld.getDiagnostics().loading,
   );
   await aiPage.waitForTimeout(1800);
   assert.equal(
@@ -534,10 +612,10 @@ try {
   );
   check('In-flight CAD import cannot modify a newly opened project');
   await aiPage.unroute('**/api/assets?name=*');
-  await aiPage.getByRole('button', { name: '切换到工业展示', exact: true }).click();
+  await openIndustrial(aiPage);
   await aiPage.waitForFunction(
     () =>
-      window.virtualworld.spec.id === 'demo-industrial' &&
+      window.virtualworld.spec.id === 'test-industrial' &&
       !window.virtualworld.getDiagnostics().loading,
   );
   await aiPage

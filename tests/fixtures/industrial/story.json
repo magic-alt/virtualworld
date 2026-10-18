@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "worldId": "demo-industrial",
+  "worldId": "test-industrial",
   "tasks": [],
   "interactions": {
     "base": {

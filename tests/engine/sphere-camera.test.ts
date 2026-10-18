@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { StudioRuntime } from '../../packages/engine/src/runtime';
-import { worldDemo } from '@virtualworld/scene-builder';
+import { worldDemo } from '../fixtures/scenes';
 import { updateOrbitControls } from '../../packages/engine/src/sphere-camera';
 
 it.each(['x', 'z'] as const)(

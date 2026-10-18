@@ -11,8 +11,8 @@
     "target": [0, 1, 0]
   },
   "spawn": [0, 1, 5],
-  "id": "demo-industrial",
-  "name": "精密关节 · J-01",
+  "id": "test-industrial",
+  "name": "工业测试场景",
   "description": "从工程结构，到可交互的产品体验",
   "mode": "industrial",
   "nodes": [

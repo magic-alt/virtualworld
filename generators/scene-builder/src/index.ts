@@ -1,11 +1,5 @@
 import { z } from 'zod';
 import { assertScene, SceneSchema, NodeSchema, type SceneSpec } from '@virtualworld/scene-schema';
-import islandScene from '../../../worlds/demo-island/scene.json';
-import islandStory from '../../../worlds/demo-island/story.json';
-import islandAssets from '../../../worlds/demo-island/assets.json';
-import industrialScene from '../../../worlds/demo-industrial/scene.json';
-import industrialStory from '../../../worlds/demo-industrial/story.json';
-import industrialAssets from '../../../worlds/demo-industrial/assets.json';
 
 export { node } from '@virtualworld/scene-schema';
 export { groupCommands } from './assemble-import';
@@ -65,10 +59,4 @@ export function splitWorld(input: SceneSpec) {
     story: { version: 1 as const, worldId: input.id, tasks, interactions },
     assets: { version: 1 as const, worldId: input.id, assets },
   };
-}
-export function worldDemo() {
-  return assembleWorld(islandScene, islandStory, islandAssets);
-}
-export function industrialDemo() {
-  return assembleWorld(industrialScene, industrialStory, industrialAssets);
 }

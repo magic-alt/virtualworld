@@ -12,9 +12,9 @@
     "target": [0, 1, 0]
   },
   "spawn": [0, 1, 6],
-  "id": "demo-world",
-  "name": "星屿来信",
-  "description": "一座浮岛，一封未寄出的信，和等待被点亮的星空。",
+  "id": "test-world",
+  "name": "故事测试场景",
+  "description": "Test-only fixture, not a product example.",
   "mode": "world",
   "nodes": [
     {

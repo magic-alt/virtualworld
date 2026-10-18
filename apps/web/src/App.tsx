@@ -48,8 +48,13 @@ import {
   ShieldCheck,
   Camera,
 } from 'lucide-react';
-import { industrialDemo, worldDemo, node as makeNode } from '@virtualworld/scene-builder';
-import { SceneHistory, applyCommands, type SceneCommand } from '@virtualworld/scene-schema';
+import { node as makeNode } from '@virtualworld/scene-builder';
+import {
+  SceneHistory,
+  applyCommands,
+  emptyScene,
+  type SceneCommand,
+} from '@virtualworld/scene-schema';
 import {
   validateScene,
   CampaignSchema,
@@ -91,7 +96,7 @@ function download(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export default function App() {
-  const [scene, setScene] = useState<SceneSpec>(industrialDemo),
+  const [scene, setScene] = useState<SceneSpec>(() => emptyScene()),
     history = useRef(new SceneHistory(scene)),
     runtime = useRef<StudioRuntime | null>(null);
   const scope = useRef(new ProjectScope(scene.id)),
@@ -326,7 +331,7 @@ export default function App() {
     else action();
   }
   function createProject() {
-    const base = newMode === 'world' ? worldDemo() : industrialDemo();
+    const base = emptyScene(newMode);
     const next: SceneSpec = {
       ...base,
       id: `project-${crypto.randomUUID().slice(0, 12)}`,
@@ -687,36 +692,20 @@ export default function App() {
           <button
             className={`rail-button ${scene.mode === 'industrial' ? 'current' : ''}`}
             aria-label="切换到工业展示"
-            title="工业展示"
-            onClick={() => void openProject('demo-industrial')}
+            title="H-100 谐波关节"
+            onClick={() => void openProject('demo-harmonic-joint')}
           >
             <Box size={21} />
           </button>
           <button
             className={`rail-button ${scene.mode === 'world' ? 'current' : ''}`}
             aria-label="切换到故事世界"
-            title="故事世界"
-            onClick={() => void openProject('demo-world')}
-          >
-            <Globe2 size={21} />
-          </button>
-          <span className="rail-separator" />
-          <button
-            className="rail-button"
-            title="谐波关节案例"
-            aria-label="谐波关节案例"
-            onClick={() => void openProject('demo-harmonic-joint')}
-          >
-            <Activity size={21} />
-          </button>
-          <button
-            className="rail-button"
             title="小王子三章"
-            aria-label="小王子三章"
             onClick={() => openCampaign('little-prince')}
           >
             <Globe2 size={21} />
           </button>
+          <span className="rail-separator" />
           <button className="rail-button" title="资源库" onClick={() => setLeftTab('assets')}>
             <FolderOpen size={21} />
           </button>
@@ -1144,9 +1133,17 @@ export default function App() {
                   <b />
                 </div>
                 <div className="viewport-project-tag">
-                  {scene.mode === 'industrial' ? 'J—01' : 'ST—01'}
+                  {scene.id === 'demo-harmonic-joint'
+                    ? 'H—100'
+                    : scene.campaign
+                      ? `LP—${String(scene.campaign.index + 1).padStart(2, '0')}`
+                      : '3D'}
                   <small>
-                    {scene.mode === 'industrial' ? 'PRECISION SERIES' : 'LETTERS FROM THE STARS'}
+                    {scene.mode === 'industrial'
+                      ? 'PRECISION SERIES'
+                      : scene.campaign
+                        ? 'THE LITTLE PRINCE'
+                        : 'INTERACTIVE WORLD'}
                   </small>
                 </div>
               </>

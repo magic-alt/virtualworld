@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { SaveSystem, advanceStory, initialStory } from '@virtualworld/interaction';
-import { worldDemo } from '@virtualworld/scene-builder';
+import { worldDemo } from '../fixtures/scenes';
 
 function memory() {
   const entries = new Map<string, string>();

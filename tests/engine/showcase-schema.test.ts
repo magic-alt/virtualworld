@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import { assertScene, CampaignSchema } from '@virtualworld/scene-schema';
-import { industrialDemo, worldDemo } from '@virtualworld/scene-builder';
+import { worldDemo } from '../fixtures/scenes';
+import { industrialDemo } from '../fixtures/scenes';
 import { readWorld } from '@virtualworld/scene-builder/io';
 it('accepts legacy scenes but rejects invalid sphere/actor/mechanism references', () => {
   expect(assertScene(worldDemo()).version).toBe(1);

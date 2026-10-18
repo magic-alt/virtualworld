@@ -1,6 +1,7 @@
 import { it, expect } from 'vitest';
 import { Object3D, Vector3, Box3 } from 'three';
-import { node, worldDemo } from '@virtualworld/scene-builder';
+import { node } from '@virtualworld/scene-builder';
+import { worldDemo } from '../fixtures/scenes';
 import { primitive } from '@virtualworld/engine/geometry';
 import { captureTransform } from '@virtualworld/engine/transforms';
 import { CharacterController } from '@virtualworld/interaction/character';

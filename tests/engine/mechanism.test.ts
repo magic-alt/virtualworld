@@ -7,7 +7,8 @@ it('couples input and flex at the real tooth ratio with relative morph phase', (
   expect(s.cos).toBeCloseTo(Math.cos(2 * (s.inputAngle - s.outputAngle)));
 });
 import { StudioRuntime } from '../../packages/engine/src/runtime';
-import { node, worldDemo } from '@virtualworld/scene-builder';
+import { node } from '@virtualworld/scene-builder';
+import { worldDemo } from '../fixtures/scenes';
 import * as THREE from 'three';
 it('keeps fixed parts and authored rotations stable while explosion and section are transient', () => {
   const spec = worldDemo();

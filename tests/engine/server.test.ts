@@ -7,7 +7,7 @@ import { unzipSync, strFromU8 } from 'fflate';
 import { createApp } from '../../apps/web/server/app';
 import { propose } from '@virtualworld/planner';
 import { within } from '../../apps/web/server/export';
-import { industrialDemo } from '@virtualworld/scene-builder';
+import { industrialDemo } from '../fixtures/scenes';
 const cleanups: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   await Promise.all(cleanups.splice(0).map((fn) => fn()));
@@ -22,6 +22,12 @@ async function setup() {
   await writeFile(join(playerRoot, 'assets/player.js'), 'console.log("player")');
   const app = await createApp({ dataRoot: root, playerRoot });
   cleanups.push(() => app.close());
+  const seeded = await app.inject({
+    method: 'PUT',
+    url: '/api/projects/test-industrial',
+    payload: { scene: industrialDemo(), baseRevision: 0 },
+  });
+  expect(seeded.statusCode).toBe(200);
   return app;
 }
 describe('local project API', () => {
@@ -30,7 +36,7 @@ describe('local project API', () => {
     const r = await app.inject('/api/projects');
     expect(r.statusCode).toBe(200);
     expect(r.json().projects.map((p: any) => p.id)).toEqual(
-      expect.arrayContaining(['demo-industrial', 'demo-world']),
+      expect.arrayContaining(['demo-harmonic-joint', 'little-prince-desert']),
     );
     expect(r.json().aiConfigured).toBe(false);
   });
@@ -43,7 +49,7 @@ describe('local project API', () => {
       (
         await app.inject({
           method: 'PUT',
-          url: '/api/projects/demo-industrial',
+          url: '/api/projects/test-industrial',
           payload: { scene, baseRevision: 0 },
         })
       ).statusCode,
@@ -53,12 +59,12 @@ describe('local project API', () => {
       (
         await app.inject({
           method: 'PUT',
-          url: '/api/projects/demo-industrial',
+          url: '/api/projects/test-industrial',
           payload: { scene: stale, baseRevision: 0 },
         })
       ).statusCode,
     ).toBe(409);
-    expect((await app.inject('/api/projects/demo-industrial')).json().name).toBe('Edited');
+    expect((await app.inject('/api/projects/test-industrial')).json().name).toBe('Edited');
   });
   it('rejects invalid scenes and cross-origin writes', async () => {
     const app = await setup();
@@ -68,7 +74,7 @@ describe('local project API', () => {
       (
         await app.inject({
           method: 'PUT',
-          url: '/api/projects/demo-industrial',
+          url: '/api/projects/test-industrial',
           payload: { scene, baseRevision: 0 },
         })
       ).statusCode,
@@ -77,7 +83,7 @@ describe('local project API', () => {
       (
         await app.inject({
           method: 'PUT',
-          url: '/api/projects/demo-industrial',
+          url: '/api/projects/test-industrial',
           headers: { origin: 'https://evil.example' },
           payload: { scene: industrialDemo(), baseRevision: 0 },
         })
@@ -139,7 +145,7 @@ describe('local project API', () => {
       (
         await app.inject({
           method: 'PUT',
-          url: '/api/projects/demo-industrial',
+          url: '/api/projects/test-industrial',
           payload: { scene, baseRevision: 0 },
         })
       ).statusCode,
@@ -153,7 +159,7 @@ describe('local project API', () => {
       [a, b].map((scene) =>
         app.inject({
           method: 'PUT',
-          url: '/api/projects/demo-industrial',
+          url: '/api/projects/test-industrial',
           payload: { scene, baseRevision: 0 },
         }),
       ),

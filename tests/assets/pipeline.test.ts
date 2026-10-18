@@ -7,7 +7,7 @@ import { KHRMaterialsUnlit } from '@gltf-transform/extensions';
 import { optimizeGlb } from '@virtualworld/scene-builder/pipeline';
 import { recordUpload } from '@virtualworld/scene-builder/asset-library';
 import { validateWorldAssets } from '../../generators/scene-builder/src/validate';
-import { industrialDemo } from '@virtualworld/scene-builder';
+import { industrialDemo } from '../fixtures/scenes';
 const roots: string[] = [];
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((p) => rm(p, { recursive: true, force: true })));
