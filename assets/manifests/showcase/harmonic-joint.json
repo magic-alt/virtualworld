@@ -2,7 +2,7 @@
   "version": 1,
   "generator": "fixed Blender harmonic/build.py",
   "blender": "5.2.2 LTS",
-  "sha256": "0d5894f98cccae612db7a5cc12826014abe3997e5e1a3ce348ec1d8d42b6e808",
+  "sha256": "80f38cf7eae8b6d864fc27300522db54814734f7c4cc4c1d0b6e62648a563b25",
   "bytes": 13495524,
   "dimensions": {
     "baseDiameter": 0.11,
@@ -4904,7 +4904,7 @@
     "uri": "harmonic-joint.glb",
     "mimeType": "model/gltf-binary",
     "validatorVersion": "2.0.0-dev.3.10",
-    "validatedAt": "2026-10-18T15:08:23.873Z",
+    "validatedAt": "2026-10-18T15:29:43.220Z",
     "issues": {
       "numErrors": 0,
       "numWarnings": 0,

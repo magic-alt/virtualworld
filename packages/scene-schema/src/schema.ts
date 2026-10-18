@@ -239,6 +239,8 @@ export function validateScene(input: unknown): string[] {
       subsystemIds.add(subsystem.id);
       for (const id of subsystem.nodeIds) {
         if (!nodes.has(id)) errors.push(`机构子系统节点不存在: ${id}`);
+        else if (nodes.get(id)!.kind !== 'mesh' || scene.nodes.some((node) => node.parentId === id))
+          errors.push(`机构子系统成员必须是叶子网格部件: ${id}`);
         if (members.has(id)) errors.push(`机构子系统成员重复: ${id}`);
         members.add(id);
       }

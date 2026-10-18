@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { assertScene, CampaignSchema } from '@virtualworld/scene-schema';
+import { assertScene, CampaignSchema, node } from '@virtualworld/scene-schema';
 import { worldDemo } from '../fixtures/scenes';
 import { industrialDemo } from '../fixtures/scenes';
 import { readWorld } from '@virtualworld/scene-builder/io';
@@ -16,6 +16,16 @@ it('accepts optional subsystem descriptions and rejects dangling or ambiguous me
   };
   scene.mechanism!.subsystems = [subsystem];
   expect(assertScene(scene).mechanism!.subsystems).toHaveLength(1);
+  const groupMember = structuredClone(scene);
+  groupMember.mechanism!.subsystems![0].nodeIds = [scene.mechanism!.waveNodeId];
+  expect(() => assertScene(groupMember)).toThrow('叶子网格');
+  const nestedMember = structuredClone(scene);
+  nestedMember.nodes.push(
+    node('nested-view-part', 'Nested part', 'box', [0, 0, 0], [0.001, 0.001, 0.001], '#ffffff', {
+      parentId: subsystem.nodeIds[0],
+    }),
+  );
+  expect(() => assertScene(nestedMember)).toThrow('叶子网格');
   for (const subsystems of [
     [{ ...subsystem, nodeIds: ['missing'] }],
     [subsystem, { ...subsystem, nodeIds: [scene.mechanism!.waveNodeId] }],

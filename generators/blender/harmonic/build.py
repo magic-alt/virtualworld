@@ -6,6 +6,7 @@ ROOT=Path(__file__).resolve().parents[3]
 P=json.loads((Path(__file__).parent/'recipe.json').read_text())
 OUT=ROOT/'assets/optimized/showcase/harmonic-joint.glb'
 SRC=ROOT/'assets/source/showcase/harmonic'
+STAGED=SRC/'harmonic-joint.pending.glb'
 MAN=ROOT/'assets/manifests/showcase/harmonic-joint.json'
 TAU=math.tau
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=False)
@@ -113,8 +114,8 @@ check('wave bearing to diaphragm axial clearance',diaphragm_bottom-bounds_data['
 assert all(c['pass'] for c in checks),checks
 SRC.mkdir(parents=True,exist_ok=True);OUT.parent.mkdir(parents=True,exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=str(SRC/'harmonic-joint.blend'))
-bpy.ops.export_scene.gltf(filepath=str(OUT),export_format='GLB',export_yup=True,export_apply=False,export_morph=True,export_extras=True,export_animations=False)
-b=OUT.read_bytes();d=json.loads(b[20:20+struct.unpack_from('<I',b,12)[0]])
+bpy.ops.export_scene.gltf(filepath=str(STAGED),export_format='GLB',export_yup=True,export_apply=False,export_morph=True,export_extras=True,export_animations=False)
+b=STAGED.read_bytes();d=json.loads(b[20:20+struct.unpack_from('<I',b,12)[0]])
 # Follow the finalized serialized hierarchy, not Blender object order.
 paths={}
 def walk(index,path):
@@ -160,6 +161,11 @@ report['references']=P['references']
 report['reconstruction']='original illustrative compact assembly, not vendor internal CAD; ideal permanent magnet brake, schematic PCB, no engineering confirmation'
 report['axialZones']=P['axialZones']
 report['interference']=interference
+if interference['unexpected']:
+    failure=ROOT/'output/harmonic-build-failure.json';failure.parent.mkdir(parents=True,exist_ok=True)
+    failure.write_text(json.dumps(report,indent=2)+'\n')
+    raise RuntimeError('Unexpected nominal contacts; failed audit retained at '+str(failure))
+# A rejected reconstruction must not replace the model currently served by the app.
+STAGED.replace(OUT)
 MAN.parent.mkdir(parents=True,exist_ok=True);MAN.write_text(json.dumps(report,indent=2)+'\n')
-assert not interference['unexpected'],interference['unexpected']
 print('HARMONIC_BUILD '+json.dumps({'parts':len(parts),'checks':len(checks),'bytes':len(b)}))
