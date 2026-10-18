@@ -96,6 +96,6 @@ it('loads authored harmonic GLB morphs into actual Three instances', async () =>
     expect(mesh.geometry.morphTargetsRelative).toBe(true);
   }
   const bounds = new THREE.Box3().setFromObject(gltf.scene).getSize(new THREE.Vector3());
-  expect(bounds.x).toBeCloseTo(0.11, 4);
-  expect(bounds.y).toBeCloseTo(0.11, 4);
+  expect(bounds.x).toBeCloseTo(0.10024, 5);
+  expect(bounds.y).toBeCloseTo(0.088111111, 5);
 });

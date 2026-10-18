@@ -16,7 +16,7 @@ const files = [
 if (!verifyExisting) {
   const source = join(root, 'generators/blender/harmonic');
   mkdirSync(source, { recursive: true });
-  for (const name of ['build.py', 'assembly.py', 'recipe.json'])
+  for (const name of ['build.py', 'assembly.py', 'exterior.py', 'recipe.json'])
     copyFileSync(resolve('generators/blender/harmonic', name), join(source, name));
   const recipe = JSON.parse(readFileSync(join(source, 'recipe.json'), 'utf8'));
   recipe.allowedContactPairs = [];

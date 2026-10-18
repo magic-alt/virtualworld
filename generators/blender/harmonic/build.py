@@ -25,6 +25,8 @@ material('magnet-north',(.16,.34,.45),.7,.3)
 material('magnet-south',(.46,.14,.12),.7,.3)
 material('encoder-pcb',(.025,.22,.13),.15,.45)
 material('gold',(.85,.59,.13),.85,.24)
+material('connector-yellow',(.85,.47,.045),0,.35)
+material('connector-ivory',(.72,.75,.73),0,.4)
 material('seal',(.018,.026,.035),.05,.6)
 parts=[]
 def mesh(name,vs,fs,mat,parent='fixed',bevel=.00015):
@@ -78,11 +80,11 @@ for ob in parts:
     bpy.ops.object.transform_apply(location=True,rotation=True,scale=True);ob.select_set(False)
 # Publish the requested output-down, drive-up frame as actual geometry, not a camera trick.
 # Proper 180-degree rotation about the XY diagonal preserves winding and cutaway quadrant.
-height=P['totalHeight']
+height=P['authoredHeight'];axial_scale=P['internalAxialScale']
 for ob in parts:
     def frame(co):
         x,y,z=co
-        return Vector((x,y,z+.0922)) if ob['subsystem']=='drive' else Vector((y,x,height-z))
+        return Vector((x,y,(z+.0922)*axial_scale)) if ob['subsystem']=='drive' else Vector((y,x,(height-z)*axial_scale))
     if ob.data.shape_keys:
         for key in ob.data.shape_keys.key_blocks:
             for vertex in key.data:vertex.co=frame(vertex.co.copy())
@@ -94,11 +96,14 @@ for ob in parts:
     else:
         for vertex in ob.data.vertices:vertex.co=frame(vertex.co.copy())
 for hole in holes:
-    x,y,z=hole['center'];hole['center']=[-z,height-y,-x]
+    x,y,z=hole['center'];hole['center']=[-z,(height-y)*axial_scale,-x]
+from exterior import add_exterior
+exterior_audit=add_exterior(P,ring,box,combine,parts,materials)
 # Recalculate normals for the custom ring topology.
 for ob in parts:
     bpy.context.view_layer.objects.active=ob;ob.select_set(True)
-    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT');ob.select_set(False)
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(30));ob.select_set(False)
 # Boolean cutters can introduce slots; keep exactly one material/primitive per part.
 for ob in parts:
     for poly in ob.data.polygons:poly.material_index=0
@@ -113,7 +118,7 @@ checks=[]
 def check(name,actual,expected,tol=1e-6):checks.append({'name':name,'actual':actual,'expected':expected,'tolerance':tol,'pass':abs(actual-expected)<=tol})
 check('base diameter',bounds_data['base-flange'][1][0]-bounds_data['base-flange'][0][0],P['baseDiameter'])
 check('housing diameter',bounds_data['housing-full'][1][0]-bounds_data['housing-full'][0][0],P['housingDiameter'])
-check('top fixed mounting ring',bounds_data['base-flange'][1][2],P['totalHeight'])
+check('top rear interface face',bounds_data['rear-interface-cover'][1][2],P['exteriorReference']['bodyLength'])
 check('bottom output face',bounds_data['output-flange'][0][2],0)
 check('through bore minimum radius',minimum_bore,P['boreDiameter']/2,2e-7)
 def radial_edge_min(ob):
@@ -127,10 +132,10 @@ def radial_edge_min(ob):
 def radial_vertices(name):
     return [math.hypot(v.co.x,v.co.y) for v in bpy.data.objects[name].data.vertices]
 check('radial motor air gap',radial_edge_min(bpy.data.objects['stator-teeth-18'])-max(radial_vertices('rotor-magnets-north')),P['airGap'],2e-7)
-check('cup to input support axial clearance',bounds_data['upper-bearing-support-plate'][0][2]-bounds_data['flex-cup'][1][2],.001)
+check('cup to input support axial clearance',bounds_data['upper-bearing-support-plate'][0][2]-bounds_data['flex-cup'][1][2],.001*axial_scale)
 check('output neck to input shaft radial clearance',min(radial_vertices('output-neck'))-max(radial_vertices('hollow-input-shaft')),.001)
-diaphragm_top=max(v.co.z for v in bpy.data.objects['flex-cup'].data.vertices if v.co.z<.025)
-check('wave bearing to diaphragm axial clearance',bounds_data['wave-bearing-outer-race'][0][2]-diaphragm_top,.002)
+diaphragm_top=max(v.co.z for v in bpy.data.objects['flex-cup'].data.vertices if v.co.z<.025*axial_scale)
+check('wave bearing to diaphragm axial clearance',bounds_data['wave-bearing-outer-race'][0][2]-diaphragm_top,.002*axial_scale)
 assert all(c['pass'] for c in checks),checks
 SRC.mkdir(parents=True,exist_ok=True);OUT.parent.mkdir(parents=True,exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=str(SRC/'harmonic-joint.blend'))
@@ -181,6 +186,8 @@ report['references']=P['references']
 report['reconstruction']='original illustrative compact assembly, not vendor internal CAD; ideal permanent magnet brake, schematic PCB, no engineering confirmation'
 report['axialZones']=P['axialZones']
 report['outputExposure']=P['outputExposure']
+report['exteriorReference']=P['exteriorReference']
+report['exteriorFeatures']=exterior_audit
 report['interference']=interference
 if interference['unexpected']:
     failure=ROOT/'output/harmonic-build-failure.json';failure.parent.mkdir(parents=True,exist_ok=True)

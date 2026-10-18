@@ -13,7 +13,7 @@ def build_assembly(p, ring, box, combine, parts, materials):
         for i in range(count):
             if omit_cutaway and i==0:continue
             a=tau*i/count+phase
-            obs.append(box(name+'-element',(radius*math.cos(a),radius*math.sin(a),height),size,mat,parent,a))
+            obs.append(box(name+'-element',(radius*math.cos(a),radius*math.sin(a),height),size,mat,parent,a,bevel=0 if 'marks' in name else .0002))
         return combine(name,obs)
     def through_holes(ob, radius, bolt_radius, z, count, depth):
         holes=[]
@@ -30,12 +30,12 @@ def build_assembly(p, ring, box, combine, parts, materials):
         ob['sectionOf']=name
         return ob
     bore=p['boreDiameter']/2
-    base=ring('base-flange',.045,.055,0,.004,'anodized-graphite')
-    holes=through_holes(base,.0022,.052,.002,8,.014)
+    base=ring('base-flange',.045,.050,0,.004,'anodized-graphite')
+    holes=through_holes(base,.00165,.0475,.002,8,.014)
     # The cylindrical cover belongs to the motor, never encloses the reducer/output.
     shell_top=p['outputExposure']['motorHousingTop']
-    ring('housing-full',.048,.050,.004,shell_top,'anodized-graphite')
-    ob=section('housing',.048,.050,.004,shell_top,'anodized-graphite');ob.name='housing-section';ob['sectionOf']='housing-full'
+    ring('housing-full',.048,.050,.004,shell_top,'machined-aluminium')
+    ob=section('housing',.048,.050,.004,shell_top,'machined-aluminium');ob.name='housing-section';ob['sectionOf']='housing-full'
     # Fixed rear drive support; real annular PCB and separated functional regions.
     ring('drive-support-ring',.038,.048,.0033,.004,'machined-aluminium')
     ring('drive-board',.016,.044,.006,.0076,'encoder-pcb')
@@ -89,9 +89,9 @@ def build_assembly(p, ring, box, combine, parts, materials):
         for k in range(5):
             rr=.0395+k*.00065
             for tangent in [-.0034,.0034]:
-                coils.append(box('winding-side',(rr*math.cos(a)-tangent*math.sin(a),rr*math.sin(a)+tangent*math.cos(a),.046),(.00045,.0005,.035),'copper-enamel',angle=a,bevel=.00005))
+                coils.append(box('winding-side',(rr*math.cos(a)-tangent*math.sin(a),rr*math.sin(a)+tangent*math.cos(a),.046),(.00045,.0005,.035),'copper-enamel',angle=a,bevel=0))
             for zz in [.0285,.0635]:
-                coils.append(box('winding-end',(rr*math.cos(a),rr*math.sin(a),zz),(.00045,.0073,.0005),'copper-enamel',angle=a,bevel=.00005))
+                coils.append(box('winding-end',(rr*math.cos(a),rr*math.sin(a),zz),(.00045,.0073,.0005),'copper-enamel',angle=a,bevel=0))
     combine('stator-teeth-18',teeth);combine('coil-formers-18',formers);combine('copper-windings-90-turns',coils)
     # Encoders have separate stationary readheads and moving code rings.
     ring('encoder-board',.0205,.029,.0305,.0317,'encoder-pcb')
@@ -148,35 +148,23 @@ def build_assembly(p, ring, box, combine, parts, materials):
         ob.rotation_euler=direction.to_track_quat('Z','Y').to_euler();bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
         ob.name='cross-roller';ob.data.materials.append(materials['bearing-steel']);ob['assembly']='fixed';parts.append(ob);rollers.append(ob)
     combine('crossrollers-32-alternating-45deg',rollers)
-    ring('outer-bearing-retainer',.040,.048,.100,.103,'anodized-graphite')
-    flange=ring('output-flange',bore,.033,.103,p['totalHeight'],'machined-aluminium','output')
-    # Real inspection openings in both rotating plates, between the mounting holes.
-    # The flexspline diaphragm and annular hub/rim remain intact torque-path members.
-    windows=p['outputExposure']['inspectionWindows']
-    for i in range(windows['count']):
-        a=tau*i/windows['count']+.07+math.pi/8;r=windows['pitchRadius']
-        bpy.ops.mesh.primitive_cube_add(size=1,location=(r*math.cos(a),r*math.sin(a),.105))
-        cut=bpy.context.object;cut.dimensions=(windows['radialSize'],windows['tangentialSize'],.016)
-        cut.rotation_euler.z=a;bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
-        for target in [output_carrier,flange]:
-            bpy.context.view_layer.objects.active=target
-            mod=target.modifiers.new('Open reducer-end inspection window','BOOLEAN');mod.operation='DIFFERENCE';mod.object=cut
-            bpy.ops.object.modifier_apply(modifier=mod.name)
-        bpy.data.objects.remove(cut,do_unlink=True)
-    through_holes(flange,.00165,.025,.1065,8,.02)
+    flange=ring('output-flange',bore,p['exteriorReference']['outputDiameter']/2,.103,p['authoredHeight'],'machined-aluminium','output')
+    through_holes(flange,.00165,p['exteriorReference']['outputMountPitchDiameter']/2,.1065,12,.02)
     bolts=[]
-    for i in range(8):
-        a=tau*i/8+.07;x=.025*math.cos(a);y=.025*math.sin(a)
-        cap=ring('output-cap',.0009,.0024,.108,.1094,'bearing-steel','output',n=24,bevel=.00005)
+    for i in range(16):
+        a=tau*(i+.5)/16;x=p['exteriorReference']['outputFastenerPitchDiameter']/2*math.cos(a);y=p['exteriorReference']['outputFastenerPitchDiameter']/2*math.sin(a)
+        cap=ring('output-cap',.0009,.0024,.108,.1094,'bearing-steel','output',n=24,bevel=0)
+        bpy.ops.mesh.primitive_cylinder_add(vertices=6,radius=.0011,depth=.004,location=(0,0,.1087));hex_cut=bpy.context.object
+        bpy.context.view_layer.objects.active=cap;mod=cap.modifiers.new('Hex socket recess','BOOLEAN');mod.object=hex_cut
+        bpy.ops.object.modifier_apply(modifier=mod.name);bpy.data.objects.remove(hex_cut,do_unlink=True)
         # A real counterbore retains the recessed screw head.
         bpy.ops.mesh.primitive_cylinder_add(vertices=24,radius=.0025,depth=.004,location=(x,y,.110));cut=bpy.context.object
         bpy.context.view_layer.objects.active=flange;mod=flange.modifiers.new('Recessed screw counterbore','BOOLEAN');mod.object=cut
         bpy.ops.object.modifier_apply(modifier=mod.name);bpy.data.objects.remove(cut,do_unlink=True)
         for v in cap.data.vertices:v.co.x+=x;v.co.y+=y
         bolts.append(cap)
-    combine('output-fasteners-8',bolts)
-    array_boxes('retainer-bolts-8',8,.044,.1035,(.003,.003,.002),'bearing-steel')
-    box('output-index',(.020,0,.1099),(.008,.0007,.0002),'gold','output',bevel=0)
+    combine('output-fasteners-16',bolts)
+    box('output-index',(.0375,0,.1099),(.001,.0005,.0002),'seal','output',bevel=0)
     ring('rear-bore-seal',.009,.010,.004,.0042,'seal')
     for args in [
         ('stator-back-iron',.0435,.047,.030,.062,'laminated-iron'),
@@ -186,7 +174,6 @@ def build_assembly(p, ring, box, combine, parts, materials):
         ('brake-mount-plate',.028,.048,.0145,.016,'machined-aluminium'),
         ('fixed-circular-spline-202',.0273,.048,.075,.086,'machined-aluminium',606,202),
         ('crossroller-outer-race',.038,.048,.090,.100,'bearing-steel'),
-        ('outer-bearing-retainer',.040,.048,.100,.103,'anodized-graphite'),
     ]: section(*args)
     # Every real mesh belongs to exactly one descriptive subsystem, independent of motion roots.
     for ob in parts:

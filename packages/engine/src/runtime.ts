@@ -983,12 +983,14 @@ export class StudioRuntime {
         bottom: [0, -1, 0],
       }[view] as [number, number, number]),
     ).normalize();
+    if (view === 'default') {
+      const authored = new THREE.Vector3(...this.spec.camera.position).sub(
+        new THREE.Vector3(...this.spec.camera.target),
+      );
+      if (authored.lengthSq() > 1e-12) direction.copy(authored.normalize());
+    }
     const up = new THREE.Vector3(
-      ...((view === 'top' || view === 'bottom' ? [0, 0, 1] : [0, 1, 0]) as [
-        number,
-        number,
-        number,
-      ]),
+      ...((Math.abs(direction.y) > 0.999 ? [0, 0, 1] : [0, 1, 0]) as [number, number, number]),
     );
     const right = up.clone().cross(direction).normalize();
     const actualUp = direction.clone().cross(right).normalize();

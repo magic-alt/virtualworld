@@ -6,9 +6,9 @@ const json = (p: string) => JSON.parse(readFileSync(new URL(p, root), 'utf8'));
 it('retains verified SI dimensions, explicit engineering limits and 200/202 tooth kinematics', () => {
   const r = json('assets/manifests/showcase/harmonic-joint.json');
   expect(r.dimensions).toEqual({
-    baseDiameter: 0.11,
+    baseDiameter: 0.1,
     housingDiameter: 0.1,
-    totalHeight: 0.11,
+    totalHeight: 0.088111111,
     boreDiameter: 0.018,
   });
   expect(r.airGap).toBeCloseTo(0.0004, 8);
@@ -104,7 +104,7 @@ it('ends both motor shell variants before the exposed reducer instead of enclosi
   const { accessor, primitive } = assetData();
   for (const name of ['housing-full', 'housing-section']) {
     const points = accessor(primitive(name).attributes.POSITION);
-    expect(Math.max(...points.map((p) => p[1]))).toBeCloseTo(0.106, 6);
+    expect(Math.max(...points.map((p) => p[1]))).toBeCloseTo(0.07632, 6);
   }
   const report = json('assets/manifests/showcase/harmonic-joint.json');
   for (const name of ['reducer-mount-pillars-4', 'output-bearing-bridges-4'])
@@ -114,9 +114,9 @@ it('ends both motor shell variants before the exposed reducer instead of enclosi
       ),
     ).toBe(true);
 });
-it('leaves eight actual axial inspection openings through the output flange and carrier', () => {
+it('cuts twelve real mounting holes on separate rotating and fixed output bolt circles', () => {
   const { accessor, primitive } = assetData();
-  for (const name of ['output-flange', 'output-bearing-carrier']) {
+  for (const name of ['output-flange', 'output-fixed-mount-ring']) {
     const part = primitive(name),
       positions = accessor(part.attributes.POSITION),
       indices = accessor(part.indices).flat();
@@ -131,26 +131,32 @@ it('leaves eight actual axial inspection openings through the output flange and 
       }
       return false;
     };
-    for (let i = 0; i < 8; i++) {
-      const angle = (i * Math.PI) / 4 + 0.07 + Math.PI / 8;
+    for (let i = 0; i < 12; i++) {
+      const angle = (i * Math.PI) / 6 + 0.07;
+      const radius = name === 'output-flange' ? (0.062 * 10) / 18 : (0.084 * 10) / 18;
       expect(
-        hits(0.02 * Math.sin(angle), -0.02 * Math.cos(angle)),
+        name === 'output-flange'
+          ? hits(radius * Math.sin(angle), -radius * Math.cos(angle))
+          : hits(radius * Math.cos(angle), -radius * Math.sin(angle)),
         `${name} inspection opening ${i}`,
       ).toBe(false);
     }
-    expect(hits(0.031, 0), `${name} retains the outer load path`).toBe(true);
+    expect(
+      hits(name === 'output-flange' ? 0.037 : 0.043, 0),
+      `${name} retains the outer load path`,
+    ).toBe(true);
   }
 });
 it('measures compact Y-up positions, exact tooth counts and 0.3mm radial morph amplitude', () => {
   const { d, accessor, primitive } = assetData();
   const base = accessor(primitive('base-flange').attributes.POSITION);
   expect(Math.max(...base.map((p) => p[0])) - Math.min(...base.map((p) => p[0]))).toBeCloseTo(
-    0.11,
+    0.1,
     6,
   );
   expect(
     Math.max(...accessor(primitive('base-flange').attributes.POSITION).map((p) => p[1])),
-  ).toBeCloseTo(0.11, 6);
+  ).toBeCloseTo(0.0792, 6);
   for (const [name, threshold, count, inside] of [
     ['flex-cup', 0.02694, 200, false],
     ['fixed-circular-spline-202', 0.02696, 202, true],
@@ -311,7 +317,9 @@ it('keeps the flex major axis aligned with the input cam after reversing the axi
   const positions = accessor(flex.attributes.POSITION),
     cos = accessor(flex.targets[0].POSITION),
     sin = accessor(flex.targets[1].POSITION);
-  const lip = positions.map((p, i) => ({ p, i })).filter(({ p }) => Math.abs(p[1] - 0.041) < 1e-7);
+  const lip = positions
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => Math.abs(p[1] - 0.02952) < 1e-7);
   for (const input of [0, 0.173, -0.793, 1.271, 5.812]) {
     const state = harmonicState(input, 6, 200, 202);
     let best = { delta: -Infinity, angle: 0 };
@@ -337,5 +345,61 @@ it('cuts matching support bays in section mode so pillars do not end in removed 
       cut = accessor(primitive(name + '-section').attributes.POSITION);
     expect(full.some((p) => p[0] > 0 && p[2] < 0)).toBe(true);
     expect(cut.some((p) => p[0] > 0 && p[2] < 0)).toBe(false);
+  }
+});
+
+it('reconstructs a compact product envelope with rear interface cover and separate output mounting face', () => {
+  const { accessor, primitive } = assetData();
+  const range = (name: string) => {
+    const p = accessor(primitive(name).attributes.POSITION);
+    return {
+      radius: Math.max(...p.map((v) => Math.hypot(v[0], v[2]))),
+      min: Math.min(...p.map((v) => v[1])),
+      max: Math.max(...p.map((v) => v[1])),
+    };
+  };
+  const shell = range('housing-full'),
+    rear = range('rear-interface-cover'),
+    output = range('output-flange');
+  expect(shell.radius).toBeCloseTo(0.05, 6);
+  expect(range('base-flange').radius).toBeLessThanOrEqual(0.050001);
+  expect(rear.max).toBeCloseTo(0.084333333, 6);
+  expect(output.radius).toBeCloseTo(0.038888889, 6);
+  expect(output.min).toBeCloseTo(0, 6);
+  expect(range('drive-bus-capacitors').max).toBeLessThan(rear.min);
+  for (const name of [
+    'rear-power-socket',
+    'rear-can-sockets',
+    'rear-ethercat-sockets',
+    'rear-io-socket',
+    'rear-battery-socket',
+    'rear-interface-legends',
+    'output-fixed-mount-ring',
+  ])
+    expect(primitive(name)).toBeTruthy();
+  const report = json('assets/manifests/showcase/harmonic-joint.json');
+  expect(report.exteriorReference.bodyLength).toBeCloseTo(0.084333333, 6);
+  expect(report.exteriorReference.sourceBodyLength).toBe(0.0759);
+});
+
+it('retains a dielectric floor under both power contact cavities instead of floating sleeves', () => {
+  const { accessor, primitive } = assetData(),
+    part = primitive('rear-power-socket');
+  const p = accessor(part.attributes.POSITION),
+    indices = accessor(part.indices).flat();
+  for (const y of [0.028 - 0.0031, 0.028 + 0.0031]) {
+    const x = -0.012,
+      z = -y;
+    const floors = [];
+    for (let j = 0; j < indices.length; j += 3) {
+      const [a, b, c] = indices.slice(j, j + 3).map((i) => p[i]);
+      const area = (b[0] - a[0]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[0] - a[0]);
+      if (Math.abs(area) < 1e-14) continue;
+      const cross = (u: number[], v: number[]) =>
+        (v[0] - u[0]) * (z - u[2]) - (v[2] - u[2]) * (x - u[0]);
+      if ([cross(a, b), cross(b, c), cross(c, a)].every((s) => s / area >= -1e-7))
+        floors.push((a[1] + b[1] + c[1]) / 3);
+    }
+    expect(floors.some((v) => v > 0.0835 && v < 0.0845)).toBe(true);
   }
 });

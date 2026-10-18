@@ -130,3 +130,25 @@ it('shows the underside output face and preserves orbit orientation after bottom
     0.95,
   );
 });
+
+it('uses the authored default camera direction when fitting the mechanism', () => {
+  const r = fixture();
+  r.spec.camera = { position: [0.19, -0.1, -0.22], target: [0, 0.042, 0] };
+  r.setMechanismViewportInsets({ top: 0, bottom: 0, left: 0, right: 0 });
+  r.fitMechanismView('default');
+  const actual = r.camera.position.clone().sub(r.controls.target).normalize();
+  const expected = new THREE.Vector3(0.19, -0.142, -0.22).normalize();
+  expect(actual.distanceTo(expected)).toBeLessThan(1e-6);
+});
+
+it('frames vertical authored defaults with a finite nonparallel up basis and asymmetric insets', () => {
+  for (const y of [-1, 1]) {
+    const r = fixture();
+    r.spec.camera = { position: [0, y, 0], target: [0, 0, 0] };
+    r.setMechanismViewportInsets({ top: 120, bottom: 290, left: 0, right: 0 });
+    r.fitMechanismView('default');
+    expect(r.camera.up.toArray()).toEqual([0, 0, 1]);
+    expect(r.controls.target.z).toBeLessThan(0);
+    expect(r.camera.position.toArray().every(Number.isFinite)).toBe(true);
+  }
+});

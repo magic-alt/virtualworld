@@ -1,7 +1,7 @@
 {
-  "baseDiameter": 0.11,
+  "baseDiameter": 0.1,
   "housingDiameter": 0.1,
-  "totalHeight": 0.11,
+  "totalHeight": 0.088111111,
   "boreDiameter": 0.018,
   "flexTeeth": 200,
   "ringTeeth": 202,
@@ -39,11 +39,7 @@
     ["output-bearing-carrier", "output-flange"],
     ["crossroller-inner-race", "crossrollers-32-alternating-45deg"],
     ["crossroller-outer-race", "crossrollers-32-alternating-45deg"],
-    ["crossroller-outer-race", "outer-bearing-retainer"],
     ["output-flange", "output-index"],
-    ["outer-bearing-retainer", "retainer-bolts-8"],
-    ["output-fasteners-8", "output-flange"],
-    ["output-fasteners-8", "output-bearing-carrier"],
     ["base-flange", "rear-bore-seal"],
     ["housing-full", "brake-mount-plate"],
     ["housing-full", "lower-bearing-support-plate"],
@@ -85,15 +81,16 @@
     ["output-bearing-bridges-4", "crossroller-outer-race"],
     ["housing-full", "drive-support-ring"],
     ["drive-support-ring", "drive-standoffs"],
-    ["brake-mount-plate", "drive-support-ring"]
+    ["brake-mount-plate", "drive-support-ring"],
+    ["output-flange", "output-fasteners-16"]
   ],
   "toothAmplitude": 0.00035,
   "axialZones": {
-    "output": [0, 0.022],
-    "reducer": [0.022, 0.041],
-    "motor": [0.046, 0.082],
-    "brake": [0.0857, 0.0955],
-    "drive": [0.0955, 0.1066]
+    "output": [0.0, 0.01584],
+    "reducer": [0.01584, 0.02952],
+    "motor": [0.03312, 0.05904],
+    "brake": [0.061703999999999995, 0.06876],
+    "drive": [0.06876, 0.076752]
   },
   "references": [
     {
@@ -121,18 +118,40 @@
       "url": "https://eyoubot.com/blog/harmonic-drive-systems-robot-joints",
       "accessed": "2026-10-18",
       "scope": "Official exploded diagram: drive, brake, frameless motor, harmonic reducer from rear to output; output-down Y-up layout follows user requirement. Internal geometry remains original."
+    },
+    {
+      "url": "https://www.zeroerr.cn/d/file/20231010/XT30U-F%28DC48V%29.zip",
+      "accessed": "2026-10-19",
+      "downloadSha256": "43b7248bef22acd9885a35a8c18131ecebaab903a19ed1f2b0c5dc129b377a33",
+      "scope": "Official connector STEP downloaded and measured; connector appearance reference, not inserted vendor CAD."
+    },
+    {
+      "url": "https://www.zeroerr.cn/d/file/20231010/GHR-04V-S%28EtherCAT%29.zip",
+      "accessed": "2026-10-19",
+      "downloadSha256": "4b2f4b2993aca5ee57faabaacb661ee53d22a81c91b92924c865d163db72feba",
+      "scope": "Official connector STEP downloaded and measured; JST shell/latch/pin appearance reference."
     }
   ],
   "outputExposure": {
     "motorHousingTop": 0.068,
-    "inspectionWindows": {
-      "count": 8,
-      "pitchRadius": 0.02,
-      "radialSize": 0.004,
-      "tangentialSize": 0.006
-    },
-    "motorHousingMinY": 0.042,
-    "motorHousingMaxY": 0.106,
+    "motorHousingMinY": 0.03024,
+    "motorHousingMaxY": 0.07632,
     "topMountOpeningRadius": 0.045
+  },
+  "internalAxialScale": 0.72,
+  "authoredHeight": 0.11,
+  "exteriorReference": {
+    "source": "https://www.zeroerr.cn/download/eRob.html",
+    "product": "eRob90 V6 exterior STEP and 2D drawing",
+    "sourceDiameter": 0.09,
+    "sourceBodyLength": 0.0759,
+    "diameterScale": 1.1111111111111112,
+    "bodyLength": 0.08433333333333332,
+    "outputDiameter": 0.07777777777777778,
+    "fixedMountPitchDiameter": 0.09333333333333334,
+    "outputMountPitchDiameter": 0.06888888888888889,
+    "outputFastenerPitchDiameter": 0.06277777777777778,
+    "boreDiameter": 0.018,
+    "scope": "Original parametric exterior reconstruction using scaled official envelope/bolt circles. Bore stays 18 mm. Internal axial packing, rear port layout and optional PM brake are educational assumptions, not vendor internal CAD."
   }
 }

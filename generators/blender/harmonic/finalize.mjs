@@ -82,7 +82,10 @@ for (const p of report.parts) {
     assetNode: p.path,
     parentId,
     visible: !p.sectionOf,
-    explode: p.subsystem === 'housing' && p.name.includes('housing') ? [0.1, 0, 0] : [0, layer, 0],
+    explode:
+      p.subsystem === 'housing' && !['base-flange', 'rear-bore-seal'].includes(p.name)
+        ? [0.1, 0, 0]
+        : [0, layer, 0],
   });
 }
 const scene = {
@@ -91,10 +94,10 @@ const scene = {
   id: 'demo-harmonic-joint',
   name: 'H-100 · 谐波关节剖解',
   description:
-    '从下往上：谐波减速器 → 无框电机 → 选配抱闸 → 驱动器 · Ø110 / Ø100 × 110 mm · 18 mm 贯通孔 · 官方资料参考 / 原创内部重建',
+    '从下往上：谐波减速器 → 无框电机 → 选配抱闸 → 驱动器 · Ø100 × 84.3 mm 主体 · 18 mm 贯通孔 · 官方资料参考 / 原创内部重建',
   mode: 'industrial',
-  environment: { background: '#101722', lightIntensity: 3, ambientIntensity: 1.5 },
-  camera: { position: [0.19, 0.15, -0.22], target: [0, 0.055, 0] },
+  environment: { background: '#101722', lightIntensity: 1.8, ambientIntensity: 0.6 },
+  camera: { position: [0.19, -0.1, -0.22], target: [0, 0.042, 0] },
   spawn: [0, 0.02, 0.35],
   nodes,
   mechanism: {
@@ -116,7 +119,7 @@ const scene = {
       [
         'housing',
         '壳体与安装',
-        '圆筒壳位于上部电机端；底部减速机及输出侧裸露。顶部固定安装环开放，驱动板元件朝上。',
+        '参考官方外形重构的紧凑铝筒、黑色减速器环体、分层后盖及定位台阶。输出面是独立旋转法兰；剖视展示内部驱动板。',
       ],
       ['motor', '无框力矩电机', '定子叠片、18 齿铜绕组、20 极永磁转子；0.4 mm 名义气隙。'],
       [
@@ -127,7 +130,7 @@ const scene = {
       [
         'drive',
         '集成驱动板',
-        '最上层环形 PCB、独立固定支撑、功率级、母线电容、控制器、电源／通信与三相端子。布局示意，不是已验证电路。',
+        '最上层环形 PCB、独立固定支撑、带锁扣的电源／总线插座、功率级、母线电容、控制器、电源／通信与三相端子。布局示意，不是已验证电路。',
       ],
       [
         'encoders',
@@ -142,7 +145,7 @@ const scene = {
       [
         'output',
         '输出支承',
-        '底部减速机输出端：交叉滚子轴承、开放支撑、旋转法兰与承载盘；八处贯穿观察孔位于安装孔之间，保留中心连接和外圈传力路径。观察结构并非制造图。',
+        '底部独立旋转法兰：12 个输出安装孔、16 个内六角紧固件，外侧固定环另有 12 个安装孔及 12 个沉孔螺钉。孔圈按官方外形图比例重建，内部连接为原理模拟。',
       ],
     ].map(([id, name, description]) => ({
       id,
@@ -172,7 +175,7 @@ const interactions = {
   },
   'harmonic-base-flange': {
     title: '名义尺寸与边界',
-    text: '顶部固定安装环外径 110 mm，壳体直径 100 mm，总高 110 mm。8 × Ø4.4 mm 固定安装环通孔；输出 8 × Ø3.3 mm 孔。自绘演示尺寸，不是厂商商品复刻；没有工程确认或性能合格声明。',
+    text: '主体直径 100 mm、主体长 84.3 mm、接口在主体外伸出约 3.8 mm，贯通孔 18 mm。外形比例与孔圈参考零差 eRob90 官方图纸放大重建。自绘演示尺寸，不是厂商商品复刻；没有工程确认或性能合格声明。',
   },
 };
 const dir = resolve(root, 'worlds/demo-harmonic-joint');

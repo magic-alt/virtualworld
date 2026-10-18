@@ -222,19 +222,39 @@ try {
       bridges: r.objects.get('harmonic-output-bearing-bridges-4')?.visible,
     };
   });
-  assert.ok(Math.abs(exposed.shellTop - 0.106) < 1e-6);
-  assert.ok(Math.abs(exposed.shellBottom - 0.042) < 1e-6);
+  assert.ok(Math.abs(exposed.shellTop - 0.07632) < 1e-6);
+  assert.ok(Math.abs(exposed.shellBottom - 0.03024) < 1e-6);
   assert.equal(exposed.fullShellVisible, true);
   assert.equal(exposed.pillars, true);
   assert.equal(exposed.bridges, true);
+  const product = await page.evaluate(() => {
+    const r = window.virtualworld;
+    return {
+      rear: r.objects.get('harmonic-rear-interface-cover')?.visible,
+      ports: [
+        'rear-power-socket',
+        'rear-can-sockets',
+        'rear-ethercat-sockets',
+        'rear-io-socket',
+        'rear-battery-socket',
+      ].every((id) => r.objects.get('harmonic-' + id)?.visible),
+      looksUpAtOutput: r.camera.position.y < r.controls.target.y,
+    };
+  });
+  assert.equal(product.rear, true);
+  assert.equal(product.ports, true);
+  assert.equal(product.looksUpAtOutput, true);
   await page.getByRole('button', { name: '顶视', exact: true }).click();
+  await page.waitForTimeout(100);
   await page.screenshot({ path: 'output/playwright/h100/open-output-top.png' });
   await page.getByRole('button', { name: '底视', exact: true }).click();
+  await page.waitForTimeout(100);
   await page.screenshot({ path: 'output/playwright/h100/open-output-bottom.png' });
   await page.getByRole('button', { name: '默认视角', exact: true }).click();
+  await page.waitForTimeout(100);
   await page.screenshot({ path: 'output/playwright/h100/open-output-assembled.png' });
   check(
-    'assembled reducer/output is exposed below the motor-only shell, with real support bays and inspection openings',
+    'assembled reducer/output is exposed below the motor-only shell, with real support bays and actual mounting bores',
   );
   await page.getByRole('button', { name: '全屏显示', exact: true }).click();
   await page.waitForFunction(() => !!document.fullscreenElement);
