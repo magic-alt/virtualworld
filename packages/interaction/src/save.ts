@@ -3,6 +3,9 @@ import type { SceneSpec } from '@virtualworld/scene-schema';
 import { initialStory, type StoryState } from './story';
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+// Keep the current browser session usable when storage is blocked or its quota is exhausted.
+const sessionSaves = new Map<string, string>();
+const sessionOnly = new Set<string>();
 const Saved = z
   .object({
     version: z.literal(1),
@@ -39,7 +42,16 @@ export class SaveSystem {
   }
   load(scene: SceneSpec): StoryState {
     try {
-      const saved = Saved.parse(JSON.parse(this.storage?.getItem(this.key(scene)) || 'null'));
+      let text: string | null | undefined;
+      try {
+        text =
+          this.storage && !sessionOnly.has(this.key(scene))
+            ? this.storage.getItem(this.key(scene))
+            : sessionSaves.get(this.key(scene));
+      } catch {
+        text = sessionSaves.get(this.key(scene));
+      }
+      const saved = Saved.parse(JSON.parse(text || 'null'));
       if (saved.fingerprint !== fingerprint(scene)) return initialStory();
       // Replay reachability of granted flags: a syntactically valid save cannot skip prerequisites.
       const remaining = new Set(saved.state.flags),
@@ -77,16 +89,22 @@ export class SaveSystem {
     }
   }
   save(scene: SceneSpec, state: StoryState) {
+    const text = JSON.stringify({ version: 1, fingerprint: fingerprint(scene), state });
+    sessionSaves.set(this.key(scene), text);
     try {
-      this.storage?.setItem(
-        this.key(scene),
-        JSON.stringify({ version: 1, fingerprint: fingerprint(scene), state }),
-      );
-    } catch {}
+      this.storage?.setItem(this.key(scene), text);
+      sessionOnly.delete(this.key(scene));
+    } catch {
+      sessionOnly.add(this.key(scene));
+    }
   }
   reset(scene: SceneSpec) {
+    sessionSaves.delete(this.key(scene));
+    sessionOnly.delete(this.key(scene));
     try {
       this.storage?.removeItem(this.key(scene));
-    } catch {}
+    } catch {
+      sessionOnly.add(this.key(scene));
+    }
   }
 }

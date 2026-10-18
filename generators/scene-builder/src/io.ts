@@ -1,7 +1,7 @@
 import { readFile, readdir, mkdir, rename, rm } from 'node:fs/promises';
 import { join, resolve, relative, isAbsolute } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { SceneSpec } from '@virtualworld/scene-schema';
+import { CampaignSchema, type SceneSpec, type CampaignSpec } from '@virtualworld/scene-schema';
 import { assembleWorld, splitWorld } from './index';
 import { atomicWrite } from './pipeline';
 
@@ -34,11 +34,59 @@ export async function listWorlds(root: string): Promise<{ directory: string; sce
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return [];
     throw e;
   }
-  return Promise.all(
+  return (
+    await Promise.all(
+      entries
+        .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
+        .map(async (e) => {
+          try {
+            const manifest = CampaignSchema.parse(
+              JSON.parse(await readFile(join(root, e.name, 'campaign.json'), 'utf8')),
+            );
+            return Promise.all(
+              manifest.chapters.map(async (chapter, index) => {
+                const directory = `${e.name}/${chapter.directory}`;
+                const scene = await readWorld(inside(root, directory));
+                if (
+                  scene.id !== chapter.id ||
+                  scene.campaign?.id !== manifest.id ||
+                  scene.campaign.index !== index
+                )
+                  throw new Error(`Campaign chapter metadata mismatch: ${chapter.id}`);
+                return { directory, scene };
+              }),
+            );
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+            return [{ directory: e.name, scene: await readWorld(join(root, e.name)) }];
+          }
+        }),
+    )
+  ).flat();
+}
+export async function listCampaigns(root: string): Promise<CampaignSpec[]> {
+  let entries;
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
+  const campaigns = await Promise.all(
     entries
       .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
-      .map(async (e) => ({ directory: e.name, scene: await readWorld(join(root, e.name)) })),
+      .map(async (e) => {
+        try {
+          return CampaignSchema.parse(
+            JSON.parse(await readFile(join(root, e.name, 'campaign.json'), 'utf8')),
+          );
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+          throw error;
+        }
+      }),
   );
+  return campaigns.filter((c): c is CampaignSpec => c !== null);
 }
 /** All documents are validated before an atomic directory publish; never overwrite an existing world. */
 export async function writeWorld(root: string, scene: SceneSpec) {

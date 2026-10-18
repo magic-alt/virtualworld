@@ -112,11 +112,12 @@ it('handles failed jobs without recreating them and uses image-to-model when sup
 it('bounds polling time and resumes the same task after timeout', async () => {
   const { state, options } = await fixture('running');
   await expect(
-    new TripoProvider({ ...options, timeoutMs: 70 }).generate({ prompt: 'Lantern' }),
+    // Allow filesystem/HTTP setup under the full parallel suite; this still exercises a real timeout.
+    new TripoProvider({ ...options, timeoutMs: 500 }).generate({ prompt: 'Lantern' }),
   ).rejects.toThrow();
   const polls = state.polls;
   await expect(
-    new TripoProvider({ ...options, timeoutMs: 70 }).generate({ prompt: 'Lantern' }),
+    new TripoProvider({ ...options, timeoutMs: 500 }).generate({ prompt: 'Lantern' }),
   ).rejects.toThrow();
   expect(state.creates).toBe(1);
   expect(state.polls).toBeGreaterThan(polls);

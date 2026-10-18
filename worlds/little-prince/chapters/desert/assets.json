@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "worldId": "little-prince-desert",
+  "assets": [
+    {
+      "id": "prince-desert",
+      "name": "prince-desert",
+      "type": "glb",
+      "url": "/assets/optimized/showcase/prince-desert.glb",
+      "bytes": 2328020,
+      "source": "generators/blender/prince/build.py"
+    },
+    {
+      "id": "prince-character",
+      "name": "prince-character",
+      "type": "glb",
+      "url": "/assets/optimized/showcase/prince-character.glb",
+      "bytes": 935920,
+      "source": "generators/blender/prince/build.py"
+    },
+    {
+      "id": "prince-pilot",
+      "name": "prince-pilot",
+      "type": "glb",
+      "url": "/assets/optimized/showcase/prince-pilot.glb",
+      "bytes": 938572,
+      "source": "generators/blender/prince/build.py"
+    }
+  ]
+}

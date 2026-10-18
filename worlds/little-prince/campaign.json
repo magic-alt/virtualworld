@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "id": "little-prince",
+  "title": "小王子：照料与相遇",
+  "description": "走过沙海、小星球与地球的花园，在照料与相遇中读懂牵挂。",
+  "chapters": [
+    {
+      "id": "little-prince-desert",
+      "title": "沙海中的相遇",
+      "directory": "chapters/desert"
+    },
+    {
+      "id": "little-prince-b612",
+      "title": "每天照料的小星球",
+      "directory": "chapters/b612",
+      "requires": ["little-prince-desert"]
+    },
+    {
+      "id": "little-prince-earth",
+      "title": "玫瑰与狐狸",
+      "directory": "chapters/earth",
+      "requires": ["little-prince-b612"]
+    }
+  ]
+}

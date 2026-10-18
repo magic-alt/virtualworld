@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "id": "little-prince-desert",
+  "name": "沙海中的相遇",
+  "description": "沙漠中，一位迫降的飞行员遇见金发的小旅人。走到机翼旁，听听那只箱子里的羊。",
+  "mode": "world",
+  "revision": 0,
+  "nodes": [
+    {
+      "id": "landscape",
+      "name": "沙海中的相遇",
+      "kind": "mesh",
+      "shape": "glb",
+      "assetId": "prince-desert",
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true,
+      "collider": {
+        "shape": "mesh",
+        "size": [22, 1, 22]
+      }
+    },
+    {
+      "id": "prince",
+      "name": "金发的小旅人",
+      "kind": "mesh",
+      "shape": "glb",
+      "assetId": "prince-character",
+      "position": [0.3, -0.08, -1.4],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true,
+      "animation": {
+        "clip": "Idle",
+        "loop": true
+      }
+    },
+    {
+      "id": "meeting",
+      "name": "请画一只羊",
+      "kind": "group",
+      "position": [0.3, 0.8, -1.4],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true
+    },
+    {
+      "id": "plane",
+      "name": "修理飞机",
+      "kind": "group",
+      "position": [-3, 0.8, -1],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true
+    }
+  ],
+  "environment": {
+    "background": "#dfb17a",
+    "lightIntensity": 2.5,
+    "ambientIntensity": 1.5,
+    "fog": 0.015
+  },
+  "camera": {
+    "position": [6, 5, 8],
+    "target": [0, 0.7, 0]
+  },
+  "spawn": [0, 0.1, 2],
+  "navigation": {
+    "kind": "plane"
+  },
+  "actor": {
+    "assetId": "prince-pilot",
+    "height": 1.6,
+    "clips": {
+      "idle": "Idle",
+      "walk": "Walk",
+      "interact": "Interact"
+    }
+  },
+  "campaign": {
+    "id": "little-prince",
+    "chapterId": "little-prince-desert",
+    "index": 0
+  }
+}

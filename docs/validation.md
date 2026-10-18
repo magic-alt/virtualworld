@@ -1,6 +1,6 @@
-# 架构迁移后的实际验证
+# 架构迁移验证基线（b803218）
 
-执行时间：2026-10-17 至 2026-10-18。本页记录当前重构结果；原首版的历史验证保留在 [validation-initial.md](validation-initial.md)。
+执行时间：2026-10-17 至 2026-10-18。本页保留 Blender 案例加入前的 b803218 验证基线，下方的 Blender 未安装、球面未实现等描述仅指当时状态。当前 Blender 案例及新增验收见 [blender-showcases.md](blender-showcases.md)；原首版验证保留在 [validation-initial.md](validation-initial.md)。
 
 ## 已执行
 

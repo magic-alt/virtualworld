@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "id": "prince-desert",
+  "seed": 612,
+  "generator": "Blender 5.2 fixed offline recipe",
+  "source": "generators/blender/prince/build.py",
+  "sha256": "518e363f0e94417cf8e05382d2d55d3ce70c2160df37dad0bdb05e02e5a0f880",
+  "bytes": 2328020,
+  "meshes": 6,
+  "triangles": 67624,
+  "warnings": [
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/3"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/8"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/13"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/18"
+    }
+  ],
+  "primitives": 6,
+  "clips": [],
+  "validator": {
+    "errors": 0,
+    "warnings": 0
+  }
+}

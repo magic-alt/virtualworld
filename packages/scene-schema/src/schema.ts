@@ -50,10 +50,21 @@ export const NodeSchema = z
     visible: z.boolean(),
     metalness: z.number().min(0).max(1).optional(),
     roughness: z.number().min(0).max(1).optional(),
+    animation: z
+      .object({
+        clip: z.string().min(1).max(100),
+        loop: z.boolean().optional(),
+        speed: z.number().min(0).max(10).optional(),
+      })
+      .strict()
+      .optional(),
     emissive: z.number().min(0).max(10).optional(),
     opacity: z.number().min(0).max(1).optional(),
     collider: z
-      .object({ shape: z.enum(['box', 'ball']), size: Vec3.refine((v) => v.every((n) => n > 0)) })
+      .object({
+        shape: z.enum(['box', 'ball', 'mesh']),
+        size: Vec3.refine((v) => v.every((n) => n > 0)),
+      })
       .strict()
       .optional(),
     explode: Vec3.optional(),
@@ -105,12 +116,93 @@ export const SceneSchema = z
     camera: z.object({ position: Vec3, target: Vec3 }).strict(),
     spawn: Vec3,
     tasks: z.array(z.object({ flag: identifier, label: z.string().max(200) }).strict()).max(100),
+    navigation: z
+      .discriminatedUnion('kind', [
+        z.object({ kind: z.literal('plane') }).strict(),
+        z
+          .object({
+            kind: z.literal('sphere'),
+            center: Vec3,
+            radius: z.number().finite().positive(),
+          })
+          .strict(),
+      ])
+      .optional(),
+    actor: z
+      .object({
+        assetId: identifier,
+        height: z.number().finite().min(0.1).max(5),
+        clips: z.object({ idle: z.string(), walk: z.string(), interact: z.string() }).strict(),
+      })
+      .strict()
+      .optional(),
+    campaign: z
+      .object({ id: identifier, chapterId: identifier, index: z.number().int().min(0) })
+      .strict()
+      .optional(),
+    mechanism: z
+      .object({
+        kind: z.literal('harmonic'),
+        waveNodeId: identifier,
+        flexNodeId: identifier,
+        outputNodeId: identifier,
+        fixedNodeIds: z.array(identifier),
+        flexTeeth: z.number().int().min(10),
+        ringTeeth: z.number().int().min(10),
+        cosMorph: z.string().min(1),
+        sinMorph: z.string().min(1),
+        fullHousingIds: z.array(identifier),
+        sectionHousingIds: z.array(identifier),
+        dimensions: z
+          .object({
+            baseDiameter: z.number().positive(),
+            housingDiameter: z.number().positive(),
+            totalHeight: z.number().positive(),
+            boreDiameter: z.number().positive(),
+          })
+          .strict(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type SceneSpec = z.infer<typeof SceneSchema>;
 export type SceneNode = z.infer<typeof NodeSchema>;
 export type SceneAsset = z.infer<typeof AssetSchema>;
 export type Vector3Tuple = z.infer<typeof Vec3>;
+export const CampaignSchema = z
+  .object({
+    version: z.literal(1),
+    id: identifier,
+    title: z.string().min(1).max(200),
+    description: z.string().max(4000),
+    chapters: z
+      .array(
+        z
+          .object({
+            id: identifier,
+            title: z.string().min(1).max(200),
+            directory: z.string().regex(/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/),
+            requires: z.array(identifier).optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(20),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    const seen = new Set<string>();
+    for (const chapter of value.chapters) {
+      if (seen.has(chapter.id) || (chapter.requires || []).some((id) => !seen.has(id)))
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Chapter IDs must be unique and prerequisites must precede them',
+        });
+      seen.add(chapter.id);
+    }
+  });
+export type CampaignSpec = z.infer<typeof CampaignSchema>;
 
 export function validateScene(input: unknown): string[] {
   const parsed = SceneSchema.safeParse(input);
@@ -121,6 +213,42 @@ export function validateScene(input: unknown): string[] {
   const assets = new Map(scene.assets.map((a) => [a.id, a]));
   if (nodes.size !== scene.nodes.length) errors.push('对象 ID 重复');
   if (assets.size !== scene.assets.length) errors.push('资源 ID 重复');
+  if (scene.actor && assets.get(scene.actor.assetId)?.type !== 'glb')
+    errors.push('角色必须引用存在的 GLB 资源');
+  if (scene.campaign && scene.campaign.chapterId !== scene.id) errors.push('章节 ID 与场景不一致');
+  if (scene.mechanism) {
+    const m = scene.mechanism;
+    for (const id of [
+      m.waveNodeId,
+      m.flexNodeId,
+      m.outputNodeId,
+      ...m.fixedNodeIds,
+      ...m.fullHousingIds,
+      ...m.sectionHousingIds,
+    ])
+      if (!nodes.has(id)) errors.push(`机构引用不存在: ${id}`);
+    if (m.ringTeeth - m.flexTeeth !== 2) errors.push('双波谐波传动要求刚轮比柔轮多两齿');
+    if (new Set([m.waveNodeId, m.flexNodeId, m.outputNodeId]).size !== 3)
+      errors.push('机构运动件必须独立');
+    if (m.fixedNodeIds.some((id) => [m.waveNodeId, m.flexNodeId, m.outputNodeId].includes(id)))
+      errors.push('机构固定件不能同时是运动件');
+    const moving = new Set([m.waveNodeId, m.flexNodeId, m.outputNodeId]);
+    for (const id of [...moving, ...m.fixedNodeIds]) {
+      const visited = new Set<string>();
+      let parent = nodes.get(id)?.parentId;
+      while (parent && !visited.has(parent)) {
+        if (moving.has(parent)) {
+          errors.push('机构运动根节点必须独立，固定件不能处于运动件下');
+          break;
+        }
+        visited.add(parent);
+        parent = nodes.get(parent)?.parentId;
+      }
+    }
+    const d = m.dimensions;
+    if (d.boreDiameter >= d.housingDiameter || d.housingDiameter > d.baseDiameter)
+      errors.push('通孔、壳体和底座直径关系无效');
+  }
   for (const node of scene.nodes) {
     if (node.parentId && !nodes.has(node.parentId)) errors.push(`${node.name}: 父对象不存在`);
     if (node.assetId && !assets.has(node.assetId)) errors.push(`${node.name}: 资源不存在`);

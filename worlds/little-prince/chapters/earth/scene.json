@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "id": "little-prince-earth",
+  "name": "玫瑰与狐狸",
+  "description": "先走进玫瑰花园，再与麦田边的狐狸慢慢熟悉，最后回到花旁，想想远方的牵挂。",
+  "mode": "world",
+  "revision": 0,
+  "nodes": [
+    {
+      "id": "landscape",
+      "name": "玫瑰与狐狸",
+      "kind": "mesh",
+      "shape": "glb",
+      "assetId": "prince-earth",
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true,
+      "collider": {
+        "shape": "mesh",
+        "size": [22, 1, 22]
+      }
+    },
+    {
+      "id": "fox",
+      "name": "麦田边的狐狸",
+      "kind": "mesh",
+      "shape": "glb",
+      "assetId": "prince-fox",
+      "position": [2, -0.06, -1],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true,
+      "animation": {
+        "clip": "Idle",
+        "loop": true
+      }
+    },
+    {
+      "id": "garden",
+      "name": "初见玫瑰花园",
+      "kind": "group",
+      "position": [-1.6, 0.5, -1],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true
+    },
+    {
+      "id": "friend",
+      "name": "每天靠近一点",
+      "kind": "group",
+      "position": [2, 0.5, -1],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true
+    },
+    {
+      "id": "wheat",
+      "name": "金色麦田",
+      "kind": "group",
+      "position": [3, 0.5, -2],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true
+    },
+    {
+      "id": "reflection",
+      "name": "再看玫瑰",
+      "kind": "group",
+      "position": [-1.7, 0.5, -0.5],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true
+    }
+  ],
+  "environment": {
+    "background": "#a4c7bd",
+    "lightIntensity": 2.5,
+    "ambientIntensity": 1.5,
+    "fog": 0.015
+  },
+  "camera": {
+    "position": [6, 5, 8],
+    "target": [0, 0.7, 0]
+  },
+  "spawn": [0, 0.1, 2],
+  "navigation": {
+    "kind": "plane"
+  },
+  "actor": {
+    "assetId": "prince-character",
+    "height": 1.6,
+    "clips": {
+      "idle": "Idle",
+      "walk": "Walk",
+      "interact": "Interact"
+    }
+  },
+  "campaign": {
+    "id": "little-prince",
+    "chapterId": "little-prince-earth",
+    "index": 2
+  }
+}

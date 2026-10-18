@@ -99,7 +99,7 @@ try {
     );
     await page.waitForTimeout(1500);
   };
-  await page.goto('http://127.0.0.1:3133');
+  await page.goto('http://127.0.0.1:3133/?project=demo-industrial');
   await page.getByRole('button', { name: '导出网页', exact: true }).waitFor();
   await ready();
   await page.screenshot({ path: join(output, 'industrial.png') });
@@ -479,7 +479,7 @@ try {
   }
   const aiPage = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   aiPage.on('pageerror', (e) => report.errors.push(e.message));
-  await aiPage.goto('http://127.0.0.1:3136');
+  await aiPage.goto('http://127.0.0.1:3136/?project=demo-industrial');
   await aiPage.waitForFunction(
     () => window.virtualworld && !window.virtualworld.getDiagnostics().loading,
   );
