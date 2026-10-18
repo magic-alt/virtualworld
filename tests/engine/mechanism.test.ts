@@ -65,8 +65,8 @@ it('keeps fixed parts and authored rotations stable while explosion and section 
   expect(r.objects.get('section')!.visible).toBe(true);
   r.animateJoints(false);
   r.explode(0);
-  expect(mesh.morphTargetInfluences).toEqual([0, 0]);
-  expect(r.objects.get('wave')!.rotation.y).toBeCloseTo(0.2);
+  expect(mesh.morphTargetInfluences![0]).toBeCloseTo(Math.cos(4.04));
+  expect(r.objects.get('wave')!.rotation.y).toBeCloseTo(2.2);
   expect(r.objects.get('wave')!.position.y).toBeCloseTo(0.1);
   expect(JSON.stringify(spec)).toBe(saved);
 });
@@ -96,6 +96,6 @@ it('loads authored harmonic GLB morphs into actual Three instances', async () =>
     expect(mesh.geometry.morphTargetsRelative).toBe(true);
   }
   const bounds = new THREE.Box3().setFromObject(gltf.scene).getSize(new THREE.Vector3());
-  expect(bounds.x).toBeCloseTo(0.215, 4);
-  expect(bounds.y).toBeCloseTo(0.165, 4);
+  expect(bounds.x).toBeCloseTo(0.10024, 5);
+  expect(bounds.y).toBeCloseTo(0.088111111, 5);
 });

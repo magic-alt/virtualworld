@@ -5,6 +5,7 @@ import { Viewport } from './Viewport';
 import { api } from './api';
 import { WorldComposer } from './WorldComposer';
 import { WorldExperience } from './WorldExperience';
+import harmonicCover from './assets/harmonic-cover.jpg';
 import './world.css';
 const StudioApp = lazy(() => import('./StudioApp'));
 type Project = { id: string; name: string; mode: string; description: string; revision: number };
@@ -211,7 +212,7 @@ function Home({ onOpen, onEdit }: { onOpen: (id: string) => void; onEdit: () => 
             </button>
             <button className="world-card" onClick={() => onOpen('demo-harmonic-joint')}>
               <div className="world-cover harmonic-cover">
-                <img src="/world-previews/harmonic.jpg" alt="谐波关节交互展示" loading="lazy" />
+                <img src={harmonicCover} alt="谐波关节交互展示" loading="lazy" />
                 <span className="world-card-pill">交互展示</span>
                 <span className="card-enter">
                   <ArrowUpRight />

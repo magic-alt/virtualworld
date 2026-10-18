@@ -58,6 +58,20 @@ for (const p of report.parts) {
   if (p.sectionOf) sectionHousingIds.push(id);
   if (p.assembly === 'fixed') fixedNodeIds.push(id);
   const top = /output|crossroller|retainer/.test(p.name);
+  const layer =
+    {
+      drive: 0.075,
+      brake: 0.035,
+      motor: 0,
+      encoders: top ? -0.105 : 0.005,
+      reducer:
+        p.assembly === 'flex'
+          ? -0.085
+          : /input|bearing-seat|support-plate|bearing-balls/.test(p.name)
+            ? -0.025
+            : -0.055,
+      output: -0.135,
+    }[p.subsystem] ?? 0;
   nodes.push({
     ...defaults,
     id,
@@ -69,15 +83,9 @@ for (const p of report.parts) {
     parentId,
     visible: !p.sectionOf,
     explode:
-      p.assembly === 'input'
-        ? [0, -0.11, 0]
-        : p.assembly === 'flex'
-          ? [0, 0.1, 0]
-          : top
-            ? [0, 0.18, 0]
-            : p.name.includes('housing') || p.name.includes('cooling')
-              ? [0.16, 0, 0]
-              : [0, -0.035, 0],
+      p.subsystem === 'housing' && !['base-flange', 'rear-bore-seal'].includes(p.name)
+        ? [0.1, 0, 0]
+        : [0, layer, 0],
   });
 }
 const scene = {
@@ -86,10 +94,10 @@ const scene = {
   id: 'demo-harmonic-joint',
   name: 'H-100 · 谐波关节剖解',
   description:
-    '原创参数化工程教学样件 · 215 × 180 × 165 mm · 20 mm 中空通孔 · 非制造图 / 非额定性能证明',
+    '从下往上：谐波减速器 → 无框电机 → 选配抱闸 → 驱动器 · Ø100 × 84.3 mm 主体 · 18 mm 贯通孔 · 官方资料参考 / 原创内部重建',
   mode: 'industrial',
-  environment: { background: '#101722', lightIntensity: 3, ambientIntensity: 1.5 },
-  camera: { position: [0.3, 0.29, -0.34], target: [0, 0.085, 0] },
+  environment: { background: '#101722', lightIntensity: 1.8, ambientIntensity: 0.6 },
+  camera: { position: [0.19, -0.1, -0.22], target: [0, 0.042, 0] },
   spawn: [0, 0.02, 0.35],
   nodes,
   mechanism: {
@@ -105,6 +113,47 @@ const scene = {
     fullHousingIds,
     sectionHousingIds,
     dimensions: report.dimensions,
+    referenceNotes:
+      '参考零差云控官方外形 STEP、Harmonic Drive 结构手册、意优及泰科公开集成架构。内部为原创结构模拟；PCB 为布局示意，抱闸为理想保持演示。非制造图，无额定载荷、制动性能或电气确认。',
+    subsystems: [
+      [
+        'housing',
+        '壳体与安装',
+        '参考官方外形重构的紧凑铝筒、黑色减速器环体、分层后盖及定位台阶。输出面是独立旋转法兰；剖视展示内部驱动板。',
+      ],
+      ['motor', '无框力矩电机', '定子叠片、18 齿铜绕组、20 极永磁转子；0.4 mm 名义气隙。'],
+      [
+        'reducer',
+        '谐波减速器',
+        '202 齿固定刚轮、200 齿杯形柔轮、椭圆波发生器与薄壁轴承；反向 100:1。齿形与弹性仅作原理模拟。',
+      ],
+      [
+        'drive',
+        '集成驱动板',
+        '最上层环形 PCB、独立固定支撑、带锁扣的电源／总线插座、功率级、母线电容、控制器、电源／通信与三相端子。布局示意，不是已验证电路。',
+      ],
+      [
+        'encoders',
+        '双编码器',
+        '输入与输出独立码环、固定读头和支撑；不据此声明实际分辨率与测量精度。',
+      ],
+      [
+        'brake',
+        '永磁掉电抱闸',
+        '电机上方、驱动器下方：选配磁轭、永磁体、释放线圈、衔铁与摩擦面。线圈通电释放、掉电理想保持；不计算制动距离。',
+      ],
+      [
+        'output',
+        '输出支承',
+        '底部独立旋转法兰：12 个输出安装孔、16 个内六角紧固件，外侧固定环另有 12 个安装孔及 12 个沉孔螺钉。孔圈按官方外形图比例重建，内部连接为原理模拟。',
+      ],
+    ].map(([id, name, description]) => ({
+      id,
+      name,
+      description,
+      nodeIds: report.parts.filter((p) => p.subsystem === id).map((p) => `harmonic-${p.name}`),
+      ...(id === 'brake' ? { optional: 'brake' } : {}),
+    })),
   },
 };
 const interactions = {
@@ -114,7 +163,7 @@ const interactions = {
   },
   'harmonic-flex-cup': {
     title: '杯形柔轮 · 200 齿',
-    text: '薄壁杯口随双波变形，0.5 mm 径向变形；杯底连接输出。WaveCos / WaveSin 驱动相对柔轮的波相位。未进行应力、疲劳或寿命验证。',
+    text: '薄壁杯口随双波变形，0.3 mm 径向变形；杯底连接输出。双波形变跟随相对柔轮的输入相位。未进行应力、疲劳或寿命验证。',
   },
   'harmonic-crossrollers-32-alternating-45deg': {
     title: '交叉滚子输出轴承',
@@ -122,11 +171,11 @@ const interactions = {
   },
   'harmonic-hollow-input-shaft': {
     title: '中空输入及传力路径',
-    text: '20 mm 连续通孔。转子 → 中空输入轴 → 椭圆波发生器 → 柔轮 → 输出颈与法兰。输入由上下两个独立支承轴承定位。',
+    text: '18 mm 连续通孔。转子 → 中空输入轴 → 椭圆波发生器 → 柔轮 → 输出颈与法兰。输入由上下两个独立支承轴承定位。',
   },
   'harmonic-base-flange': {
     title: '名义尺寸与边界',
-    text: '底座直径 215 mm，壳体直径 180 mm，总高 165 mm。8 × Ø6.6 mm 底座通孔；输出 8 × Ø4.2 mm 孔。SI 单位，Y 轴向上。没有人工确认，也未声明扭矩、热、电气或 FEA 合格。',
+    text: '主体直径 100 mm、主体长 84.3 mm、接口在主体外伸出约 3.8 mm，贯通孔 18 mm。外形比例与孔圈参考零差 eRob90 官方图纸放大重建。自绘演示尺寸，不是厂商商品复刻；没有工程确认或性能合格声明。',
   },
 };
 const dir = resolve(root, 'worlds/demo-harmonic-joint');

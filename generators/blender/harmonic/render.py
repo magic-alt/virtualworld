@@ -3,8 +3,9 @@ from pathlib import Path
 from mathutils import Vector
 ROOT=Path(__file__).resolve().parents[3]
 bpy.ops.wm.open_mainfile(filepath=str(ROOT/'assets/source/showcase/harmonic/harmonic-joint.blend'))
+replaced={o.get('sectionOf') for o in bpy.context.scene.objects if o.get('sectionOf')}
 for o in bpy.context.scene.objects:
-    if o.name in ['housing-full','stator-back-iron','stator-housing-fit-sleeve','upper-bearing-support-plate','fixed-circular-spline-202']:o.hide_render=True
+    if o.name in replaced:o.hide_render=True
     if o.get('sectionOf'):o.hide_render=False
 # Show wave deformation at zero input phase; section mesh remains physically positioned.
 flex=bpy.data.objects['flex-cup'];flex.data.shape_keys.key_blocks['WaveCos'].value=1;flex.data.shape_keys.key_blocks['WaveSin'].value=0

@@ -2,6 +2,7 @@ import { StudioRuntime } from '@virtualworld/engine';
 import { assertScene, CampaignSchema, type SceneSpec } from '@virtualworld/scene-schema';
 import { CampaignProgress } from '@virtualworld/interaction/campaign';
 import { mountExperienceControls } from '../shared/experience-controls';
+import { mountMechanismControls } from '../shared/mechanism-controls';
 import '../shared/experience.css';
 document.body.classList.add('standalone-experience');
 const css = document.createElement('style');
@@ -24,6 +25,7 @@ errorBox.hidden = true;
 document.body.append(errorBox);
 let runtime: StudioRuntime | undefined;
 let experienceControls: ReturnType<typeof mountExperienceControls> | undefined;
+let mechanismControls: ReturnType<typeof mountMechanismControls> | undefined;
 let generation = 0;
 let disposed = false;
 window.addEventListener(
@@ -31,6 +33,7 @@ window.addEventListener(
   () => {
     disposed = true;
     generation++;
+    mechanismControls?.dispose();
     experienceControls?.dispose();
     runtime?.dispose();
   },
@@ -82,6 +85,7 @@ try {
   async function showScene(scene: SceneSpec) {
     if (disposed) return;
     const version = ++generation;
+    mechanismControls?.dispose();
     experienceControls?.dispose();
     runtime?.dispose();
     runtime = undefined;
@@ -183,7 +187,7 @@ try {
         } else active.resetProgress();
       };
       toolbar.append(reset);
-    } else {
+    } else if (!scene.mechanism) {
       let moving = false;
       const motion = el('button', '', '运动演示');
       motion.onclick = () => {
@@ -202,29 +206,6 @@ try {
       slider.oninput = () => active.explode(Number(slider.value));
       label.append(slider);
       toolbar.append(motion, label);
-      if (scene.mechanism) {
-        const section = el('label', '', '剖视'),
-          checkbox = el('input');
-        checkbox.type = 'checkbox';
-        checkbox.setAttribute('aria-label', '剖视');
-        checkbox.onchange = () => active.setSection(checkbox.checked);
-        section.append(checkbox);
-        const speed = el('label', '', '输入 RPM'),
-          rpm = el('input');
-        rpm.type = 'range';
-        rpm.min = '-30';
-        rpm.max = '30';
-        rpm.step = '1';
-        rpm.value = '6';
-        rpm.setAttribute('aria-label', '输入 RPM');
-        const value = el('span', '', '6');
-        rpm.oninput = () => {
-          active.setTransmissionSpeed(Number(rpm.value));
-          value.textContent = rpm.value;
-        };
-        speed.append(rpm, value);
-        toolbar.append(section, speed);
-      }
       const reset = el('button', '', '重置视角');
       reset.onclick = () => active.resetCamera();
       toolbar.append(reset);
@@ -235,6 +216,11 @@ try {
       return;
     }
     await active.setMode(scene.mode === 'world' ? 'explore' : 'view');
+    toolbar.hidden = !!scene.mechanism;
+    if (scene.mechanism) {
+      mechanismControls = mountMechanismControls(active);
+      document.body.append(mechanismControls.element);
+    }
   }
   function showError(error: unknown) {
     errorBox.hidden = false;

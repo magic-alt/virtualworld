@@ -1,29 +1,48 @@
-# H-100 original harmonic-joint showcase
+# H-100 official-reference exterior reconstruction
 
-Build from repository root with Node.js 24 and the installed Blender 5.2.2 LTS:
+The runtime geometry is original parametric work, not redistributed commercial CAD. The current exterior uses the official ZeroErr eRob90 V6 STEP, dimensioned drawing and product photographs as references. Vendor STEP/ZIP/PDF/images remain ignored in `output/h100-reference/`. Internal parts, axial packing and the optional permanent-magnet brake are educational simulations, not vendor internal CAD or manufacturing qualification.
+
+## Build and inspection
+
+From repository root, Node.js 24 and Blender 5.2.2 LTS:
 
 ```powershell
 & 'E:/Software/Blender Foundation/Blender 5.2/blender.exe' --background --python-exit-code 1 --python generators/blender/harmonic/build.py
 node generators/blender/harmonic/finalize.mjs
-npx vitest run tests/assets/harmonic.test.ts
+npx prettier --write worlds/demo-harmonic-joint/scene.json
+npx vitest run tests/assets/harmonic.test.ts tests/engine/mechanism.test.ts
 ```
 
-`recipe.json` declares the approved SI dimensions, wave amplitude, gear counts and explicit nominal contact exceptions. `build.py` is fixed, original Python; no provider calls, downloaded meshes, generated executable code or paid jobs. It creates the editable local `assets/source/showcase/harmonic/harmonic-joint.blend` and the portable GLB. `finalize.mjs` runs Khronos glTF Validator, retains its complete issues/warnings, verifies one primitive and identity transforms per selectable part, derives numeric paths from the finalized GLB hierarchy, and generates the split world bundle. No decimation is applied to the thin gear/wave geometry.
+`assembly.py` authors the internal topology; `build.py` bakes transforms/shape keys, converts the axial frame, measures and audits; `exterior.py` creates the final product exterior in Blender Z-up metres. These are fixed source files, never generated executable proposals. `finalize.mjs` validates the final GLB, verifies identity transforms and single-primitive meshes, derives actual serialized paths and emits the split world bundle.
 
-The runtime artifact is `assets/optimized/showcase/harmonic-joint.glb`; its exact SHA-256, Blender version, actual part bounds, checks, contact audit and validator receipt are retained in `assets/manifests/showcase/harmonic-joint.json`. `.blend`, its backup and preview PNG are local inspection artifacts, not deliverable vendor binaries.
+The source `.blend` stays local. Runtime GLB and JSON validator/audit receipt are retained separately under `assets/optimized/` and `assets/manifests/`. Export first writes a staged GLB; unexpected contacts retain a failed audit in ignored `output/harmonic-build-failure.json` and do not replace the approved model/manifest. The rejection fixture copies all generator modules including `exterior.py`.
 
-The assembly is original educational geometry, not a reverse-engineered commercial product or a manufacturing drawing. Overall nominal diameters are 215 mm base and 180 mm housing, total height 165 mm, continuous bore 20 mm. The rotor magnet outside radius is 60.5 mm, stator tooth inside surface radius 61 mm (0.5 mm nominal radial motor air gap). Input support uses independent upper and lower bearings. The circular spline has 202 explicitly modeled tooth peaks; the flex cup has 200. Tooth flanks are illustrative triangular profiles, not production involutes. Crossroller rolling elements alternate +45/-45 degrees in a simplified race section.
+## Geometry and explicit assumptions
 
-Torque path: rotor yoke and permanent magnets → bottom carrier → hollow input shaft → elliptical cam → wave bearing → flex cup tooth engagement → upper cup diaphragm → output neck → bearing carrier and recessed-bolt output flange. Fixed parts are located by base/lower bearing seat, housing/stator fit sleeve, upper input bearing support plate, circular spline housing fit, crossroller outer housing fit and upper retention ring. Coil formers locate the modeled winding packs. Encoder board is seated on the lower bearing seat; its separate code ring follows the input. Mounting holes and recessed output screw pockets are actual Boolean cuts.
+- Official reference envelope: Ø90 mm × 75.9 mm body, 79 mm including rear connectors, Ø18 mm bore. The inspected STEP contains the exterior envelope rather than a usable internal reducer assembly.
+- H-100 reconstructed body: scaled exterior proportion 100/90, Ø100 mm × 84.333 mm body, approximately 88.111 mm including socket projections. The bore remains Ø18 mm instead of being scaled. Thin decorative seam lands reach Ø100.24 mm; the nominal body remains Ø100 mm.
+- Official bolt-circle proportions are scaled: rotating output face Ø77.778 mm, 12 mounting holes on Ø68.889 mm, 16 recessed hex socket heads on Ø62.778 mm. The separate fixed front ring has 12 mounting holes and 12 recessed socket heads on Ø93.333 mm. Its face lies behind the rotating flange, not over it.
+- Silver motor barrel, black annular reducer case, stepped output flange/carrier, rear skirt, protected interface plate and hollow cable collar replace the former projecting rear halo, exposed PCB and artificial eight inspection windows. The case surrounds the reducer and leaves the moving output face free. Section mode cuts the matching quarter of case, plates, supports and fixed screws.
+- Rear power socket has two round contact cavities and a latch; CAN has two three-position cavities; EtherCAT has two four-position cavities. I/O and battery are separate connectors. The interface layout is original, informed by the official XT30/JST dimensions rather than an electrically validated pinout. Sockets retain dielectric floors; contacts penetrate those floors. Rear plate openings, bolt bores and hex recesses are actual geometry.
+- Bottom to top remains reducer/output → frameless motor → optional PM brake → drive. Original internal axial coordinates are compressed by 0.72 while radial dimensions, 18 mm bore, 0.4 mm motor air gap, 200/202 teeth and 0.3 mm flex wave amplitude remain unchanged. This packing is not a vendor internal measurement.
+- The proper frame rotation `(x,y,z) -> (y,x,(0.110-z)*0.72)` is baked into non-drive geometry. Drive components keep their upward face at `(z+0.0922)*0.72`. Shape keys and mounting-hole records follow the same frames. The flex sine delta reverses sign so the ellipse follows the cam for arbitrary signed input phases. No negative node scale substitutes for the transform.
+- The authored default camera now looks toward the output face; generic mechanism fitting respects that authored direction and handles vertical defaults with a nonparallel up basis. Full and section models share the runtime/controls with standalone exports.
 
-Only stationary obstructing parts are duplicated as full and capped section alternatives; all hidden alternatives remain selectable serialized nodes. Motion roots are independent sibling groups: `wave-input`, `flex-motion`, `output-motion`. The mesh `harmonic-flex-cup` contains `WaveCos` and `WaveSin`, each with 0.5 mm radial amplitude tapering to zero at the diaphragm. Their default weights are zero; runtime drives cos/sin of twice input angle relative to output. All GLB mesh positions and morph deltas are already Y-up, in metres, with identity node transforms. Runtime must not rotate the output group again through parenting under the flex group.
+Smooth-by-angle normals preserve sharp machined edges while smoothing cylindrical walls. Micro bevels on tiny winding/encoder markers were removed; they remain actual geometry. This reduces redundant vertex normals and asset size without removing teeth, bearings or windings.
 
-Nominal BVH surface overlap is checked in both full and section configurations. Only explicitly named contact pairs are allowed; unexpected pairs fail the build. Coplanar mating surfaces count as contacts. This checks nominal triangle intersections and specific dimensional clearances; it does not prove absence of solid containment, continuous-motion interference, tolerance accumulation or production assembly fit. No torque, load, stress, thermal, insulation, lubrication, fatigue, life, FEA, hardware or human confirmation is claimed. `joint.confirmed` remains false.
+## Official references actually accessed
 
-Optional local visual review:
+- [ZeroErr model/download page](https://www.zeroerr.cn/download/eRob.html): eRob90 V6 EtherCAT ZIP downloaded again on 2026-10-19, 11,790,037 bytes, SHA-256 `722c9eca09b3e54b0f6b6b5f3d8fd55bb8d358d631a5f25df20b3851f1de7db4`, matching the previously inspected STEP/drawing. The CAN V6 ZIP was also downloaded (10,671,803 bytes, SHA-256 `29562717f4aa5e8751b65b325d16db61e110c11f6172b2175d1cd8d60f66580e`).
+- [Official eRob90 product photographs and architecture](https://www.zeroerr.cn/preview/erob90i_zh.html): front flange, silver barrel, dark reducer band and rear interfaces were inspected directly. Its friction brake is not relabelled as a permanent-magnet brake.
+- [Official XT30 archive](https://www.zeroerr.cn/d/file/20231010/XT30U-F%28DC48V%29.zip): 382,106 bytes, SHA-256 `43b7248bef22acd9885a35a8c18131ecebaab903a19ed1f2b0c5dc129b377a33`; actual STEP parsed by OCCT, envelope 5.2 × 12.4 × 10.2 mm.
+- [Official GHR-04V-S archive](https://www.zeroerr.cn/d/file/20231010/GHR-04V-S%28EtherCAT%29.zip): 491,555 bytes, SHA-256 `4b2f4b2993aca5ee57faabaacb661ee53d22a81c91b92924c865d163db72feba`; actual STEP parsed by OCCT, envelope 6.25 × 5.7 × 4.142 mm. These are mating connector references, not claims that the reconstructed onboard sockets are exact vendor CAD.
+- [Harmonic Drive CSG/CSF manual](https://www.harmonicdrive.net/_hd/content/documents1/CSG-CSF_Component.pdf): cup, diaphragm, circular spline and elliptical wave-generator topology. The earlier component STEP request returned404; no downloaded internal CSG assembly is claimed.
+- [Eyou official exploded diagram](https://eyoubot.com/blog/harmonic-drive-systems-robot-joints) and [Techsoft architecture manual](https://www.techsoft-robots.com/upfile/RJSIIZ%E7%B3%BB%E5%88%97%E5%85%B3%E8%8A%82%E6%A8%A1%E7%BB%84%E7%94%A8%E6%88%B7%E6%89%8B%E5%86%8CV1.0.pdf): integration topology only; ratings are not transferred to H-100.
 
-```powershell
-& 'E:/Software/Blender Foundation/Blender 5.2/blender.exe' --background --python-exit-code 1 --python generators/blender/harmonic/render.py
-```
+## Verification boundary
 
-This produces `assets/source/showcase/harmonic/section-preview.png` using the actual saved Blender scene and the same section alternatives. It does not modify the delivered GLB or world.
+Actual final-GLB checks cover envelope, independent mesh paths, teeth, morph amplitudes/phases, full-depth bore rays, mounting bores, connector floors and component order. Six Blender BVH samples cover full/section at input0,π/4,π/2 including deformation. Named interfaces in the recipe and fixed exterior source are explicit contact pairs, not whole-subsystem exemptions. This is triangle-surface sampling, not solid containment, continuous contact, tolerances, strength, preload, circuit or brake qualification. All engineering confirmation stays false.
+
+Optional `render.py` produces a local Blender preview. Browser screenshots and raw receipts under `output/playwright/h100/` and `output/playwright/showcases/` are the acceptance evidence for the delivered frontend; no physical hardware, FEA, real mobile GPU or live paid provider validation is claimed.
+
+The home gallery uses the static cover `apps/web/src/assets/harmonic-cover.jpg`, captured from the current runtime canvas with the mechanism stopped and viewport insets cleared. Update it alongside model appearance changes; capture canvas pixels rather than a page screenshot so controls are excluded. `App.tsx` imports the cover through Vite, producing a content-hashed production URL that invalidates the previous image cache. The obsolete `public/world-previews/harmonic.jpg` is removed.

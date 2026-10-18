@@ -12,6 +12,7 @@ import {
 import { CampaignProgress } from '@virtualworld/interaction/campaign';
 import { initialStory, type StoryState } from '@virtualworld/interaction';
 import { mountExperienceControls } from '../shared/experience-controls';
+import { mountMechanismControls } from '../shared/mechanism-controls';
 import '../shared/experience.css';
 import { api, json } from './api';
 type Journey = { initial: SceneSpec; progress?: CampaignProgress };
@@ -137,7 +138,8 @@ function Experience({
     setAiBusy(false);
     setProposal(undefined);
     let active: StudioRuntime | undefined,
-      ui: ReturnType<typeof mountExperienceControls> | undefined;
+      ui: ReturnType<typeof mountExperienceControls> | undefined,
+      mechanismUi: ReturnType<typeof mountMechanismControls> | undefined;
     try {
       active = new StudioRuntime(host.current!, scene, {
         onError: (message) => {
@@ -183,6 +185,10 @@ function Experience({
           if (generation.current !== version) return;
           await active!.setMode(scene.mode === 'world' ? 'explore' : 'view');
           if (generation.current === version) {
+            if (scene.mechanism) {
+              mechanismUi = mountMechanismControls(active!);
+              overlay.current!.append(mechanismUi.element);
+            }
             setLoading(false);
             ui?.update(active!.getDiagnostics());
           }
@@ -199,6 +205,7 @@ function Experience({
     }
     return () => {
       generation.current++;
+      mechanismUi?.dispose();
       ui?.dispose();
       active?.dispose();
       runtime.current = undefined;
@@ -353,7 +360,6 @@ function Experience({
           </span>
         </div>
       )}
-      {scene.mechanism && <MechanismControls runtime={runtime.current} />}
       {loading && (
         <div className="experience-loading">
           <Loader2 className="spin" />
@@ -493,51 +499,5 @@ function Experience({
         </div>
       )}
     </main>
-  );
-}
-function MechanismControls({ runtime }: { runtime?: StudioRuntime }) {
-  const [moving, setMoving] = useState(false);
-  return (
-    <div className="mechanism-controls">
-      <button
-        onClick={() => {
-          runtime?.animateJoints(!moving);
-          setMoving(!moving);
-        }}
-      >
-        {moving ? '停止运动' : '运动演示'}
-      </button>
-      <label>
-        爆炸视图
-        <input
-          aria-label="爆炸展开"
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          defaultValue="0"
-          onChange={(e) => runtime?.explode(Number(e.target.value))}
-        />
-      </label>
-      <label>
-        剖视
-        <input
-          aria-label="剖视"
-          type="checkbox"
-          onChange={(e) => runtime?.setSection(e.target.checked)}
-        />
-      </label>
-      <label>
-        输入 RPM
-        <input
-          aria-label="输入 RPM"
-          type="range"
-          min="-30"
-          max="30"
-          defaultValue="6"
-          onChange={(e) => runtime?.setTransmissionSpeed(Number(e.target.value))}
-        />
-      </label>
-    </div>
   );
 }

@@ -54,8 +54,18 @@ export function mountExperienceControls(
     const promise = document.fullscreenElement
       ? document.exitFullscreen()
       : document.documentElement.requestFullscreen?.();
-    void promise?.catch(report);
+    void promise?.then(syncFullscreen, (error) => {
+      syncFullscreen();
+      report(error);
+    });
   });
+  function syncFullscreen() {
+    full.setAttribute('aria-label', document.fullscreenElement ? '退出全屏' : '全屏显示');
+    full.setAttribute('aria-pressed', String(!!document.fullscreenElement));
+    full.disabled = !document.fullscreenEnabled || !document.documentElement.requestFullscreen;
+  }
+  syncFullscreen();
+  document.addEventListener('fullscreenchange', syncFullscreen);
   let pauseBeforeMenu = false;
   const menu = button('设置', '播放设置', () => {
     settings.hidden = !settings.hidden;
@@ -235,6 +245,7 @@ export function mountExperienceControls(
     dispose() {
       reset();
       document.removeEventListener('visibilitychange', visibility);
+      document.removeEventListener('fullscreenchange', syncFullscreen);
       window.removeEventListener('blur', blur);
       window.removeEventListener('keydown', escape);
       element.remove();
