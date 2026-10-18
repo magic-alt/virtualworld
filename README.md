@@ -74,7 +74,24 @@ npm run asset:optimize -- --input ./model.glb --output ./output/model.glb --blen
 
 输入输出均做 GLB 校验并记录 SHA-256、工具版本与警告。Blender 可选，默认优化流程无需安装 Blender；MCP 服务尚未接入。
 
-## 两个内置体验
+## Blender 案例
+
+默认打开 **H-100 谐波关节**。左侧「小王子三章」进入沙漠相遇、B-612 回忆、地球玫瑰园与狐狸。按章完成互动后解锁下一章；章节独立保存，支持继续和重置全部旅程。B-612 使用径向重力和球面相机。金发角色、飞行员和狐狸由本地 Blender 制作，动画与纹理均包含在 GLB 中。
+
+H-100 支持选件、装配/爆炸、剖视和输入转速演示。200/202 齿对应输出角速度为输入的 −1/100；底座/壳体直径 215/180 mm，总高 165 mm，通孔 20 mm。它是可验证名义几何的工程教学样件，齿形、变形和轴承滚道有简化，不是制造 CAD 或载荷/寿命证明。
+
+已提交可直接运行的 GLB、JSON 和生成记录。重建需要 Blender 5.2.2 LTS，可指定安装路径：
+
+```powershell
+$env:BLENDER_PATH = 'E:/Software/Blender Foundation/Blender 5.2/blender.exe'
+npm run demos:build
+# 单独重建：npm run demos:build -- prince   或 harmonic
+npm run demos:validate
+```
+
+固定 Python 配方在 `generators/blender/{prince,harmonic}/`；可编辑 `.blend` 在本地 `assets/source/showcase/`，不进入 Git。章节与工程语义见 [案例说明](docs/blender-showcases.md)。导出任一小王子章节会打包完整三章及去重资源，播放器可独立解锁、继续和重置。
+
+## 保留的基础体验
 
 - **精密关节 · J-01**：选择、隔离、PBR 材质、爆炸图、关节演示和产品说明。原创参数化模型用于展示，尺寸不作为制造依据。
 - **星屿来信**：原创浮岛，程序化 Mesh + GLB 星核 + 1,200 个 Gaussian Splats。WASD 移动、空格跳跃、E 互动，依次完成向导、星核与星门任务。进度保存在浏览器，可继续或重置。
@@ -95,10 +112,12 @@ npm run check
 npm run build
 npm run world:validate
 npm run test:browser
+npm run test:showcases
+npm run demos:validate
 npm run format:check
 npm audit
 ```
 
 浏览器检查使用本机 Edge/Chrome；可设置 `PLAYWRIGHT_EXECUTABLE_PATH`，或安装 Playwright Chromium。脚本用临时数据与 3133–3136 端口，产物在 `output/playwright/`。
 
-实际测试与未执行范围见 [验证报告](docs/validation.md)。目前不包含球面行走、多世界切换、多人协作、计费或云生成队列。第三方来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+实际测试与未执行范围见 [验证报告](docs/validation.md)和[Blender 案例验收](docs/blender-showcases.md)。目前不包含多人协作、计费或云生成队列。第三方来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

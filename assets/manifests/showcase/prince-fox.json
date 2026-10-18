@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "id": "prince-fox",
+  "seed": 612,
+  "generator": "Blender 5.2 fixed offline recipe",
+  "source": "generators/blender/prince/build.py",
+  "sha256": "0bfa9292c689d22e9efc021ecb9aea5b528827cfcb1a62616347eeaab4f57ee3",
+  "bytes": 273060,
+  "meshes": 7,
+  "triangles": 6876,
+  "warnings": [
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/3"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/8"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/13"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/18"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/23"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/27"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/32"
+    }
+  ],
+  "primitives": 7,
+  "clips": [
+    "Idle"
+  ],
+  "validator": {
+    "errors": 0,
+    "warnings": 0
+  }
+}

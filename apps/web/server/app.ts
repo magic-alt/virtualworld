@@ -89,6 +89,10 @@ export async function createApp(
     aiConfigured: !!(config.baseUrl && config.key && config.model),
   }));
   app.get<{ Params: { id: string } }>('/api/projects/:id', async (req) => store.get(req.params.id));
+  app.get('/api/campaigns', async () => ({ campaigns: await store.campaigns() }));
+  app.get<{ Params: { id: string } }>('/api/campaigns/:id', async (req) =>
+    store.campaign(req.params.id),
+  );
   app.put<{ Params: { id: string } }>('/api/projects/:id', async (req) => {
     const body = z
       .object({ scene: SceneSchema, baseRevision: z.number().int().nonnegative() })
@@ -171,12 +175,14 @@ export async function createApp(
   });
   app.post('/api/export', async (req, reply) => {
     const { scene } = z.object({ scene: SceneSchema }).parse(req.body);
+    await store.checkChapter(scene);
     const zip = await createExport(scene, {
       playerRoot,
       assetRoot,
       publicRoot,
       assetLibraryRoot: uploadLibraryRoot,
       runtimeAssetRoot: assetLibraryRoot,
+      campaign: scene.campaign ? await store.campaign(scene.campaign.id) : undefined,
     });
     reply
       .header('Content-Type', 'application/zip')

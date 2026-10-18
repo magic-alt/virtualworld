@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { harmonicState } from './mechanism';
+import { updateOrbitControls } from './sphere-camera';
+import { sphereOccludes } from '@virtualworld/interaction';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { AssetRegistry, disposeObject } from '@virtualworld/asset-runtime';
@@ -16,6 +20,9 @@ export type RuntimeCallbacks = {
   onReady?: () => void;
 };
 export type RuntimeMetrics = {
+  mechanism?: ReturnType<typeof harmonicState> & { section: boolean };
+  radialUp?: number[];
+  actorClip?: string;
   fps: number;
   drawCalls: number;
   triangles: number;
@@ -44,6 +51,7 @@ export class StudioRuntime {
   private disposed = false;
   private generation = 0;
   private playing = false;
+  private playRequest = 0;
   private char?: CharacterController;
   private keys = new Set<string>();
   private story = initialStory();
@@ -52,6 +60,17 @@ export class StudioRuntime {
   private metricFrames = 0;
   private explosion = 0;
   private moving = false;
+  private inputAngle = 0;
+  private inputRpm = 6;
+  private section = false;
+  private isolatedId?: string;
+  private mixers: THREE.AnimationMixer[] = [];
+  private actorSource?: THREE.Object3D;
+  private actorMixer?: THREE.AnimationMixer;
+  private actorAction?: THREE.AnimationAction;
+  private interactUntil = 0;
+  private environment?: THREE.WebGLRenderTarget;
+  private loadComplete: Promise<unknown> = Promise.resolve();
   private metrics: RuntimeMetrics = {
     fps: 0,
     drawCalls: 0,
@@ -72,7 +91,7 @@ export class StudioRuntime {
     private callbacks: RuntimeCallbacks = {},
   ) {
     this.renderer = new THREE.WebGLRenderer({
-      antialias: false,
+      antialias: true,
       alpha: false,
       preserveDrawingBuffer: true,
     });
@@ -82,6 +101,12 @@ export class StudioRuntime {
     this.renderer.toneMappingExposure = 1.1;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    const room = new RoomEnvironment();
+    this.environment = pmrem.fromScene(room, 0.04);
+    this.world.environment = this.environment.texture;
+    room.dispose();
+    pmrem.dispose();
     container.append(this.renderer.domElement);
     this.renderer.domElement.tabIndex = 0;
     this.renderer.domElement.setAttribute('aria-label', '交互式三维场景');
@@ -122,13 +147,21 @@ export class StudioRuntime {
     this.camera.aspect = Math.max(1, width) / Math.max(1, height);
     this.camera.updateProjectionMatrix();
   }
-  async load(spec: SceneSpec) {
+  load(spec: SceneSpec) {
+    const loading = this.loadScene(spec);
+    this.loadComplete = loading;
+    return loading;
+  }
+  private async loadScene(spec: SceneSpec) {
     const preserveView =
       this.generation > 0 &&
       this.spec.id === spec.id &&
       JSON.stringify(this.spec.camera) === JSON.stringify(spec.camera);
     const version = ++this.generation;
     this.spec = structuredClone(spec);
+    this.inputAngle = 0;
+    this.section = false;
+    this.isolatedId = undefined;
     this.stop();
     this.transform.detach();
     this.clearContent();
@@ -152,14 +185,22 @@ export class StudioRuntime {
     );
     this.content.add(ambient);
     const sun = new THREE.DirectionalLight('#fff0da', spec.environment.lightIntensity);
-    sun.position.set(6, 12, 5);
+    const span = spec.mechanism
+      ? Math.max(spec.mechanism.dimensions.totalHeight, spec.mechanism.dimensions.baseDiameter) * 2
+      : 16;
+    const target = new THREE.Vector3(...spec.camera.target);
+    sun.position.copy(target).add(new THREE.Vector3(6, 12, 5).multiplyScalar(span / 16));
+    sun.target.position.copy(target);
+    this.content.add(sun.target);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -16;
-    sun.shadow.camera.right = 16;
-    sun.shadow.camera.top = 16;
-    sun.shadow.camera.bottom = -16;
-    sun.shadow.normalBias = 0.04;
+    sun.shadow.camera.left = -span;
+    sun.shadow.camera.right = span;
+    sun.shadow.camera.top = span;
+    sun.shadow.camera.bottom = -span;
+    sun.shadow.camera.near = Math.max(0.001, span / 100);
+    sun.shadow.camera.far = span * 5;
+    sun.shadow.normalBias = span * 0.0005;
     this.content.add(sun);
     const fill = new THREE.DirectionalLight('#abc7ff', spec.mode === 'industrial' ? 2 : 0.8);
     fill.position.set(-6, 3, -5);
@@ -174,7 +215,7 @@ export class StudioRuntime {
     grid.visible = spec.mode === 'industrial';
     this.content.add(grid);
     if (!preserveView) this.resetCamera();
-    else this.controls.update();
+    else updateOrbitControls(this.controls);
     if (spec.nodes.some((n) => n.kind === 'splat'))
       await this.assets.prepareSplats(this.renderer, this.world);
     if (version !== this.generation || this.disposed) return;
@@ -205,6 +246,24 @@ export class StudioRuntime {
                 return;
               }
               holder.add(instance);
+              if (node.animation) {
+                const clip = THREE.AnimationClip.findByName(
+                  instance.animations,
+                  node.animation.clip,
+                );
+                if (clip) {
+                  const mixer = new THREE.AnimationMixer(instance);
+                  const action = mixer.clipAction(clip);
+                  action.setLoop(
+                    node.animation.loop === false ? THREE.LoopOnce : THREE.LoopRepeat,
+                    Infinity,
+                  );
+                  action.clampWhenFinished = true;
+                  action.timeScale = node.animation.speed ?? 1;
+                  action.play();
+                  this.mixers.push(mixer);
+                }
+              }
             })
             .catch((e) => this.reportError(e, version)),
         );
@@ -231,8 +290,33 @@ export class StudioRuntime {
     }
     this.content.updateMatrixWorld(true);
     this.explode(this.explosion);
+    if (spec.actor) {
+      const asset = spec.assets.find((a) => a.id === spec.actor!.assetId)!;
+      const actorNode = {
+        ...spec.nodes[0],
+        id: 'runtime-actor',
+        assetNode: undefined,
+        materialOverride: false,
+        metalness: undefined,
+        roughness: undefined,
+      } as SceneNode;
+      loads.push(
+        this.assets.loadInstance(asset, actorNode).then((actor) => {
+          if (version !== this.generation || this.disposed) {
+            disposeObject(actor);
+            return;
+          }
+          const box = new THREE.Box3().setFromObject(actor),
+            height = box.getSize(new THREE.Vector3()).y;
+          if (height > 0) actor.scale.multiplyScalar(spec.actor!.height / height);
+          this.actorSource = actor;
+        }),
+      );
+    }
     await Promise.all(loads);
     if (this.disposed || version !== this.generation) return;
+    this.content.updateMatrixWorld(true);
+    this.setSection(false);
     this.metrics.loading = false;
     this.select(this.selectedId);
     this.callbacks.onReady?.();
@@ -284,7 +368,7 @@ export class StudioRuntime {
     this.controls.minDistance = Math.min(1, Math.max(0.001, distance * 0.01));
     this.camera.near = Math.min(0.05, Math.max(0.0001, distance / 100));
     this.camera.updateProjectionMatrix();
-    this.controls.update();
+    updateOrbitControls(this.controls);
   }
   explode(amount: number) {
     this.explosion = amount;
@@ -300,6 +384,10 @@ export class StudioRuntime {
   }
   animateJoints(enabled: boolean) {
     this.moving = enabled;
+    if (!enabled) {
+      this.inputAngle = 0;
+      this.applyMechanism(false);
+    }
     if (!enabled)
       for (const node of this.spec.nodes) {
         const o = this.objects.get(node.id);
@@ -311,6 +399,20 @@ export class StudioRuntime {
   }
   async play() {
     if (this.playing) return;
+    const request = ++this.playRequest;
+    const requestedGeneration = this.generation;
+    await this.loadComplete;
+    if (
+      this.disposed ||
+      requestedGeneration !== this.generation ||
+      this.playing ||
+      request !== this.playRequest
+    )
+      return;
+    if (this.spec.actor && !this.actorSource) {
+      this.reportError(new Error('角色资源尚未加载'), this.generation);
+      return;
+    }
     this.originalCamera = {
       position: this.camera.position.clone(),
       target: this.controls.target.clone(),
@@ -325,14 +427,35 @@ export class StudioRuntime {
       try {
         const generation = this.generation;
         const { CharacterController } = await import('@virtualworld/interaction/character');
-        const char = await CharacterController.create(this.spec, this.objects);
-        if (!this.playing || this.disposed || generation !== this.generation) {
+        const char = await CharacterController.create(
+          this.spec,
+          this.objects,
+          this.actorSource,
+          this.spec.actor?.height,
+        );
+        if (
+          !this.playing ||
+          this.disposed ||
+          generation !== this.generation ||
+          request !== this.playRequest
+        ) {
           char.dispose();
           return;
         }
         this.char = char;
+        this.actorSource = undefined;
+        if (this.spec.actor) {
+          this.actorMixer = new THREE.AnimationMixer(char.object);
+          this.setActorClip(this.spec.actor.clips.idle);
+        }
         this.world.add(char.object);
-        this.camera.position.copy(char.object.position).add(new THREE.Vector3(7, 6, 9));
+        if (this.spec.navigation?.kind === 'sphere') {
+          this.camera.up.copy(char.up);
+          this.camera.position
+            .copy(char.object.position)
+            .addScaledVector(char.up, 4)
+            .add(new THREE.Vector3(0, 0, 7));
+        } else this.camera.position.copy(char.object.position).add(new THREE.Vector3(7, 6, 9));
         this.controls.target.copy(char.object.position).add(new THREE.Vector3(0, 1, 0));
         this.controls.maxDistance = 20;
       } catch (error) {
@@ -342,14 +465,22 @@ export class StudioRuntime {
     }
   }
   stop() {
+    this.playRequest++;
+    this.animateJoints(false);
     this.playing = false;
+    this.actorMixer?.stopAllAction();
+    if (this.char) this.actorMixer?.uncacheRoot(this.char.object);
+    this.actorMixer = undefined;
+    this.actorAction = undefined;
     this.keys.clear();
     if (this.char) {
       this.world.remove(this.char.object);
-      disposeObject(this.char.object);
+      if (this.spec.actor) this.actorSource = this.char.object;
+      else disposeObject(this.char.object);
       this.char.dispose();
       this.char = undefined;
     }
+    this.camera.up.set(0, 1, 0);
     this.controls.enablePan = true;
     this.controls.maxDistance = 80;
     if (this.originalCamera) {
@@ -363,6 +494,7 @@ export class StudioRuntime {
     const target = id ? this.spec.nodes.find((n) => n.id === id) : this.nearest();
     if (!target?.interaction) return;
     if (this.playing && this.char && this.nodeDistance(target.id) > 2.6) return;
+    this.interactUntil = performance.now() + 1200;
     this.story = advanceStory(this.spec, this.story, target.id);
     if (this.playing) this.saves.save(this.spec, this.story);
     this.callbacks.onStory?.(this.story, target);
@@ -377,16 +509,23 @@ export class StudioRuntime {
     const o = this.objects.get(id);
     if (!o || !this.char) return Infinity;
     const pos = o.getWorldPosition(new THREE.Vector3());
-    pos.y = this.char.object.position.y;
+    if (this.spec.navigation?.kind !== 'sphere') pos.y = this.char.object.position.y;
     return pos.distanceTo(this.char.object.position);
   }
   isolate(id?: string) {
+    this.isolatedId = id;
     for (const node of this.spec.nodes) {
       const o = this.objects.get(node.id);
       if (o)
         o.visible = id
           ? node.id === id || this.isAncestor(node.id, id) || this.isAncestor(id, node.id)
           : node.visible;
+      if (o && this.spec.mechanism) {
+        const m = this.spec.mechanism;
+        if (m.fullHousingIds.includes(node.id)) o.visible = o.visible && !this.section;
+        if (m.sectionHousingIds.includes(node.id))
+          o.visible = (id ? o.visible : true) && this.section;
+      }
     }
   }
   private isAncestor(parent: string, child: string) {
@@ -400,6 +539,19 @@ export class StudioRuntime {
   getDiagnostics(): RuntimeMetrics {
     return {
       ...this.metrics,
+      mechanism: this.spec.mechanism
+        ? {
+            ...harmonicState(
+              this.inputAngle,
+              this.inputRpm,
+              this.spec.mechanism.flexTeeth,
+              this.spec.mechanism.ringTeeth,
+            ),
+            section: this.section,
+          }
+        : undefined,
+      radialUp: this.char?.up.toArray(),
+      actorClip: this.actorAction?.getClip().name,
       player: this.char?.object.position.toArray(),
       story: structuredClone(this.story),
       hotspots: this.getHotspots(),
@@ -413,9 +565,16 @@ export class StudioRuntime {
         const object = this.objects.get(n.id);
         if (!object || !this.objectVisible(object)) return [];
         const bounds = new THREE.Box3().setFromObject(object);
-        if (bounds.isEmpty()) return [];
-        const point = bounds.getCenter(new THREE.Vector3());
-        point.y = bounds.max.y + 0.35;
+        const empty = bounds.isEmpty();
+        const point = empty
+          ? object.getWorldPosition(new THREE.Vector3())
+          : bounds.getCenter(new THREE.Vector3());
+        if (this.spec.navigation?.kind === 'sphere') {
+          const nav = this.spec.navigation;
+          const center = new THREE.Vector3(...nav.center);
+          if (sphereOccludes(this.camera.position, point, center, nav.radius)) return [];
+          point.addScaledVector(point.clone().sub(center).normalize(), 0.5);
+        } else point.y = (empty ? point.y : bounds.max.y) + 0.35;
         point.project(this.camera);
         if (point.z < -1 || point.z > 1 || Math.abs(point.x) > 0.95 || Math.abs(point.y) > 0.95)
           return [];
@@ -448,13 +607,34 @@ export class StudioRuntime {
     this.metricFrames++;
     if (this.char) {
       this.char.keys = this.keys;
+      this.camera.getWorldDirection(this.char.cameraForward);
+      const oldUp = this.char.up.clone();
       const previous = this.char.object.position.clone();
       this.char.step(dt, this.spec.spawn);
       const delta = this.char.object.position.clone().sub(previous);
-      this.camera.position.add(delta);
-      this.controls.target.copy(this.char.object.position).add(new THREE.Vector3(0, 1, 0));
+      if (this.spec.navigation?.kind === 'sphere') {
+        const rotation = new THREE.Quaternion().setFromUnitVectors(oldUp, this.char.up);
+        const offset = this.camera.position.clone().sub(previous).applyQuaternion(rotation);
+        this.camera.position.copy(this.char.object.position).add(offset);
+        this.camera.up.copy(this.char.up);
+      } else this.camera.position.add(delta);
+      this.controls.target.copy(this.char.object.position).addScaledVector(this.char.up, 1);
+      if (this.spec.actor)
+        this.setActorClip(
+          now < this.interactUntil
+            ? this.spec.actor.clips.interact
+            : this.char.moving
+              ? this.spec.actor.clips.walk
+              : this.spec.actor.clips.idle,
+        );
     }
-    if (this.moving)
+    this.mixers.forEach((m) => m.update(dt));
+    this.actorMixer?.update(dt);
+    if (this.moving && this.spec.mechanism) {
+      this.inputAngle += ((this.inputRpm * Math.PI * 2) / 60) * dt;
+      this.applyMechanism(true);
+    }
+    if (this.moving && !this.spec.mechanism)
       for (const node of this.spec.nodes)
         if (node.joint) {
           const o = this.objects.get(node.id);
@@ -464,7 +644,7 @@ export class StudioRuntime {
               (node.joint.min + node.joint.max) / 2 +
               (Math.sin(now / 1300) * (node.joint.max - node.joint.min)) / 2;
         }
-    this.controls.update();
+    updateOrbitControls(this.controls);
     this.selector?.update();
     this.renderer.render(this.world, this.camera);
     if (now - this.metricAt > 700) {
@@ -532,7 +712,61 @@ export class StudioRuntime {
     this.story = initialStory();
     this.callbacks.onStory?.(this.story);
   }
+  private setActorClip(name: string) {
+    if (!this.actorMixer || !this.char) return;
+    const clip = THREE.AnimationClip.findByName(this.char.object.animations, name);
+    if (!clip) return;
+    const action = this.actorMixer.clipAction(clip);
+    if (action === this.actorAction) return;
+    action.reset().fadeIn(0.18).play();
+    this.actorAction?.fadeOut(0.18);
+    this.actorAction = action;
+  }
+  setTransmissionSpeed(inputRpm: number) {
+    if (Number.isFinite(inputRpm)) this.inputRpm = THREE.MathUtils.clamp(inputRpm, -120, 120);
+  }
+  setSection(enabled: boolean) {
+    this.section = enabled;
+    this.isolate(this.isolatedId);
+  }
+  private applyMechanism(deform: boolean) {
+    const m = this.spec.mechanism;
+    if (!m) return;
+    const state = harmonicState(this.inputAngle, this.inputRpm, m.flexTeeth, m.ringTeeth);
+    for (const [id, angle] of [
+      [m.waveNodeId, state.inputAngle],
+      [m.flexNodeId, state.outputAngle],
+      [m.outputNodeId, state.outputAngle],
+    ] as const) {
+      const object = this.objects.get(id),
+        node = this.spec.nodes.find((n) => n.id === id);
+      if (object && node) {
+        object.rotation.set(...node.rotation);
+        object.rotation.y += angle;
+      }
+    }
+    this.objects.get(m.flexNodeId)?.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.morphTargetDictionary && o.morphTargetInfluences) {
+        for (const [name, value] of [
+          [m.cosMorph, state.cos],
+          [m.sinMorph, state.sin],
+        ] as const) {
+          const index = o.morphTargetDictionary[name];
+          if (index !== undefined) o.morphTargetInfluences[index] = deform ? value : 0;
+        }
+      }
+    });
+  }
   private clearContent() {
+    for (const mixer of this.mixers) {
+      mixer.stopAllAction();
+      mixer.uncacheRoot(mixer.getRoot());
+    }
+    this.mixers = [];
+    if (this.actorSource) {
+      disposeObject(this.actorSource);
+      this.actorSource = undefined;
+    }
     this.world.remove(this.content);
     disposeObject(this.content);
     this.objects.clear();
@@ -559,6 +793,7 @@ export class StudioRuntime {
     this.controls.dispose();
     this.clearContent();
     this.assets.dispose();
+    this.environment?.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }

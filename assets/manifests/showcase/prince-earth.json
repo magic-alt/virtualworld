@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "id": "prince-earth",
+  "seed": 612,
+  "generator": "Blender 5.2 fixed offline recipe",
+  "source": "generators/blender/prince/build.py",
+  "sha256": "92fa51f374ff880e1b41f1128bf027fca74a3782083c2b0f922f602a1fac5185",
+  "bytes": 10727580,
+  "meshes": 6,
+  "triangles": 264490,
+  "warnings": [
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/3"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/13"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/18"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/23"
+    },
+    {
+      "code": "UNUSED_OBJECT",
+      "message": "This object may be unused.",
+      "severity": 2,
+      "pointer": "/accessors/28"
+    }
+  ],
+  "primitives": 6,
+  "clips": [],
+  "validator": {
+    "errors": 0,
+    "warnings": 0
+  }
+}

@@ -22,3 +22,7 @@ assets/manifests/plans/
 assets/manifests/jobs/
 assets/manifests/worlds/
 __pycache__/
+!assets/optimized/showcase/*.glb
+assets/source/showcase/**/*.blend
+assets/source/showcase/**/*.blend1
+assets/source/showcase/**/*.png

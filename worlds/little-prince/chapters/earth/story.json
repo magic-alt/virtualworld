@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "worldId": "little-prince-earth",
+  "tasks": [
+    {
+      "flag": "garden",
+      "label": "初见玫瑰花园"
+    },
+    {
+      "flag": "friend",
+      "label": "每天靠近一点"
+    },
+    {
+      "flag": "wheat",
+      "label": "金色麦田"
+    },
+    {
+      "flag": "reflection",
+      "label": "再看玫瑰"
+    }
+  ],
+  "interactions": {
+    "garden": {
+      "title": "初见玫瑰花园",
+      "text": "花园里有许多相似的玫瑰。我一时难过，以为远方那朵花并不特别。",
+      "gives": "garden",
+      "requires": []
+    },
+    "friend": {
+      "title": "每天靠近一点",
+      "text": "狐狸请我别急。今天坐远些，明天再近一点；在约好的时刻出现，陌生的脚步就会渐渐成为期待。",
+      "gives": "friend",
+      "requires": ["garden"]
+    },
+    "wheat": {
+      "title": "金色麦田",
+      "text": "狐狸不吃麦子，可金色从此会让它想起我的头发。一起度过的时间，改变了我们看世界的方式。",
+      "gives": "wheat",
+      "requires": ["friend"]
+    },
+    "reflection": {
+      "title": "再看玫瑰",
+      "text": "我回到花园，终于明白：我照料过的那朵，带着浇水、挡风和倾听的记忆。我要回去承担这份牵挂。",
+      "gives": "reflection",
+      "requires": ["wheat"],
+      "completes": true
+    }
+  }
+}

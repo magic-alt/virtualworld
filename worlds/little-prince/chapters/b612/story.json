@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "worldId": "little-prince-b612",
+  "tasks": [
+    {
+      "flag": "rose",
+      "label": "给玫瑰浇水"
+    },
+    {
+      "flag": "volcano",
+      "label": "清扫火山"
+    },
+    {
+      "flag": "sapling",
+      "label": "辨认猴面包树幼苗"
+    },
+    {
+      "flag": "sunset",
+      "label": "安静地看日落"
+    }
+  ],
+  "interactions": {
+    "rose": {
+      "title": "给玫瑰浇水",
+      "text": "她有刺，也有难以说出的温柔。我替她挡风，给她浇水；照料让这朵花有了属于我们的时间。",
+      "gives": "rose",
+      "requires": []
+    },
+    "volcano": {
+      "title": "清扫火山",
+      "text": "两座火山仍有温度，第三座睡着了。我也把它扫干净：每天的小事，值得认真完成。",
+      "gives": "volcano",
+      "requires": ["rose"]
+    },
+    "sapling": {
+      "title": "辨认猴面包树幼苗",
+      "text": "一株幼苗现在很小。我学着分辨它，及时整理小星球，免得根须日后挤满家园。",
+      "gives": "sapling",
+      "requires": ["volcano"]
+    },
+    "sunset": {
+      "title": "安静地看日落",
+      "text": "把椅子挪一点，就能再陪夕阳坐一会儿。今天的照料已经完成，想念也慢慢变得清楚。",
+      "gives": "sunset",
+      "requires": ["sapling"],
+      "completes": true
+    }
+  }
+}

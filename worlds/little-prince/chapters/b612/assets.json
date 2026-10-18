@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "worldId": "little-prince-b612",
+  "assets": [
+    {
+      "id": "prince-b612",
+      "name": "prince-b612",
+      "type": "glb",
+      "url": "/assets/optimized/showcase/prince-b612.glb",
+      "bytes": 1601336,
+      "source": "generators/blender/prince/build.py"
+    },
+    {
+      "id": "prince-character",
+      "name": "prince-character",
+      "type": "glb",
+      "url": "/assets/optimized/showcase/prince-character.glb",
+      "bytes": 935920,
+      "source": "generators/blender/prince/build.py"
+    }
+  ]
+}

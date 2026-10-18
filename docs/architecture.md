@@ -25,6 +25,8 @@ assets/
   manifests/           输入输出哈希、版本、Provider / 模型 / 任务与校验记录
 worlds/demo-island/     scene.json + story.json + assets.json
 worlds/demo-industrial/ 同样的文档结构
+worlds/demo-harmonic-joint/ 参数化关节三文档
+worlds/little-prince/    campaign.json + chapters/* 的三文档
 tests/{assets,engine,e2e}/
 ```
 
@@ -82,7 +84,11 @@ flowchart LR
 
 `SaveSystem` 单独使用浏览器 localStorage，以世界 ID 和剧情指纹隔离进度。加载检查结构与剧情条件，剧情改变时回到初始状态，存储损坏或被禁用时降级为当前会话。退出/重入体验可继续任务，「重置旅程」清除存档。存档不写入 SceneSpec，也不随导出 ZIP 携带。
 
-当前角色是平面 WASD + 跳跃 + Rapier 碰撞，镜头随角色平移。球面切线运动、径向重力、多世界预加载/传送、电影镜头编排、NavMesh、骨骼动画编辑和复杂剧情动作属于后续扩展，不应从现有平面演示推断这些能力已实现。
+角色支持平面 WASD，以及由 `navigation:{kind:'sphere',center,radius}` 明确声明的球面切线运动、径向重力与表面法线相机。静态 `mesh` 碰撞从实际加载对象的世界坐标三角形生成；球面可用显式球体与障碍代理。`actor` 声明角色 GLB、高度和 Idle/Walk/Interact 片段；节点 `animation` 声明独立环境动画。实例释放包含骨骼纹理。球面相机适配固定 Three r180 的 OrbitControls 缓存基底，升级 Three 时必须运行完整绕行回归测试。
+
+`campaign.json` 定义有序章节、相对目录和完成依赖，SceneSpec 的可选 `campaign` 对齐合集 ID、章节 ID、序号。`/api/campaigns` 提供章节目录，服务端在读取、保存和导出时校验成员身份。`CampaignProgress` 从经 SaveSystem 验证的章节状态推导解锁；选择和进度均支持存储不可用时的会话回退，场景 JSON 不保存试玩状态。章节采用按需加载资产，未实现多世界预加载或空间传送。
+
+工业场景的可选 `mechanism` 声明谐波运动根节点、固定件、200/202 齿、剖视替代件、尺寸和双波 morph 名称。SceneSpec 拒绝运动根节点嵌套、固定件被运动根节点带动和无效尺寸关系。输入角度与瞬态剖视/展开由同一个运行时驱动，不回写模板。Blender 的固定配方与名义几何检查独立于 Three 渲染。电影镜头编排、NavMesh、骨骼轨道编辑、工程接触/应力求解和复杂剧情动作仍未实现。
 
 ## 本地服务与交付
 

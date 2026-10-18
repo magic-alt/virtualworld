@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./character": "./src/character.ts"
+    "./character": "./src/character.ts",
+    "./campaign": "./src/campaign.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.3",

@@ -20,12 +20,15 @@
     "test": "vitest run",
     "check": "tsc --noEmit",
     "test:browser": "node tests/e2e/browser-check.mjs",
+    "test:showcases": "node tests/e2e/showcases-check.mjs",
     "fixtures": "tsx scripts/fixtures.ts",
     "notices": "tsx scripts/notices.ts",
     "world:generate": "tsx generators/scene-builder/src/cli.ts generate",
     "world:validate": "tsx generators/scene-builder/src/cli.ts validate",
     "asset:optimize": "tsx generators/scene-builder/src/cli.ts optimize",
-    "world:cli": "tsx generators/scene-builder/src/cli.ts"
+    "world:cli": "tsx generators/scene-builder/src/cli.ts",
+    "demos:build": "tsx scripts/demos.ts build",
+    "demos:validate": "tsx scripts/demos.ts validate"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.3",

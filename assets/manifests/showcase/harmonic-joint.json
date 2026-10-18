@@ -1,0 +1,1640 @@
+{
+  "version": 1,
+  "generator": "fixed Blender harmonic/build.py",
+  "blender": "5.2.2 LTS",
+  "sha256": "7c839da0823661633c3c5c5b74dadb6a08498fc87c4d49ac9f457447ce857358",
+  "bytes": 9790876,
+  "dimensions": {
+    "baseDiameter": 0.215,
+    "housingDiameter": 0.18,
+    "totalHeight": 0.165,
+    "boreDiameter": 0.02
+  },
+  "airGap": 0.0005,
+  "ratio": -100,
+  "minimumBoreRadius": 0.00999999965860041,
+  "checks": [
+    {
+      "name": "base diameter",
+      "actual": 0.2150000035762787,
+      "expected": 0.215,
+      "tolerance": 0.000001,
+      "pass": true
+    },
+    {
+      "name": "housing diameter",
+      "actual": 0.18000000715255737,
+      "expected": 0.18,
+      "tolerance": 0.000001,
+      "pass": true
+    },
+    {
+      "name": "flange top",
+      "actual": 0.16500000655651093,
+      "expected": 0.165,
+      "tolerance": 0.000001,
+      "pass": true
+    },
+    {
+      "name": "through bore minimum radius",
+      "actual": 0.00999999965860041,
+      "expected": 0.01,
+      "tolerance": 2e-7,
+      "pass": true
+    },
+    {
+      "name": "radial motor air gap",
+      "actual": 0.0005000000000000004,
+      "expected": 0.0005,
+      "tolerance": 0.000001,
+      "pass": true
+    },
+    {
+      "name": "upper bearing to cup axial clearance",
+      "actual": 0.013999999999999999,
+      "expected": 0.014,
+      "tolerance": 0.000001,
+      "pass": true
+    },
+    {
+      "name": "output neck to input tube radial clearance",
+      "actual": 0.0010000000000000009,
+      "expected": 0.001,
+      "tolerance": 0.000001,
+      "pass": true
+    },
+    {
+      "name": "stator tooth to rotor radial gap",
+      "actual": 0.0004999973499902471,
+      "expected": 0.0005,
+      "tolerance": 0.000002,
+      "pass": true
+    },
+    {
+      "name": "cam to flex diaphragm axial clearance",
+      "actual": 0.006000000000000005,
+      "expected": 0.006,
+      "tolerance": 0.000001,
+      "pass": true
+    },
+    {
+      "name": "motor to bearing support axial clearance",
+      "actual": 0.009999999999999995,
+      "expected": 0.01,
+      "tolerance": 0.000001,
+      "pass": true
+    }
+  ],
+  "mountingHoles": [
+    {
+      "center": [
+        0.09576489602431484,
+        0,
+        -0.006714513344403146
+      ],
+      "radius": 0.0033,
+      "through": true
+    },
+    {
+      "center": [
+        0.06296812946022265,
+        0,
+        -0.0724638852966127
+      ],
+      "radius": 0.0033,
+      "through": true
+    },
+    {
+      "center": [
+        -0.006714513344403146,
+        0,
+        -0.09576489602431484
+      ],
+      "radius": 0.0033,
+      "through": true
+    },
+    {
+      "center": [
+        -0.07246388529661268,
+        0,
+        -0.06296812946022266
+      ],
+      "radius": 0.0033,
+      "through": true
+    },
+    {
+      "center": [
+        -0.09576489602431484,
+        0,
+        0.006714513344403118
+      ],
+      "radius": 0.0033,
+      "through": true
+    },
+    {
+      "center": [
+        -0.06296812946022266,
+        0,
+        0.07246388529661268
+      ],
+      "radius": 0.0033,
+      "through": true
+    },
+    {
+      "center": [
+        0.006714513344403155,
+        0,
+        0.09576489602431484
+      ],
+      "radius": 0.0033,
+      "through": true
+    },
+    {
+      "center": [
+        0.0724638852966127,
+        0,
+        0.06296812946022264
+      ],
+      "radius": 0.0033,
+      "through": true
+    }
+  ],
+  "parts": [
+    {
+      "name": "base-flange",
+      "assembly": "fixed",
+      "path": "0",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.10750000178813934,
+          -0.10750000178813934,
+          0
+        ],
+        [
+          0.10750000178813934,
+          0.10750000178813934,
+          0.012000000104308128
+        ]
+      ]
+    },
+    {
+      "name": "housing-full",
+      "assembly": "fixed",
+      "path": "14",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.09000000357627869,
+          -0.09000000357627869,
+          0.012000000104308128
+        ],
+        [
+          0.09000000357627869,
+          0.09000000357627869,
+          0.15299999713897705
+        ]
+      ]
+    },
+    {
+      "name": "housing-section",
+      "assembly": "fixed",
+      "path": "15",
+      "sectionOf": "housing-full",
+      "boundsBlenderZUp": [
+        [
+          -0.09000000357627869,
+          -0.09000000357627869,
+          0.012000000104308128
+        ],
+        [
+          0.08999764919281006,
+          0.08999764919281006,
+          0.15299999713897705
+        ]
+      ]
+    },
+    {
+      "name": "stator-back-iron",
+      "assembly": "fixed",
+      "path": "31",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.08399999886751175,
+          -0.08399999886751175,
+          0.027000000700354576
+        ],
+        [
+          0.08399999886751175,
+          0.08399999886751175,
+          0.06700000166893005
+        ]
+      ]
+    },
+    {
+      "name": "stator-housing-fit-sleeve",
+      "assembly": "fixed",
+      "path": "33",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.08500000089406967,
+          -0.08500000089406967,
+          0.02500000037252903
+        ],
+        [
+          0.08500000089406967,
+          0.08500000089406967,
+          0.0689999982714653
+        ]
+      ]
+    },
+    {
+      "name": "stator-teeth-18",
+      "assembly": "fixed",
+      "path": "35",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.07400000095367432,
+          -0.07353563606739044,
+          0.027000000700354576
+        ],
+        [
+          0.07400000095367432,
+          0.07353563606739044,
+          0.06700000166893005
+        ]
+      ]
+    },
+    {
+      "name": "coil-formers-18",
+      "assembly": "fixed",
+      "path": "1",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.07400000095367432,
+          -0.07367021590471268,
+          0.027000000700354576
+        ],
+        [
+          0.07400000095367432,
+          0.07367021590471268,
+          0.06700000166893005
+        ]
+      ]
+    },
+    {
+      "name": "copper-windings-90-turns",
+      "assembly": "fixed",
+      "path": "2",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.07204999774694443,
+          -0.07186271250247955,
+          0.024174999445676804
+        ],
+        [
+          0.07204999774694443,
+          0.07186271250247955,
+          0.06982500106096268
+        ]
+      ]
+    },
+    {
+      "name": "rotor-yoke",
+      "assembly": "input",
+      "path": "30",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.05849999934434891,
+          -0.05849999934434891,
+          0.027000000700354576
+        ],
+        [
+          0.05849999934434891,
+          0.05849999934434891,
+          0.06700000166893005
+        ]
+      ]
+    },
+    {
+      "name": "rotor-magnets-north",
+      "assembly": "input",
+      "path": "28",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.06049412116408348,
+          -0.06049412116408348,
+          0.02800000086426735
+        ],
+        [
+          0.06049412116408348,
+          0.06049412116408348,
+          0.06599999964237213
+        ]
+      ]
+    },
+    {
+      "name": "rotor-magnets-south",
+      "assembly": "input",
+      "path": "29",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.06049412116408348,
+          -0.06049412116408348,
+          0.02800000086426735
+        ],
+        [
+          0.06049412116408348,
+          0.06049412116408348,
+          0.06599999964237213
+        ]
+      ]
+    },
+    {
+      "name": "rotor-bottom-carrier",
+      "assembly": "input",
+      "path": "27",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.05400000140070915,
+          -0.05400000140070915,
+          0.02500000037252903
+        ],
+        [
+          0.05400000140070915,
+          0.05400000140070915,
+          0.027000000700354576
+        ]
+      ]
+    },
+    {
+      "name": "hollow-input-shaft",
+      "assembly": "input",
+      "path": "13",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.014999999664723873,
+          -0.014999999664723873,
+          0.012500000186264515
+        ],
+        [
+          0.014999999664723873,
+          0.014999999664723873,
+          0.125
+        ]
+      ]
+    },
+    {
+      "name": "lower-input-bearing-inner",
+      "assembly": "input",
+      "path": "18",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.017999999225139618,
+          -0.017999999225139618,
+          0.013000000268220901
+        ],
+        [
+          0.017999999225139618,
+          0.017999999225139618,
+          0.023000000044703484
+        ]
+      ]
+    },
+    {
+      "name": "lower-input-bearing-outer",
+      "assembly": "fixed",
+      "path": "19",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.026000000536441803,
+          -0.026000000536441803,
+          0.013000000268220901
+        ],
+        [
+          0.026000000536441803,
+          0.026000000536441803,
+          0.023000000044703484
+        ]
+      ]
+    },
+    {
+      "name": "lower-bearing-seat",
+      "assembly": "fixed",
+      "path": "17",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.03999999910593033,
+          -0.03999999910593033,
+          0.012000000104308128
+        ],
+        [
+          0.03999999910593033,
+          0.03999999910593033,
+          0.02199999988079071
+        ]
+      ]
+    },
+    {
+      "name": "upper-input-bearing-inner",
+      "assembly": "input",
+      "path": "39",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.017999999225139618,
+          -0.017999999225139618,
+          0.07500000298023224
+        ],
+        [
+          0.017999999225139618,
+          0.017999999225139618,
+          0.08500000089406967
+        ]
+      ]
+    },
+    {
+      "name": "upper-input-bearing-outer",
+      "assembly": "fixed",
+      "path": "40",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.026000000536441803,
+          -0.026000000536441803,
+          0.07500000298023224
+        ],
+        [
+          0.026000000536441803,
+          0.026000000536441803,
+          0.08500000089406967
+        ]
+      ]
+    },
+    {
+      "name": "upper-bearing-support-plate",
+      "assembly": "fixed",
+      "path": "37",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.08500000089406967,
+          -0.08500000089406967,
+          0.07699999958276749
+        ],
+        [
+          0.08500000089406967,
+          0.08500000089406967,
+          0.08100000023841858
+        ]
+      ]
+    },
+    {
+      "name": "lower-bearing-balls",
+      "assembly": "fixed",
+      "path": "16",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.021902114152908325,
+          -0.021498559042811394,
+          0.01599999889731407
+        ],
+        [
+          0.021902112290263176,
+          0.021498559042811394,
+          0.019999999552965164
+        ]
+      ]
+    },
+    {
+      "name": "upper-bearing-balls",
+      "assembly": "fixed",
+      "path": "36",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.021902114152908325,
+          -0.021498559042811394,
+          0.07800000160932541
+        ],
+        [
+          0.021902112290263176,
+          0.021498559042811394,
+          0.0819999948143959
+        ]
+      ]
+    },
+    {
+      "name": "encoder-board",
+      "assembly": "fixed",
+      "path": "7",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.04800000041723251,
+          -0.04800000041723251,
+          0.02199999988079071
+        ],
+        [
+          0.04800000041723251,
+          0.04800000041723251,
+          0.024000000208616257
+        ]
+      ]
+    },
+    {
+      "name": "encoder-code-ring",
+      "assembly": "input",
+      "path": "9",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.027000000700354576,
+          -0.027000000700354576,
+          0.023499999195337296
+        ],
+        [
+          0.027000000700354576,
+          0.027000000700354576,
+          0.02449999935925007
+        ]
+      ]
+    },
+    {
+      "name": "encoder-code-marks",
+      "assembly": "input",
+      "path": "8",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.025499999523162842,
+          -0.025499999523162842,
+          0.02449999935925007
+        ],
+        [
+          0.025499999523162842,
+          0.025499999523162842,
+          0.024700000882148743
+        ]
+      ]
+    },
+    {
+      "name": "flex-cup",
+      "assembly": "flex",
+      "path": "12",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.05244353041052818,
+          -0.05244353041052818,
+          0.0989999994635582
+        ],
+        [
+          0.05244353041052818,
+          0.05244353041052818,
+          0.13600000739097595
+        ]
+      ]
+    },
+    {
+      "name": "fixed-circular-spline-202",
+      "assembly": "fixed",
+      "path": "10",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.08500000089406967,
+          -0.08500000089406967,
+          0.11800000071525574
+        ],
+        [
+          0.08500000089406967,
+          0.08500000089406967,
+          0.13199999928474426
+        ]
+      ]
+    },
+    {
+      "name": "elliptical-wave-cam",
+      "assembly": "input",
+      "path": "6",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.05000000074505806,
+          -0.04899999871850014,
+          0.11500000208616257
+        ],
+        [
+          0.05000000074505806,
+          0.04899999871850014,
+          0.125
+        ]
+      ]
+    },
+    {
+      "name": "wave-bearing-outer-race",
+      "assembly": "input",
+      "path": "41",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.05130000039935112,
+          -0.0502999983727932,
+          0.11400000005960464
+        ],
+        [
+          0.05130000039935112,
+          0.0502999983727932,
+          0.12600000202655792
+        ]
+      ]
+    },
+    {
+      "name": "output-neck",
+      "assembly": "output",
+      "path": "25",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.024000000208616257,
+          -0.024000000208616257,
+          0.13600000739097595
+        ],
+        [
+          0.024000000208616257,
+          0.024000000208616257,
+          0.1550000011920929
+        ]
+      ]
+    },
+    {
+      "name": "output-bearing-carrier",
+      "assembly": "output",
+      "path": "21",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.06199999898672104,
+          -0.06199999898672104,
+          0.1509999930858612
+        ],
+        [
+          0.06199999898672104,
+          0.06199999898672104,
+          0.1550000011920929
+        ]
+      ]
+    },
+    {
+      "name": "crossroller-inner-race",
+      "assembly": "output",
+      "path": "3",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.06400000303983688,
+          -0.06400000303983688,
+          0.13699999451637268
+        ],
+        [
+          0.06400000303983688,
+          0.06400000303983688,
+          0.1509999930858612
+        ]
+      ]
+    },
+    {
+      "name": "crossroller-outer-race",
+      "assembly": "fixed",
+      "path": "4",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.08500000089406967,
+          -0.08500000089406967,
+          0.13699999451637268
+        ],
+        [
+          0.08500000089406967,
+          0.08500000089406967,
+          0.1509999930858612
+        ]
+      ]
+    },
+    {
+      "name": "crossrollers-32-alternating-45deg",
+      "assembly": "fixed",
+      "path": "5",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.07209619879722595,
+          -0.07209619879722595,
+          0.1394038051366806
+        ],
+        [
+          0.07209619879722595,
+          0.07209619879722595,
+          0.14859618246555328
+        ]
+      ]
+    },
+    {
+      "name": "output-flange",
+      "assembly": "output",
+      "path": "23",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.05999999865889549,
+          -0.05999999865889549,
+          0.1550000011920929
+        ],
+        [
+          0.05999999865889549,
+          0.05999999865889549,
+          0.16500000655651093
+        ]
+      ]
+    },
+    {
+      "name": "output-fasteners-8",
+      "assembly": "output",
+      "path": "22",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.04797518625855446,
+          -0.04797518625855446,
+          0.1509999930858612
+        ],
+        [
+          0.04797518625855446,
+          0.04797518625855446,
+          0.16449999809265137
+        ]
+      ]
+    },
+    {
+      "name": "outer-bearing-retainer",
+      "assembly": "fixed",
+      "path": "20",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.08500000089406967,
+          -0.08500000089406967,
+          0.1509999930858612
+        ],
+        [
+          0.08500000089406967,
+          0.08500000089406967,
+          0.15299999713897705
+        ]
+      ]
+    },
+    {
+      "name": "retainer-bolts-8",
+      "assembly": "fixed",
+      "path": "26",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          -0.0831608697772026,
+          -0.08277127891778946,
+          0.15299999713897705
+        ],
+        [
+          0.0831608697772026,
+          0.08277127891778946,
+          0.15600000321865082
+        ]
+      ]
+    },
+    {
+      "name": "output-index",
+      "assembly": "output",
+      "path": "24",
+      "sectionOf": null,
+      "boundsBlenderZUp": [
+        [
+          0.04050000011920929,
+          -0.0005000000237487257,
+          0.1648000031709671
+        ],
+        [
+          0.05550000071525574,
+          0.0005000000237487257,
+          0.16500000655651093
+        ]
+      ]
+    },
+    {
+      "name": "stator-back-iron-section",
+      "assembly": "fixed",
+      "path": "32",
+      "sectionOf": "stator-back-iron",
+      "boundsBlenderZUp": [
+        [
+          -0.08399999886751175,
+          -0.08399999886751175,
+          0.027000000700354576
+        ],
+        [
+          0.08399764448404312,
+          0.08399764448404312,
+          0.06700000166893005
+        ]
+      ]
+    },
+    {
+      "name": "stator-housing-fit-sleeve-section",
+      "assembly": "fixed",
+      "path": "34",
+      "sectionOf": "stator-housing-fit-sleeve",
+      "boundsBlenderZUp": [
+        [
+          -0.08500000089406967,
+          -0.08500000089406967,
+          0.02500000037252903
+        ],
+        [
+          0.08499764651060104,
+          0.08499764651060104,
+          0.0689999982714653
+        ]
+      ]
+    },
+    {
+      "name": "upper-bearing-support-plate-section",
+      "assembly": "fixed",
+      "path": "38",
+      "sectionOf": "upper-bearing-support-plate",
+      "boundsBlenderZUp": [
+        [
+          -0.08500000089406967,
+          -0.08500000089406967,
+          0.07699999958276749
+        ],
+        [
+          0.08499764651060104,
+          0.08499764651060104,
+          0.08100000023841858
+        ]
+      ]
+    },
+    {
+      "name": "fixed-circular-spline-202-section",
+      "assembly": "fixed",
+      "path": "11",
+      "sectionOf": "fixed-circular-spline-202",
+      "boundsBlenderZUp": [
+        [
+          -0.08500000089406967,
+          -0.08500000089406967,
+          0.11800000071525574
+        ],
+        [
+          0.08500000089406967,
+          0.08500000089406967,
+          0.13199999928474426
+        ]
+      ]
+    }
+  ],
+  "validationScope": "Nominal geometry and kinematic sample; not load, torque, fatigue, thermal or FEA validation. Tooth profiles are illustrative, not manufacturing involutes.",
+  "allowedContacts": [
+    "cam / wave bearing",
+    "wave bearing / flex wall",
+    "flex teeth / circular spline teeth",
+    "bearing races / rolling elements",
+    "rotor carrier / input shaft",
+    "stator back iron / teeth / windings",
+    "housing / fixed seat / circular spline / outer races",
+    "cup diaphragm / output neck / flange",
+    "fasteners / retained fixed parts"
+  ],
+  "warnings": [
+    "Nominal contact interfaces are intentional; mesh intersection does not imply production fit.",
+    "No tolerances, rated loads, lubrication, electrical insulation or manufacturing qualification.",
+    "Crossroller race section is simplified; rollers alternate +/-45 degrees."
+  ],
+  "interference": {
+    "method": "Blender BVHTree exact nominal triangle-surface overlap; boundary contact included",
+    "configurations": [
+      {
+        "section": false,
+        "parts": 37,
+        "contacts": [
+          {
+            "parts": [
+              "base-flange",
+              "housing-full"
+            ],
+            "trianglePairs": 407,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "base-flange",
+              "lower-bearing-seat"
+            ],
+            "trianglePairs": 413,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "housing-full",
+              "stator-housing-fit-sleeve"
+            ],
+            "trianglePairs": 328,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "housing-full",
+              "upper-bearing-support-plate"
+            ],
+            "trianglePairs": 342,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "housing-full",
+              "fixed-circular-spline-202"
+            ],
+            "trianglePairs": 2230,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "housing-full",
+              "crossroller-outer-race"
+            ],
+            "trianglePairs": 304,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "housing-full",
+              "outer-bearing-retainer"
+            ],
+            "trianglePairs": 202,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "stator-back-iron",
+              "stator-housing-fit-sleeve"
+            ],
+            "trianglePairs": 235,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "stator-back-iron",
+              "stator-teeth-18"
+            ],
+            "trianglePairs": 534,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "stator-back-iron",
+              "coil-formers-18"
+            ],
+            "trianglePairs": 568,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "stator-teeth-18",
+              "coil-formers-18"
+            ],
+            "trianglePairs": 432,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "coil-formers-18",
+              "copper-windings-90-turns"
+            ],
+            "trianglePairs": 732,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "rotor-yoke",
+              "rotor-magnets-north"
+            ],
+            "trianglePairs": 352,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "rotor-yoke",
+              "rotor-magnets-south"
+            ],
+            "trianglePairs": 352,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "rotor-bottom-carrier",
+              "hollow-input-shaft"
+            ],
+            "trianglePairs": 391,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "hollow-input-shaft",
+              "lower-input-bearing-inner"
+            ],
+            "trianglePairs": 326,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "hollow-input-shaft",
+              "upper-input-bearing-inner"
+            ],
+            "trianglePairs": 304,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "hollow-input-shaft",
+              "encoder-code-ring"
+            ],
+            "trianglePairs": 360,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "hollow-input-shaft",
+              "elliptical-wave-cam"
+            ],
+            "trianglePairs": 298,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "lower-input-bearing-outer",
+              "lower-bearing-seat"
+            ],
+            "trianglePairs": 307,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "lower-bearing-seat",
+              "encoder-board"
+            ],
+            "trianglePairs": 298,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "upper-input-bearing-outer",
+              "upper-bearing-support-plate"
+            ],
+            "trianglePairs": 200,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "encoder-code-ring",
+              "encoder-code-marks"
+            ],
+            "trianglePairs": 224,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "flex-cup",
+              "fixed-circular-spline-202"
+            ],
+            "trianglePairs": 128,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "flex-cup",
+              "wave-bearing-outer-race"
+            ],
+            "trianglePairs": 956,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "flex-cup",
+              "output-neck"
+            ],
+            "trianglePairs": 426,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "elliptical-wave-cam",
+              "wave-bearing-outer-race"
+            ],
+            "trianglePairs": 159,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-neck",
+              "output-bearing-carrier"
+            ],
+            "trianglePairs": 188,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-neck",
+              "output-flange"
+            ],
+            "trianglePairs": 412,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-bearing-carrier",
+              "crossroller-inner-race"
+            ],
+            "trianglePairs": 516,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-bearing-carrier",
+              "output-flange"
+            ],
+            "trianglePairs": 688,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-bearing-carrier",
+              "output-fasteners-8"
+            ],
+            "trianglePairs": 320,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "crossroller-inner-race",
+              "crossrollers-32-alternating-45deg"
+            ],
+            "trianglePairs": 264,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "crossroller-outer-race",
+              "crossrollers-32-alternating-45deg"
+            ],
+            "trianglePairs": 267,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "crossroller-outer-race",
+              "outer-bearing-retainer"
+            ],
+            "trianglePairs": 144,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-flange",
+              "output-fasteners-8"
+            ],
+            "trianglePairs": 358,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-flange",
+              "output-index"
+            ],
+            "trianglePairs": 4,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "outer-bearing-retainer",
+              "retainer-bolts-8"
+            ],
+            "trianglePairs": 186,
+            "allowed": true
+          }
+        ]
+      },
+      {
+        "section": true,
+        "parts": 37,
+        "contacts": [
+          {
+            "parts": [
+              "base-flange",
+              "housing-section"
+            ],
+            "trianglePairs": 312,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "base-flange",
+              "lower-bearing-seat"
+            ],
+            "trianglePairs": 413,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "housing-section",
+              "crossroller-outer-race"
+            ],
+            "trianglePairs": 228,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "housing-section",
+              "outer-bearing-retainer"
+            ],
+            "trianglePairs": 152,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "housing-section",
+              "stator-housing-fit-sleeve-section"
+            ],
+            "trianglePairs": 258,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "housing-section",
+              "upper-bearing-support-plate-section"
+            ],
+            "trianglePairs": 266,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "housing-section",
+              "fixed-circular-spline-202-section"
+            ],
+            "trianglePairs": 1677,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "stator-teeth-18",
+              "coil-formers-18"
+            ],
+            "trianglePairs": 432,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "stator-teeth-18",
+              "stator-back-iron-section"
+            ],
+            "trianglePairs": 403,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "coil-formers-18",
+              "copper-windings-90-turns"
+            ],
+            "trianglePairs": 732,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "coil-formers-18",
+              "stator-back-iron-section"
+            ],
+            "trianglePairs": 426,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "rotor-yoke",
+              "rotor-magnets-north"
+            ],
+            "trianglePairs": 352,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "rotor-yoke",
+              "rotor-magnets-south"
+            ],
+            "trianglePairs": 352,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "rotor-bottom-carrier",
+              "hollow-input-shaft"
+            ],
+            "trianglePairs": 391,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "hollow-input-shaft",
+              "lower-input-bearing-inner"
+            ],
+            "trianglePairs": 326,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "hollow-input-shaft",
+              "upper-input-bearing-inner"
+            ],
+            "trianglePairs": 304,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "hollow-input-shaft",
+              "encoder-code-ring"
+            ],
+            "trianglePairs": 360,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "hollow-input-shaft",
+              "elliptical-wave-cam"
+            ],
+            "trianglePairs": 298,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "lower-input-bearing-outer",
+              "lower-bearing-seat"
+            ],
+            "trianglePairs": 307,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "lower-bearing-seat",
+              "encoder-board"
+            ],
+            "trianglePairs": 298,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "upper-input-bearing-outer",
+              "upper-bearing-support-plate-section"
+            ],
+            "trianglePairs": 162,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "encoder-code-ring",
+              "encoder-code-marks"
+            ],
+            "trianglePairs": 224,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "flex-cup",
+              "wave-bearing-outer-race"
+            ],
+            "trianglePairs": 956,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "flex-cup",
+              "output-neck"
+            ],
+            "trianglePairs": 426,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "flex-cup",
+              "fixed-circular-spline-202-section"
+            ],
+            "trianglePairs": 96,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "elliptical-wave-cam",
+              "wave-bearing-outer-race"
+            ],
+            "trianglePairs": 159,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-neck",
+              "output-bearing-carrier"
+            ],
+            "trianglePairs": 188,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-neck",
+              "output-flange"
+            ],
+            "trianglePairs": 412,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-bearing-carrier",
+              "crossroller-inner-race"
+            ],
+            "trianglePairs": 516,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-bearing-carrier",
+              "output-flange"
+            ],
+            "trianglePairs": 688,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-bearing-carrier",
+              "output-fasteners-8"
+            ],
+            "trianglePairs": 320,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "crossroller-inner-race",
+              "crossrollers-32-alternating-45deg"
+            ],
+            "trianglePairs": 264,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "crossroller-outer-race",
+              "crossrollers-32-alternating-45deg"
+            ],
+            "trianglePairs": 267,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "crossroller-outer-race",
+              "outer-bearing-retainer"
+            ],
+            "trianglePairs": 144,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-flange",
+              "output-fasteners-8"
+            ],
+            "trianglePairs": 358,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "output-flange",
+              "output-index"
+            ],
+            "trianglePairs": 4,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "outer-bearing-retainer",
+              "retainer-bolts-8"
+            ],
+            "trianglePairs": 186,
+            "allowed": true
+          },
+          {
+            "parts": [
+              "stator-back-iron-section",
+              "stator-housing-fit-sleeve-section"
+            ],
+            "trianglePairs": 183,
+            "allowed": true
+          }
+        ]
+      }
+    ],
+    "unexpected": [],
+    "limitations": "Nominal geometry only; not solid containment, tolerance stack, continuous motion, stress or FEA."
+  },
+  "gltfValidation": {
+    "uri": "harmonic-joint.glb",
+    "mimeType": "model/gltf-binary",
+    "validatorVersion": "2.0.0-dev.3.10",
+    "validatedAt": "2026-10-18T07:57:25.137Z",
+    "issues": {
+      "numErrors": 0,
+      "numWarnings": 0,
+      "numInfos": 6,
+      "numHints": 0,
+      "messages": [
+        {
+          "code": "UNUSED_OBJECT",
+          "message": "This object may be unused.",
+          "severity": 2,
+          "pointer": "/meshes/0/primitives/0/attributes/TEXCOORD_0"
+        },
+        {
+          "code": "UNUSED_OBJECT",
+          "message": "This object may be unused.",
+          "severity": 2,
+          "pointer": "/meshes/5/primitives/0/attributes/TEXCOORD_0"
+        },
+        {
+          "code": "UNUSED_OBJECT",
+          "message": "This object may be unused.",
+          "severity": 2,
+          "pointer": "/meshes/16/primitives/0/attributes/TEXCOORD_0"
+        },
+        {
+          "code": "UNUSED_OBJECT",
+          "message": "This object may be unused.",
+          "severity": 2,
+          "pointer": "/meshes/22/primitives/0/attributes/TEXCOORD_0"
+        },
+        {
+          "code": "UNUSED_OBJECT",
+          "message": "This object may be unused.",
+          "severity": 2,
+          "pointer": "/meshes/23/primitives/0/attributes/TEXCOORD_0"
+        },
+        {
+          "code": "UNUSED_OBJECT",
+          "message": "This object may be unused.",
+          "severity": 2,
+          "pointer": "/meshes/36/primitives/0/attributes/TEXCOORD_0"
+        }
+      ],
+      "truncated": false
+    },
+    "info": {
+      "version": "2.0",
+      "generator": "Khronos glTF Blender I/O v5.2.40",
+      "resources": [
+        {
+          "pointer": "/buffers/0",
+          "mimeType": "application/gltf-buffer",
+          "storage": "glb",
+          "byteLength": 9757776
+        }
+      ],
+      "animationCount": 0,
+      "materialCount": 10,
+      "hasMorphTargets": true,
+      "hasSkins": false,
+      "hasTextures": false,
+      "hasDefaultScene": true,
+      "drawCallCount": 42,
+      "totalVertexCount": 340503,
+      "totalTriangleCount": 189054,
+      "maxUVs": 1,
+      "maxInfluences": 0,
+      "maxAttributes": 3
+    }
+  },
+  "finalNodePathsVerified": true
+}

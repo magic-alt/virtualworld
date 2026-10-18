@@ -12,8 +12,7 @@ export class AssetRegistry {
   private libraryPromise?: Promise<typeof import('@sparkjsdev/spark')>;
   private disposed = false;
   constructor(
-    private loader = async (url: string): Promise<THREE.Object3D> =>
-      (await new GLTFLoader().loadAsync(url)).scene,
+    private loader = async (url: string): Promise<THREE.Object3D> => await loadAnimatedGlb(url),
     private importSplats = () => import('@sparkjsdev/spark'),
   ) {}
 
@@ -79,6 +78,7 @@ export class AssetRegistry {
         child.receiveShadow = true;
       }
     });
+    instance.animations = root.animations.map((clip) => clip.clone());
     return instance;
   }
   clear() {
@@ -93,11 +93,19 @@ export class AssetRegistry {
     this.spark = undefined;
   }
 }
+export async function loadAnimatedGlb(url: string) {
+  const gltf = await new GLTFLoader().loadAsync(url);
+  gltf.scene.animations = gltf.animations;
+  return gltf.scene;
+}
+
 export function disposeObject(object: THREE.Object3D) {
   const textures = new Set<THREE.Texture>(),
+    skeletons = new Set<THREE.Skeleton>(),
     materials = new Set<THREE.Material>(),
     geometries = new Set<THREE.BufferGeometry>();
   object.traverse((o) => {
+    if (o instanceof THREE.SkinnedMesh) skeletons.add(o.skeleton);
     if (o.userData.isSplat) (o as SplatMesh).dispose();
     if (o instanceof THREE.Light) o.dispose();
     if (o instanceof THREE.Mesh || o instanceof THREE.Line || o instanceof THREE.Points) {
@@ -109,6 +117,7 @@ export function disposeObject(object: THREE.Object3D) {
       }
     }
   });
+  skeletons.forEach((skeleton) => skeleton.dispose());
   textures.forEach((t) => t.dispose());
   materials.forEach((m) => m.dispose());
   geometries.forEach((g) => g.dispose());

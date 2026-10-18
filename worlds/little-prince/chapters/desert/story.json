@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "worldId": "little-prince-desert",
+  "tasks": [
+    {
+      "flag": "sheep",
+      "label": "请画一只羊"
+    },
+    {
+      "flag": "depart",
+      "label": "修理飞机"
+    }
+  ],
+  "interactions": {
+    "meeting": {
+      "title": "请画一只羊",
+      "text": "发动机停在沙海深处。一个金发孩子却只惦记一只羊。我画了一个有透气孔的箱子，他说：这样，羊也有自己的家了。",
+      "gives": "sheep",
+      "requires": []
+    },
+    "plane": {
+      "title": "修理飞机",
+      "text": "我还需要修理引擎。孩子讲起远方的一朵花，让这片安静的沙漠第一次有了牵挂。",
+      "gives": "depart",
+      "requires": ["sheep"],
+      "completes": true
+    }
+  }
+}

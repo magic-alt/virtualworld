@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "id": "little-prince-b612",
+  "name": "每天照料的小星球",
+  "description": "在小小的星球上照料玫瑰、清扫火山、辨认幼苗，再陪夕阳坐一会儿。",
+  "mode": "world",
+  "revision": 0,
+  "nodes": [
+    {
+      "id": "landscape",
+      "name": "每天照料的小星球",
+      "kind": "mesh",
+      "shape": "glb",
+      "assetId": "prince-b612",
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true,
+      "collider": {
+        "shape": "ball",
+        "size": [6, 6, 6]
+      }
+    },
+    {
+      "id": "volcano-collider-0",
+      "name": "火山碰撞边界",
+      "kind": "group",
+      "position": [-1.6, 5.947128425310541, 0.8],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true,
+      "collider": {
+        "shape": "ball",
+        "size": [0.53, 0.53, 0.53]
+      }
+    },
+    {
+      "id": "volcano-collider-1",
+      "name": "火山碰撞边界",
+      "kind": "group",
+      "position": [1.6, 5.960209055426465, 0.7],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true,
+      "collider": {
+        "shape": "ball",
+        "size": [0.53, 0.53, 0.53]
+      }
+    },
+    {
+      "id": "volcano-collider-2",
+      "name": "火山碰撞边界",
+      "kind": "group",
+      "position": [0.6, 5.9427615711297985, -1.7],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true,
+      "collider": {
+        "shape": "ball",
+        "size": [0.53, 0.53, 0.53]
+      }
+    },
+    {
+      "id": "globe-collider",
+      "name": "玻璃罩碰撞边界",
+      "kind": "group",
+      "position": [0, 6.4, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true,
+      "collider": {
+        "shape": "ball",
+        "size": [0.32, 0.32, 0.32]
+      }
+    },
+    {
+      "id": "rose",
+      "name": "给玫瑰浇水",
+      "kind": "group",
+      "position": [0, 6.4, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true
+    },
+    {
+      "id": "volcano",
+      "name": "清扫火山",
+      "kind": "group",
+      "position": [-1.6, 5.9, 0.8],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true
+    },
+    {
+      "id": "sapling",
+      "name": "辨认猴面包树幼苗",
+      "kind": "group",
+      "position": [-2, 5.9, -0.9],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true
+    },
+    {
+      "id": "sunset",
+      "name": "安静地看日落",
+      "kind": "group",
+      "position": [2, 5.9, 1],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true
+    }
+  ],
+  "environment": {
+    "background": "#b76d62",
+    "lightIntensity": 2.5,
+    "ambientIntensity": 1.5,
+    "fog": 0.015
+  },
+  "camera": {
+    "position": [8, 10, 8],
+    "target": [0, 6, 0]
+  },
+  "spawn": [0.8, 6.1, 1.2],
+  "navigation": {
+    "kind": "sphere",
+    "center": [0, 0, 0],
+    "radius": 6
+  },
+  "actor": {
+    "assetId": "prince-character",
+    "height": 1.6,
+    "clips": {
+      "idle": "Idle",
+      "walk": "Walk",
+      "interact": "Interact"
+    }
+  },
+  "campaign": {
+    "id": "little-prince",
+    "chapterId": "little-prince-b612",
+    "index": 1
+  }
+}

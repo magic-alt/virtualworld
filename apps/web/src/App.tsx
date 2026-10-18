@@ -50,9 +50,17 @@ import {
 } from 'lucide-react';
 import { industrialDemo, worldDemo, node as makeNode } from '@virtualworld/scene-builder';
 import { SceneHistory, applyCommands, type SceneCommand } from '@virtualworld/scene-schema';
-import { validateScene, type SceneSpec, type SceneNode } from '@virtualworld/scene-schema';
+import {
+  validateScene,
+  CampaignSchema,
+  assertScene,
+  type CampaignSpec,
+  type SceneSpec,
+  type SceneNode,
+} from '@virtualworld/scene-schema';
 import type { StudioRuntime, RuntimeMetrics } from '@virtualworld/engine';
 import { initialStory, type StoryState } from '@virtualworld/interaction';
+import { CampaignProgress } from '@virtualworld/interaction/campaign';
 import { Viewport } from './Viewport';
 import { Inspector } from './Inspector';
 import { importFile } from './import';
@@ -89,6 +97,14 @@ export default function App() {
   const scope = useRef(new ProjectScope(scene.id)),
     projectRequest = useRef(0),
     focusAfterLoad = useRef<string | undefined>(undefined);
+  const resumeAfterLoad = useRef<string | undefined>(undefined);
+  const [campaign, setCampaign] = useState<{ manifest: CampaignSpec; scenes: SceneSpec[] }>();
+  const campaignProgress = campaign
+    ? CampaignProgress.browser(
+        campaign.manifest,
+        campaign.scenes.map((s) => (s.id === scene.id ? scene : s)),
+      )
+    : undefined;
   const [unsavedProject, setUnsavedProject] = useState(false);
   const [selected, setSelected] = useState<string | undefined>('housing'),
     [savedRevision, setSavedRevision] = useState(0),
@@ -105,6 +121,8 @@ export default function App() {
   const [playing, setPlaying] = useState(false),
     [explosion, setExplosion] = useState(0),
     [moving, setMoving] = useState(false),
+    [section, setSection] = useState(false),
+    [inputRpm, setInputRpm] = useState(6),
     [tool, setTool] = useState<'translate' | 'rotate' | 'scale'>('translate'),
     [isolated, setIsolated] = useState(false);
   const [metrics, setMetrics] = useState<RuntimeMetrics>(),
@@ -156,15 +174,33 @@ export default function App() {
   useEffect(() => {
     refreshProjects();
     const request = ++projectRequest.current;
-    void api('/api/projects/demo-industrial')
+    const initialId = new URLSearchParams(location.search).get('project') || 'demo-harmonic-joint';
+    void api(`/api/projects/${encodeURIComponent(initialId)}`)
       .then((s) => {
         if (request !== projectRequest.current || history.current.scene.revision !== 0) return;
-        history.current = new SceneHistory(s);
-        setScene(s);
-        setSavedRevision(s.revision);
+        setProject(assertScene(s));
       })
       .catch(() => {});
   }, []);
+  useEffect(() => {
+    let cancelled = false;
+    setCampaign(undefined);
+    if (scene.campaign)
+      void api(`/api/campaigns/${scene.campaign.id}`)
+        .then((data) => {
+          if (!cancelled)
+            setCampaign({
+              manifest: CampaignSchema.parse(data.manifest),
+              scenes: data.scenes.map(assertScene),
+            });
+        })
+        .catch((e) => {
+          if (!cancelled) notify(e.message);
+        });
+    return () => {
+      cancelled = true;
+    };
+  }, [scene.id, scene.campaign?.id]);
   const commit = useCallback(
     (commands: SceneCommand[]) => {
       try {
@@ -211,6 +247,7 @@ export default function App() {
     setProposal(null);
   }
   function setProject(next: SceneSpec) {
+    resumeAfterLoad.current = undefined;
     projectRequest.current++;
     scope.current.switchTo(next.id);
     aiAbort.current?.abort();
@@ -226,6 +263,8 @@ export default function App() {
     setSelected(next.nodes.find((n) => n.id === 'housing')?.id);
     setPlaying(false);
     setMoving(false);
+    setSection(false);
+    setInputRpm(6);
     setExplosion(0);
     setIsolated(false);
     setProposal(null);
@@ -246,6 +285,45 @@ export default function App() {
       setPending(() => action);
       setProjectMenu(false);
     } else action();
+  }
+  function openChapter(id: string) {
+    if (!campaignProgress) return;
+    try {
+      if (!campaignProgress.status().some((chapter) => chapter.id === id && chapter.unlocked))
+        throw new Error('章节尚未解锁');
+      const active = playing;
+      const action = () => {
+        const request = ++projectRequest.current;
+        void api(`/api/projects/${id}`)
+          .then((next) => {
+            if (request !== projectRequest.current) return;
+            campaignProgress.select(id);
+            setProject(assertScene(next));
+            resumeAfterLoad.current = active ? id : undefined;
+          })
+          .catch((e) => notify(e.message));
+      };
+      if (dirty) setPending(() => action);
+      else action();
+    } catch (e) {
+      notify(String(e));
+    }
+  }
+  function openCampaign(id: string) {
+    const action = () => {
+      const request = ++projectRequest.current;
+      void api(`/api/campaigns/${id}`)
+        .then((data) => {
+          if (request !== projectRequest.current) return;
+          const manifest = CampaignSchema.parse(data.manifest),
+            scenes = data.scenes.map(assertScene);
+          const progress = CampaignProgress.browser(manifest, scenes);
+          setProject(progress.select(progress.current()));
+        })
+        .catch((e) => notify(e.message));
+    };
+    if (dirty) setPending(() => action);
+    else action();
   }
   function createProject() {
     const base = newMode === 'world' ? worldDemo() : industrialDemo();
@@ -293,6 +371,12 @@ export default function App() {
   useEffect(() => {
     runtime.current?.animateJoints(moving);
   }, [moving]);
+  useEffect(() => {
+    runtime.current?.setSection(section);
+  }, [section]);
+  useEffect(() => {
+    runtime.current?.setTransmissionSpeed(inputRpm);
+  }, [inputRpm]);
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
       const editing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(
@@ -617,6 +701,22 @@ export default function App() {
             <Globe2 size={21} />
           </button>
           <span className="rail-separator" />
+          <button
+            className="rail-button"
+            title="谐波关节案例"
+            aria-label="谐波关节案例"
+            onClick={() => void openProject('demo-harmonic-joint')}
+          >
+            <Activity size={21} />
+          </button>
+          <button
+            className="rail-button"
+            title="小王子三章"
+            aria-label="小王子三章"
+            onClick={() => openCampaign('little-prince')}
+          >
+            <Globe2 size={21} />
+          </button>
           <button className="rail-button" title="资源库" onClick={() => setLeftTab('assets')}>
             <FolderOpen size={21} />
           </button>
@@ -816,8 +916,52 @@ export default function App() {
               {scene.mode === 'industrial' ? '产品展示' : '交互世界'}
               <span className="toolbar-separator" />
               <span className="muted">透视视图</span>
+              {campaignProgress && (
+                <select
+                  aria-label="故事章节"
+                  value={scene.id}
+                  onChange={(e) => openChapter(e.target.value)}
+                >
+                  {campaignProgress.status().map((chapter) => (
+                    <option key={chapter.id} value={chapter.id} disabled={!chapter.unlocked}>
+                      {chapter.completed ? '✓ ' : ''}
+                      {chapter.title}
+                      {!chapter.unlocked ? ' · 未解锁' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="stage-toolbar-right">
+              {scene.mechanism && (
+                <>
+                  <button
+                    className={`motion-button ${section ? 'on' : ''}`}
+                    aria-pressed={section}
+                    onClick={() => setSection(!section)}
+                  >
+                    剖视
+                  </button>
+                  <label className="transmission-speed">
+                    输入{' '}
+                    <input
+                      aria-label="输入转速"
+                      type="range"
+                      min="0"
+                      max="30"
+                      step="1"
+                      value={inputRpm}
+                      onChange={(e) => setInputRpm(Number(e.target.value))}
+                    />
+                    {inputRpm} rpm
+                  </label>
+                  <span title="固定刚轮，波发生器输入，柔轮输出">
+                    −1:
+                    {scene.mechanism.flexTeeth /
+                      (scene.mechanism.ringTeeth - scene.mechanism.flexTeeth)}
+                  </span>
+                </>
+              )}
               {scene.mode === 'industrial' && !playing && (
                 <>
                   <span className="explode-label">展开</span>
@@ -898,6 +1042,12 @@ export default function App() {
               callbacks={{
                 onSelect: setSelected,
                 onReady: () => {
+                  runtime.current?.setSection(section);
+                  runtime.current?.setTransmissionSpeed(inputRpm);
+                  if (resumeAfterLoad.current === scene.id) {
+                    resumeAfterLoad.current = undefined;
+                    void startPlay();
+                  }
                   const id = focusAfterLoad.current;
                   if (id) {
                     focusAfterLoad.current = undefined;
@@ -945,9 +1095,11 @@ export default function App() {
                     <span>01</span>
                   </div>
                   <h1>
-                    {scene.mode === 'industrial'
-                      ? '精密之中，自有秩序。'
-                      : '每一束星光，都有回信。'}
+                    {scene.campaign || scene.mechanism
+                      ? scene.name
+                      : scene.mode === 'industrial'
+                        ? '精密之中，自有秩序。'
+                        : '每一束星光，都有回信。'}
                   </h1>
                   <p>{scene.description}</p>
                 </div>
@@ -1005,15 +1157,17 @@ export default function App() {
                   <span className="eyebrow">VIRTUALWORLD EXPERIENCE</span>
                   <h2>{scene.name}</h2>
                   <p>
-                    {scene.mode === 'world'
-                      ? '一封信，一段等待你完成的旅程。'
-                      : '点击零件，探索产品细节。'}
+                    {scene.campaign
+                      ? scene.description
+                      : scene.mode === 'world'
+                        ? '一封信，一段等待你完成的旅程。'
+                        : '点击零件，探索产品细节。'}
                   </p>
                 </div>
                 {scene.mode === 'world' && (
                   <div className="quest-panel">
                     <span className="eyebrow">旅程手记</span>
-                    <h3>让星光抵达远方</h3>
+                    <h3>{scene.campaign ? scene.name : '让星光抵达远方'}</h3>
                     {scene.tasks.map((t, i) => (
                       <div key={t.flag} className={story.flags.includes(t.flag) ? 'done' : ''}>
                         <span>
@@ -1026,7 +1180,26 @@ export default function App() {
                         {t.label}
                       </div>
                     ))}
-                    {story.completed && <p className="quest-complete">信已寄出。谢谢你的陪伴。</p>}
+                    {story.completed && (
+                      <p className="quest-complete">
+                        {scene.campaign
+                          ? '本章完成，可从上方切换下一章。'
+                          : '信已寄出。谢谢你的陪伴。'}
+                      </p>
+                    )}
+                    {campaignProgress && (
+                      <button
+                        onClick={() => {
+                          campaignProgress.reset();
+                          runtime.current?.resetProgress();
+                          setDialog(null);
+                          if (scene.id !== campaign!.manifest.chapters[0].id)
+                            openChapter(campaign!.manifest.chapters[0].id);
+                        }}
+                      >
+                        重置三章进度
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         runtime.current?.resetProgress();

@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "worldId": "little-prince-earth",
+  "assets": [
+    {
+      "id": "prince-earth",
+      "name": "prince-earth",
+      "type": "glb",
+      "url": "/assets/optimized/showcase/prince-earth.glb",
+      "bytes": 10727580,
+      "source": "generators/blender/prince/build.py"
+    },
+    {
+      "id": "prince-character",
+      "name": "prince-character",
+      "type": "glb",
+      "url": "/assets/optimized/showcase/prince-character.glb",
+      "bytes": 935920,
+      "source": "generators/blender/prince/build.py"
+    },
+    {
+      "id": "prince-fox",
+      "name": "prince-fox",
+      "type": "glb",
+      "url": "/assets/optimized/showcase/prince-fox.glb",
+      "bytes": 273060,
+      "source": "generators/blender/prince/build.py"
+    }
+  ]
+}
