@@ -440,7 +440,7 @@ try {
   const screen = await page.evaluate(() => {
     const r = window.virtualworld,
       o = r.objects.get('harmonic-output-flange'),
-      p = r.camera.position.clone().set(0.03, 0.165, 0);
+      p = r.camera.position.clone().set(0.02, r.spec.mechanism.dimensions.totalHeight - 0.0001, 0);
     o.localToWorld(p);
     p.project(r.camera);
     const b = r.renderer.domElement.getBoundingClientRect();
@@ -555,7 +555,7 @@ try {
   await jointPage.goto(`${staticOrigin}/joint/index.html`);
   await ready(jointPage, 'demo-harmonic-joint');
   await jointPage.getByLabel('剖视', { exact: true }).check();
-  await jointPage.getByRole('button', { name: '运动演示', exact: true }).click();
+  await jointPage.getByRole('button', { name: '播放机构', exact: true }).click();
   await profile(jointPage, 'full-harmonic');
   await jointPage.screenshot({ path: join(output, 'static-harmonic.png') });
   await jointPage.close();

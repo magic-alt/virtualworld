@@ -21,6 +21,7 @@
     "check": "tsc --noEmit",
     "test:browser": "node tests/e2e/browser-check.mjs && node --import tsx tests/e2e/world-experience-check.mjs",
     "test:showcases": "node tests/e2e/showcases-check.mjs",
+    "test:harmonic": "node tests/e2e/harmonic-controls-check.mjs",
     "fixtures": "tsx scripts/fixtures.ts",
     "notices": "tsx scripts/notices.ts",
     "world:generate": "tsx generators/scene-builder/src/cli.ts generate",

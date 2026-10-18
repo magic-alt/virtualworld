@@ -1000,7 +1000,7 @@ export class StudioRuntime {
     this.controls.maxDistance = Math.max(2, distance * 10);
     this.controls.maxPolarAngle = Math.PI;
     this.camera.lookAt(target);
-    this.controls.update();
+    updateOrbitControls(this.controls);
   }
   resetMechanismPresentation() {
     this.hiddenSubsystems.clear();

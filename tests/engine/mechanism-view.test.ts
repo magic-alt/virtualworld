@@ -1,5 +1,6 @@
 import { it, expect } from 'vitest';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { StudioRuntime } from '@virtualworld/engine';
 import { MechanismController } from '../../packages/engine/src/mechanism';
 import { node } from '@virtualworld/scene-schema';
@@ -39,7 +40,7 @@ function fixture() {
     spec,
     objects: new Map(),
     camera,
-    controls: { target: new THREE.Vector3(), update() {}, minDistance: 0.001, maxDistance: 80 },
+    controls: new OrbitControls(camera, null),
     container: { getBoundingClientRect: () => ({ width: 390, height: 844 }) },
     mechanismController: new MechanismController({
       flexTeeth: 200,
@@ -61,6 +62,15 @@ function fixture() {
   }
   return runtime;
 }
+it('orbits smoothly after switching to top view with the actual pinned OrbitControls', () => {
+  const r = fixture();
+  r.setMechanismViewportInsets({ top: 0, bottom: 0, left: 0, right: 0 });
+  r.fitMechanismView('top');
+  (r.controls as any)._rotateLeft(Math.PI / 2);
+  r.controls.update();
+  const direction = r.camera.position.clone().sub(r.controls.target).normalize();
+  expect(Math.abs(direction.x)).toBeGreaterThan(0.95);
+});
 it('composes optional parts, cutaway variants and subsystem isolation without editing the scene', () => {
   const r = fixture(),
     saved = JSON.stringify(r.spec);
