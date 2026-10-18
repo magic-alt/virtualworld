@@ -1,51 +1,359 @@
 {
-  "baseDiameter": 0.215,
-  "housingDiameter": 0.18,
-  "totalHeight": 0.165,
-  "boreDiameter": 0.02,
+  "baseDiameter": 0.11,
+  "housingDiameter": 0.1,
+  "totalHeight": 0.11,
+  "boreDiameter": 0.018,
   "flexTeeth": 200,
   "ringTeeth": 202,
-  "airGap": 0.0005,
-  "morphAmplitude": 0.0005,
+  "airGap": 0.0004,
+  "morphAmplitude": 0.0003,
   "segments": 160,
   "allowedContactPairs": [
-    ["base-flange", "housing-full"],
-    ["base-flange", "lower-bearing-seat"],
-    ["housing-full", "stator-housing-fit-sleeve"],
-    ["housing-full", "upper-bearing-support-plate"],
-    ["housing-full", "fixed-circular-spline-202"],
-    ["housing-full", "crossroller-outer-race"],
-    ["housing-full", "outer-bearing-retainer"],
-    ["stator-back-iron", "stator-housing-fit-sleeve"],
-    ["stator-back-iron", "stator-teeth-18"],
-    ["stator-back-iron", "coil-formers-18"],
-    ["stator-teeth-18", "coil-formers-18"],
-    ["coil-formers-18", "copper-windings-90-turns"],
-    ["rotor-yoke", "rotor-magnets-north"],
-    ["rotor-yoke", "rotor-magnets-south"],
-    ["rotor-bottom-carrier", "hollow-input-shaft"],
-    ["hollow-input-shaft", "lower-input-bearing-inner"],
-    ["hollow-input-shaft", "upper-input-bearing-inner"],
-    ["hollow-input-shaft", "encoder-code-ring"],
-    ["hollow-input-shaft", "elliptical-wave-cam"],
-    ["lower-input-bearing-outer", "lower-bearing-seat"],
-    ["lower-bearing-seat", "encoder-board"],
-    ["upper-input-bearing-outer", "upper-bearing-support-plate"],
-    ["encoder-code-ring", "encoder-code-marks"],
-    ["flex-cup", "fixed-circular-spline-202"],
-    ["flex-cup", "wave-bearing-outer-race"],
-    ["flex-cup", "output-neck"],
-    ["elliptical-wave-cam", "wave-bearing-outer-race"],
-    ["output-neck", "output-bearing-carrier"],
-    ["output-neck", "output-flange"],
-    ["output-bearing-carrier", "crossroller-inner-race"],
-    ["output-bearing-carrier", "output-flange"],
-    ["crossroller-inner-race", "crossrollers-32-alternating-45deg"],
-    ["crossroller-outer-race", "crossrollers-32-alternating-45deg"],
-    ["crossroller-outer-race", "outer-bearing-retainer"],
-    ["output-flange", "output-index"],
-    ["outer-bearing-retainer", "retainer-bolts-8"],
-    ["output-fasteners-8", "output-flange"],
-    ["output-fasteners-8", "output-bearing-carrier"]
+    [
+      "base-flange",
+      "housing-full"
+    ],
+    [
+      "base-flange",
+      "lower-bearing-seat"
+    ],
+    [
+      "housing-full",
+      "stator-housing-fit-sleeve"
+    ],
+    [
+      "housing-full",
+      "upper-bearing-support-plate"
+    ],
+    [
+      "housing-full",
+      "fixed-circular-spline-202"
+    ],
+    [
+      "housing-full",
+      "crossroller-outer-race"
+    ],
+    [
+      "housing-full",
+      "outer-bearing-retainer"
+    ],
+    [
+      "stator-back-iron",
+      "stator-housing-fit-sleeve"
+    ],
+    [
+      "stator-back-iron",
+      "stator-teeth-18"
+    ],
+    [
+      "stator-back-iron",
+      "coil-formers-18"
+    ],
+    [
+      "stator-teeth-18",
+      "coil-formers-18"
+    ],
+    [
+      "coil-formers-18",
+      "copper-windings-90-turns"
+    ],
+    [
+      "rotor-yoke",
+      "rotor-magnets-north"
+    ],
+    [
+      "rotor-yoke",
+      "rotor-magnets-south"
+    ],
+    [
+      "rotor-bottom-carrier",
+      "hollow-input-shaft"
+    ],
+    [
+      "hollow-input-shaft",
+      "lower-input-bearing-inner"
+    ],
+    [
+      "hollow-input-shaft",
+      "upper-input-bearing-inner"
+    ],
+    [
+      "hollow-input-shaft",
+      "encoder-code-ring"
+    ],
+    [
+      "hollow-input-shaft",
+      "elliptical-wave-cam"
+    ],
+    [
+      "lower-input-bearing-outer",
+      "lower-bearing-seat"
+    ],
+    [
+      "lower-bearing-seat",
+      "encoder-board"
+    ],
+    [
+      "upper-input-bearing-outer",
+      "upper-bearing-support-plate"
+    ],
+    [
+      "encoder-code-ring",
+      "encoder-code-marks"
+    ],
+    [
+      "flex-cup",
+      "fixed-circular-spline-202"
+    ],
+    [
+      "flex-cup",
+      "wave-bearing-outer-race"
+    ],
+    [
+      "flex-cup",
+      "output-neck"
+    ],
+    [
+      "elliptical-wave-cam",
+      "wave-bearing-outer-race"
+    ],
+    [
+      "output-neck",
+      "output-bearing-carrier"
+    ],
+    [
+      "output-neck",
+      "output-flange"
+    ],
+    [
+      "output-bearing-carrier",
+      "crossroller-inner-race"
+    ],
+    [
+      "output-bearing-carrier",
+      "output-flange"
+    ],
+    [
+      "crossroller-inner-race",
+      "crossrollers-32-alternating-45deg"
+    ],
+    [
+      "crossroller-outer-race",
+      "crossrollers-32-alternating-45deg"
+    ],
+    [
+      "crossroller-outer-race",
+      "outer-bearing-retainer"
+    ],
+    [
+      "output-flange",
+      "output-index"
+    ],
+    [
+      "outer-bearing-retainer",
+      "retainer-bolts-8"
+    ],
+    [
+      "output-fasteners-8",
+      "output-flange"
+    ],
+    [
+      "output-fasteners-8",
+      "output-bearing-carrier"
+    ],
+    [
+      "base-flange",
+      "drive-standoffs"
+    ],
+    [
+      "base-flange",
+      "rear-bore-seal"
+    ],
+    [
+      "housing-full",
+      "brake-mount-plate"
+    ],
+    [
+      "housing-full",
+      "lower-bearing-support-plate"
+    ],
+    [
+      "housing-full",
+      "output-encoder-seat"
+    ],
+    [
+      "drive-board",
+      "drive-standoffs"
+    ],
+    [
+      "drive-board",
+      "drive-bus-capacitors"
+    ],
+    [
+      "drive-board",
+      "drive-control-chip"
+    ],
+    [
+      "drive-board",
+      "drive-power-connector"
+    ],
+    [
+      "drive-board",
+      "drive-communication-connector"
+    ],
+    [
+      "drive-board",
+      "drive-phase-terminals"
+    ],
+    [
+      "brake-mount-plate",
+      "brake-mount-sleeve"
+    ],
+    [
+      "brake-mount-sleeve",
+      "brake-yoke"
+    ],
+    [
+      "brake-mount-sleeve",
+      "brake-outer-pole"
+    ],
+    [
+      "brake-yoke",
+      "brake-permanent-magnet"
+    ],
+    [
+      "brake-yoke",
+      "brake-release-coil"
+    ],
+    [
+      "brake-yoke",
+      "brake-inner-pole"
+    ],
+    [
+      "brake-yoke",
+      "brake-outer-pole"
+    ],
+    [
+      "brake-armature",
+      "brake-friction-face"
+    ],
+    [
+      "brake-armature",
+      "hollow-input-shaft"
+    ],
+    [
+      "hollow-input-shaft",
+      "rear-bore-seal"
+    ],
+    [
+      "lower-bearing-seat",
+      "lower-bearing-support-plate"
+    ],
+    [
+      "lower-bearing-support-plate",
+      "stator-housing-fit-sleeve"
+    ],
+    [
+      "lower-input-bearing-inner",
+      "lower-bearing-balls"
+    ],
+    [
+      "upper-input-bearing-inner",
+      "upper-bearing-balls"
+    ],
+    [
+      "encoder-board",
+      "encoder-readhead"
+    ],
+    [
+      "encoder-board",
+      "encoder-board-seat"
+    ],
+    [
+      "encoder-board-seat",
+      "encoder-support-tube"
+    ],
+    [
+      "encoder-support-tube",
+      "upper-bearing-support-plate"
+    ],
+    [
+      "fixed-circular-spline-202",
+      "output-encoder-seat"
+    ],
+    [
+      "output-neck",
+      "output-encoder-code-ring"
+    ],
+    [
+      "output-encoder-board",
+      "output-encoder-readhead"
+    ],
+    [
+      "output-encoder-board",
+      "output-encoder-seat"
+    ],
+    [
+      "output-encoder-code-ring",
+      "output-encoder-code-marks"
+    ],
+    [
+      "elliptical-wave-cam",
+      "wave-bearing-inner-race"
+    ],
+    [
+      "wave-bearing-inner-race",
+      "wave-bearing-balls-48"
+    ],
+    [
+      "wave-bearing-outer-race",
+      "wave-bearing-balls-48"
+    ]
+  ],
+  "toothAmplitude": 0.00035,
+  "axialZones": {
+    "drive": [
+      0.004,
+      0.0145
+    ],
+    "brake": [
+      0.0145,
+      0.0243
+    ],
+    "motor": [
+      0.028,
+      0.064
+    ],
+    "reducer": [
+      0.069,
+      0.088
+    ],
+    "output": [
+      0.088,
+      0.11
+    ]
+  },
+  "references": [
+    {
+      "url": "https://www.zeroerr.cn/download/eRob.html",
+      "accessed": "2026-10-18",
+      "downloadSha256": "722c9eca09b3e54b0f6b6b5f3d8fd55bb8d358d631a5f25df20b3851f1de7db4",
+      "scope": "Official eRob90 exterior STEP/drawing only; measured 90 mm diameter, 75.9 mm body, 18 mm bore; not H-100 internals."
+    },
+    {
+      "url": "https://www.harmonicdrive.net/_hd/content/documents1/CSG-CSF_Component.pdf",
+      "accessed": "2026-10-18",
+      "scope": "Published cup flexspline, circular spline and elliptical wave-generator topology; original illustrative tooth profiles."
+    },
+    {
+      "url": "https://eyoubot.com/products/rhu20l-70-n-f",
+      "accessed": "2026-10-18",
+      "scope": "Integrated motor/reducer/dual-encoder/brake architecture; no performance transferred."
+    },
+    {
+      "url": "https://www.techsoft-robots.com/upfile/RJSIIZ%E7%B3%BB%E5%88%97%E5%85%B3%E8%8A%82%E6%A8%A1%E7%BB%84%E7%94%A8%E6%88%B7%E6%89%8B%E5%86%8CV1.0.pdf",
+      "accessed": "2026-10-18",
+      "scope": "Hollow frameless-motor/reducer/integrated-drive architecture."
+    }
   ]
 }
