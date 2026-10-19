@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { StudioRuntime } from '@virtualworld/engine';
 import { MechanismController } from '../../packages/engine/src/mechanism';
+import { rotateMechanismCamera } from '../../packages/engine/src/mechanism-orbit';
 import { node } from '@virtualworld/scene-schema';
 import { industrialDemo } from '../fixtures/scenes';
 
@@ -182,6 +183,23 @@ it('preserves an arbitrary orbit direction and up vector when reframing without 
   expect(r.camera.up.distanceTo(up)).toBeLessThan(1e-6);
   r.fitMechanismView('front');
   expect(r.camera.position.clone().sub(r.controls.target).normalize().z).toBeLessThan(-0.99);
+});
+
+it('keeps the unrestricted orbit orientation when safe-area fitting and exploded views reframe', () => {
+  const r = fixture();
+  r.fitMechanismView('top');
+  rotateMechanismCamera(r.camera, r.controls, 0, 230, 390);
+  const direction = r.camera.position.clone().sub(r.controls.target).normalize();
+  const up = r.camera.up.clone();
+  r.setMechanismViewportInsets({ top: 120, bottom: 290, left: 16, right: 16 });
+  r.explode(0.5);
+  r.fitMechanismView();
+  expect(
+    r.camera.position.clone().sub(r.controls.target).normalize().distanceTo(direction),
+  ).toBeLessThan(1e-6);
+  expect(r.camera.up.distanceTo(up)).toBeLessThan(1e-6);
+  r.fitMechanismView('bottom');
+  expect(r.camera.position.clone().sub(r.controls.target).normalize().y).toBeLessThan(-0.99);
 });
 
 it('rejects unavailable brake inspection and exits isolation when the brake is removed', () => {
