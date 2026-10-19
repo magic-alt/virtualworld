@@ -36,11 +36,19 @@ docs/
 
 ## 当前技术路线
 
-继续使用锁文件固定的 React 19、Three.js 0.180、Rapier 与 Spark，保留同一个 SceneSpec 和编辑器／播放器运行时。本轮改善首页加载边界、共享展示交互和静态交付，不替换引擎或修改模型。
+继续使用锁文件固定的 React 19、Three.js 0.180、Rapier 与 Spark，保留同一个 SceneSpec 和编辑器／播放器运行时。已改善首页加载边界、共享展示交互和静态交付；WebGL 2 的异常处理使用共享生命周期与持久恢复面板。
 
 首页先显示海报，在预览可见且浏览器空闲后启动实时 3D；世界体验与高级编辑分别按需加载。Rapier 的探索时加载和 Spark 的点云场景加载是已有能力，本轮继续保留。大模型文件采用流式响应与条件请求；同名更新的 GLB 必须重新验证，只有带内容散列的构建脚本／样式长期缓存。
 
-本轮生产构建的初始 JavaScript 静态闭包从 984,629 降至 271,283 bytes；同参数 gzip 估计从 268,214 降至 81,821 bytes。后续预览和体验运行代码按需下载，这些数字不代表整个世界的总资源或首屏耗时。测量口径和下一阶段的 renderer 保留／增量场景更新边界见 [架构说明](docs/architecture.md#技术路线与阶段边界)。
+PR #5 的生产构建测量记录：初始 JavaScript 静态闭包从 984,629 降至 271,283 bytes；同参数 gzip 估计从 268,214 降至 81,821 bytes。这是该次提交的历史测量，后续修改会改变构建体积。预览和体验运行代码按需下载，这些数字不代表整个世界的总资源或首屏耗时。测量口径和下一阶段的 renderer 保留／增量场景更新边界见 [架构说明](docs/architecture.md#技术路线与阶段边界)。
+
+## WebGL 故障与恢复
+
+高级编辑器、世界体验、首页实时预览与导出播放器共用图形状态提示。WebGL 2 不可用或初始化失败时，持久面板保留故障详情和「重试加载画面」入口；重试使用当前编辑内容。首页同时保留海报。
+
+图形上下文丢失时暂停绘制、物理和图形互动，释放按键／摇杆输入。浏览器恢复连接后，在同一运行时重建环境、阴影和点云 GPU 资源，试渲染成功后恢复画面，并保留用户暂停状态、镜头、剧情与机构展示状态。等待连接或重建超过 15 秒会提供明确失败提示和重试入口。浏览器或驱动持续不可用时，应用无法强制恢复连接。
+
+实现、故障验证与适用边界见 [WebGL 恢复说明](docs/webgl-recovery.md)。模型、SceneSpec 协议和依赖版本保持原样。
 
 ## 从描述生成世界
 
@@ -127,6 +135,7 @@ npm run check
 npm run build
 npm run world:validate
 npm run test:browser
+npm run test:webgl
 npm run test:showcases
 npm run test:runtime-quality
 npm run test:prince
@@ -135,6 +144,6 @@ npm run format:check
 npm audit
 ```
 
-浏览器检查使用本机 Edge/Chrome；可设置 `PLAYWRIGHT_EXECUTABLE_PATH`，或安装 Playwright Chromium。脚本使用临时数据及各自的本地端口；运行时质量检查使用 3144，小王子应用／独立导出检查使用 3145／3146，产物在 `output/playwright/`。
+浏览器检查使用本机 Edge/Chrome；可设置 `PLAYWRIGHT_EXECUTABLE_PATH`，或安装 Playwright Chromium。脚本使用临时数据及各自的本地端口；运行时质量检查使用 3144，小王子应用／独立导出检查使用 3145／3146，WebGL 故障检查使用 3147／3148，产物在 `output/playwright/`。
 
-`test:runtime-quality` 检查海报／懒加载边界和暂停／运行中的即时截图；`test:prince` 检查小王子应用体验与子目录独立导出。当前执行结果与未执行范围见 [运行时与体验验证](docs/validation-runtime-experience.md)、[早期验证报告](docs/validation.md)和[Blender 案例验收](docs/blender-showcases.md)。目前不包含多人协作、计费或云生成队列。第三方来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+`test:webgl` 检查初始化故障、真实上下文丢失与恢复、状态保留及断开 API 后的独立播放器；结果见 [WebGL 恢复说明](docs/webgl-recovery.md)。`test:runtime-quality` 检查海报／懒加载边界和暂停／运行中的即时截图；`test:prince` 检查小王子应用体验与子目录独立导出。此前执行结果与未执行范围见 [运行时与体验验证](docs/validation-runtime-experience.md)、[早期验证报告](docs/validation.md)和[Blender 案例验收](docs/blender-showcases.md)。目前不包含多人协作、计费或云生成队列。第三方来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

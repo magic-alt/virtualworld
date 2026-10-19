@@ -107,6 +107,7 @@ export default function StudioApp({
     history = useRef(new SceneHistory(scene)),
     runtime = useRef<StudioRuntime | null>(null);
   const [mechanismRuntime, setMechanismRuntime] = useState<StudioRuntime | null>(null);
+  const [graphicsBlocked, setGraphicsBlocked] = useState(false);
   const mechanismHost = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!mechanismRuntime || !scene.mechanism || !mechanismHost.current) return;
@@ -937,7 +938,7 @@ export default function StudioApp({
                 </select>
               )}
             </div>
-            <div className="stage-toolbar-right">
+            <div className="stage-toolbar-right" inert={graphicsBlocked}>
               {scene.mode === 'industrial' && !scene.mechanism && !playing && (
                 <>
                   <span className="explode-label">展开</span>
@@ -995,12 +996,16 @@ export default function StudioApp({
                 aria-label="截图"
                 title="截图"
                 onClick={() => {
-                  const data = runtime.current?.screenshot();
-                  if (data) {
-                    const a = document.createElement('a');
-                    a.href = data;
-                    a.download = `${scene.name}.png`;
-                    a.click();
+                  try {
+                    const data = runtime.current?.screenshot();
+                    if (data) {
+                      const a = document.createElement('a');
+                      a.href = data;
+                      a.download = `${scene.name}.png`;
+                      a.click();
+                    }
+                  } catch (error) {
+                    notify(error instanceof Error ? error.message : String(error));
                   }
                 }}
               >
@@ -1014,9 +1019,10 @@ export default function StudioApp({
               scene={scene}
               selected={selected}
               onRuntime={(r) => {
-                runtime.current = r;
-                setMechanismRuntime(r);
+                runtime.current = r ?? null;
+                setMechanismRuntime(r ?? null);
               }}
+              onGraphics={(state) => setGraphicsBlocked(state.status !== 'ready')}
               callbacks={{
                 onSelect: setSelected,
                 onReady: () => {
@@ -1040,7 +1046,8 @@ export default function StudioApp({
               }}
             />
             <div className="hotspot-layer">
-              {(scene.mode === 'world' || playing) &&
+              {!graphicsBlocked &&
+                (scene.mode === 'world' || playing) &&
                 metrics?.hotspots
                   ?.filter((h) => scene.nodes.some((n) => n.id === h.id))
                   .map((h) => (

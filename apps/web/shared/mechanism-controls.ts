@@ -312,6 +312,9 @@ export function mountMechanismControls(
   element.addEventListener('toggle', schedule, { signal: listeners.signal });
   window.addEventListener('resize', schedule, { signal: listeners.signal });
   const unsubscribe = runtime.subscribeMechanism(update);
+  const unsubscribeGraphics = runtime.subscribeGraphics((state) => {
+    element.inert = state.status !== 'ready';
+  });
   schedule();
   return {
     element,
@@ -321,6 +324,7 @@ export function mountMechanismControls(
       observer.disconnect();
       listeners.abort();
       unsubscribe();
+      unsubscribeGraphics();
       element.remove();
     },
   };

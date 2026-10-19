@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, Download, Loader2, Sparkles, X, Undo2, Save } from 'lucide-react';
-import { StudioRuntime, type RuntimeMetrics } from '@virtualworld/engine';
+import { StudioRuntime, WebGLInitializationError, type RuntimeMetrics } from '@virtualworld/engine';
 import {
   assertScene,
   SceneHistory,
@@ -11,11 +11,12 @@ import {
 } from '@virtualworld/scene-schema';
 import { CampaignProgress } from '@virtualworld/interaction/campaign';
 import { initialStory, type StoryState } from '@virtualworld/interaction';
+import { mountGraphicsStatus } from '../shared/graphics-status';
 import { mountExperienceControls } from '../shared/experience-controls';
 import { mountMechanismControls } from '../shared/mechanism-controls';
 import '../shared/experience.css';
 import { api, json } from './api';
-type Journey = { initial: SceneSpec; progress?: CampaignProgress };
+type Journey = { initial: SceneSpec; progress?: CampaignProgress; projectId: string };
 export function WorldExperience({
   id,
   onBack,
@@ -31,6 +32,7 @@ export function WorldExperience({
     [error, setError] = useState('');
   useEffect(() => {
     const controller = new AbortController();
+    setError('');
     void (async () => {
       const scene = assertScene(
         await api(`/api/projects/${encodeURIComponent(id)}`, { signal: controller.signal }),
@@ -46,13 +48,17 @@ export function WorldExperience({
         );
       }
       if (!controller.signal.aborted)
-        setJourney({ initial: progress ? progress.select(progress.current()) : scene, progress });
+        setJourney({
+          initial: progress ? progress.select(progress.current()) : scene,
+          progress,
+          projectId: id,
+        });
     })().catch((e) => {
       if (!controller.signal.aborted) setError(e.message);
     });
     return () => controller.abort();
   }, [id]);
-  if (!journey)
+  if (!journey || journey.projectId !== id)
     return (
       <div className="experience-loading-page">
         <button onClick={onBack}>
@@ -69,7 +75,13 @@ export function WorldExperience({
       </div>
     );
   return (
-    <Experience journey={journey} onBack={onBack} onEdit={onEdit} onDirtyChange={onDirtyChange} />
+    <Experience
+      key={id}
+      journey={journey}
+      onBack={onBack}
+      onEdit={onEdit}
+      onDirtyChange={onDirtyChange}
+    />
   );
 }
 function Experience({
@@ -86,6 +98,8 @@ function Experience({
   const [scene, setScene] = useState(journey.initial),
     [loading, setLoading] = useState(true),
     [error, setError] = useState('');
+  const [rendererAttempt, setRendererAttempt] = useState(0);
+  const [graphicsBlocked, setGraphicsBlocked] = useState(false);
   const [story, setStory] = useState<StoryState>(initialStory),
     [dialog, setDialog] = useState<{ node: SceneNode; message: string }>(),
     [aiOpen, setAiOpen] = useState(false);
@@ -140,6 +154,17 @@ function Experience({
     let active: StudioRuntime | undefined,
       ui: ReturnType<typeof mountExperienceControls> | undefined,
       mechanismUi: ReturnType<typeof mountMechanismControls> | undefined;
+    const graphics = mountGraphicsStatus({
+      onRetry: async () => {
+        if (generation.current !== version) return;
+        if (active) await active.retryGraphics();
+        else setRendererAttempt((attempt) => attempt + 1);
+      },
+      onState: (state) => {
+        if (generation.current === version) setGraphicsBlocked(state.status !== 'ready');
+      },
+    });
+    host.current!.append(graphics.element);
     try {
       active = new StudioRuntime(host.current!, scene, {
         onError: (message) => {
@@ -158,6 +183,7 @@ function Experience({
       });
       runtime.current = active;
       window.virtualworld = active;
+      graphics.bind(active);
       ui = mountExperienceControls(active, {
         onCloseDialog: () => {
           setDialog(undefined);
@@ -201,10 +227,12 @@ function Experience({
         });
     } catch (e) {
       setLoading(false);
-      setError(`无法启动 3D 画面：${String(e)}`);
+      if (e instanceof WebGLInitializationError) graphics.initializationFailed(e);
+      else setError(e instanceof Error ? e.message : String(e));
     }
     return () => {
       generation.current++;
+      graphics.dispose();
       mechanismUi?.dispose();
       ui?.dispose();
       active?.dispose();
@@ -212,7 +240,7 @@ function Experience({
       controls.current = undefined;
       if (window.virtualworld === active) delete window.virtualworld;
     };
-  }, [scene]);
+  }, [scene, rendererAttempt]);
   useEffect(() => {
     controls.current?.setDialogOpen(!!dialog || aiOpen);
   }, [dialog, aiOpen, loading]);
@@ -326,7 +354,12 @@ function Experience({
     } else clearDialog();
   };
   return (
-    <main className="world-experience" data-testid="world-experience">
+    <main
+      className="world-experience"
+      data-testid="world-experience"
+      data-graphics-blocked={graphicsBlocked}
+      data-ai-open={aiOpen}
+    >
       <div className="experience-canvas" ref={host} data-testid="viewport" />
       <div ref={overlay} />
       <header className="experience-header">
