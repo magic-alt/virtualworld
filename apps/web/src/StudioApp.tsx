@@ -139,6 +139,7 @@ export default function StudioApp({
     [rightTab, setRightTab] = useState<'properties' | 'ai'>('properties'),
     [search, setSearch] = useState(''),
     [collapsed, setCollapsed] = useState(new Set<string>());
+  const [exportTarget, setExportTarget] = useState<'web' | 'unity' | 'godot'>('web');
   const [playing, setPlaying] = useState(false),
     [explosion, setExplosion] = useState(0),
     [moving, setMoving] = useState(false),
@@ -476,14 +477,25 @@ export default function StudioApp({
     }
   }
   async function exportPage() {
-    setBusy('验证并打包网页…');
+    const label = exportTarget === 'web' ? '网页' : exportTarget === 'unity' ? 'Unity' : 'Godot';
+    setBusy(`验证并打包${label}…`);
     try {
       if (metrics?.loading) throw new Error('资源仍在加载，请稍后重试');
       if (metrics?.errors.length) throw new Error(metrics.errors.join('\n'));
-      const response = await fetch('/api/export', { method: 'POST', ...json({ scene }) });
+      const response = await fetch('/api/export', {
+        method: 'POST',
+        ...json({ scene, target: exportTarget }),
+      });
       if (!response.ok) throw new Error((await response.json()).error);
-      download(await response.blob(), `${scene.name}.zip`);
-      notify('网页已导出，解压后使用静态服务器打开');
+      download(
+        await response.blob(),
+        `${scene.name}${exportTarget === 'web' ? '' : `-${exportTarget}`}.zip`,
+      );
+      notify(
+        exportTarget === 'web'
+          ? '网页已导出，解压后使用静态服务器打开'
+          : `${label} 已导出，请先阅读 compatibility.json 兼容性报告`,
+      );
     } catch (e) {
       notify(e instanceof Error ? e.message : String(e));
     } finally {
@@ -688,9 +700,24 @@ export default function StudioApp({
         >
           {playing ? <Square size={14} /> : <Play size={14} />} {playing ? '退出体验' : '体验'}
         </button>
+        <select
+          aria-label="导出目标"
+          className="export-target"
+          value={exportTarget}
+          onChange={(event) => setExportTarget(event.target.value as 'web' | 'unity' | 'godot')}
+          disabled={!!busy}
+        >
+          <option value="web">网页</option>
+          <option value="unity">Unity 6</option>
+          <option value="godot">Godot 4</option>
+        </select>
         <button className="export-button" onClick={() => void exportPage()} disabled={!!busy}>
           <Upload size={15} />
-          导出网页
+          {exportTarget === 'web'
+            ? '导出网页'
+            : exportTarget === 'unity'
+              ? '导出 Unity'
+              : '导出 Godot'}
           <ArrowUpRight size={14} />
         </button>
         <div className="avatar" title="本地工作空间">

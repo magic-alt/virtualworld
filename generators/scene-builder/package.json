@@ -8,7 +8,8 @@
     "./io": "./src/io.ts",
     "./generate": "./src/generate.ts",
     "./pipeline": "./src/pipeline.ts",
-    "./asset-library": "./src/asset-library.ts"
+    "./asset-library": "./src/asset-library.ts",
+    "./engine-export": "./src/engine-export/index.ts"
   },
   "dependencies": {
     "@gltf-transform/core": "4.5.1",

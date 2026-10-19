@@ -13,6 +13,8 @@ import {
 import { HttpError } from './store';
 import { uploadPath } from '@virtualworld/scene-builder/asset-library';
 import { validateGlb } from '@virtualworld/scene-builder/pipeline';
+import { writeEngineExport, type EngineTarget } from '@virtualworld/scene-builder/engine-export';
+import { primitive } from '@virtualworld/engine/geometry';
 export async function walk(root: string, signal?: AbortSignal): Promise<string[]> {
   signal?.throwIfAborted();
   const out: string[] = [];
@@ -36,6 +38,7 @@ export async function createExport(
   input: SceneSpec,
   options: {
     playerRoot: string;
+    target?: 'web' | EngineTarget;
     assetRoot: string;
     publicRoot: string;
     assetLibraryRoot?: string;
@@ -47,6 +50,8 @@ export async function createExport(
   },
 ) {
   const { signal } = options;
+  const target = options.target ?? 'web';
+  if (!['web', 'unity', 'godot'].includes(target)) throw new HttpError(400, '非法导出目标');
   const checkCancelled = () => signal?.throwIfAborted();
   checkCancelled();
   const maxBytes = options.maxBytes ?? 256 * 1024 * 1024;
@@ -179,23 +184,25 @@ export async function createExport(
     }
     throw missing;
   };
-  let playerFiles: string[];
-  try {
-    playerFiles = await walk(options.playerRoot, signal);
-  } catch (error) {
-    checkCancelled();
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    throw new HttpError(503, '播放器尚未构建，请先运行 npm run build');
+  if (target === 'web') {
+    let playerFiles: string[];
+    try {
+      playerFiles = await walk(options.playerRoot, signal);
+    } catch (error) {
+      checkCancelled();
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      throw new HttpError(503, '播放器尚未构建，请先运行 npm run build');
+    }
+    for (const file of playerFiles) {
+      const name = relative(options.playerRoot, file).replaceAll('\\', '/');
+      if (name.startsWith('fixtures/')) continue;
+      add(
+        name === 'player.html' ? 'index.html' : name,
+        await readContained(options.playerRoot, file),
+      );
+    }
+    if (!files['index.html']) throw new HttpError(503, '播放器构建不完整');
   }
-  for (const file of playerFiles) {
-    const name = relative(options.playerRoot, file).replaceAll('\\', '/');
-    if (name.startsWith('fixtures/')) continue;
-    add(
-      name === 'player.html' ? 'index.html' : name,
-      await readContained(options.playerRoot, file),
-    );
-  }
-  if (!files['index.html']) throw new HttpError(503, '播放器构建不完整');
   for (const current of scenes)
     for (const asset of current.assets) {
       checkCancelled();
@@ -277,12 +284,28 @@ export async function createExport(
     });
     add('campaign.json', strToU8(JSON.stringify(campaign)));
   }
-  add(
-    'README.txt',
-    strToU8(
-      'VirtualWorld Studio export\nServe this directory over HTTP (not file://). Open index.html. No API service or API key is required.\n',
-    ),
-  );
+  if (target === 'web') {
+    add(
+      'README.txt',
+      strToU8(
+        'VirtualWorld Studio export\nServe this directory over HTTP (not file://). Open index.html. No API service or API key is required.\n',
+      ),
+    );
+  } else {
+    await writeEngineExport({
+      target,
+      scenes,
+      entrySceneId: scene.id,
+      assetBytes: (url) => {
+        const bytes = files[url];
+        if (!bytes) throw new HttpError(400, '导出资源快照缺失');
+        return bytes;
+      },
+      primitiveFactory: primitive,
+      emit: add,
+      signal,
+    });
+  }
   add(
     'LICENSES.txt',
     strToU8(
