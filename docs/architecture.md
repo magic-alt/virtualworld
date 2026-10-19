@@ -4,7 +4,7 @@
 
 ## 技术路线与阶段边界
 
-当前继续使用锁文件固定的 React 19.2、Three.js 0.180、Rapier 0.19.3、Spark 2.3.1、TypeScript、Vite 与 Fastify，运行环境为 Node.js 24。本轮优化落实到加载、共享交互与资源交付边界；保留 SceneSpec、资产协议和编辑器／播放器共享运行时，不改模型几何、工程尺寸或第三方版本。
+当前继续使用锁文件固定的 React 19.2、Three.js 0.180、Rapier 0.19.3、Spark 2.3.1、TypeScript、Vite 与 Fastify，运行环境为 Node.js 24。优化落实到加载、共享交互、资源交付与 WebGL 异常恢复边界；保留 SceneSpec、资产协议和编辑器／播放器共享运行时，不改模型几何、工程尺寸或第三方版本。
 
 | 阶段                   | 当前落实                                                                                   | 边界与后续条件                                                                         |
 | ---------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
@@ -12,21 +12,22 @@
 | 物理与点云             | 保留 Rapier 在世界探索时、Spark 在 splat 场景中按需加载的已有路径                          | 本轮没有把既有懒加载列为新增功能，也没有增加新渲染后端                                 |
 | 共享展示交互           | 小王子使用同一互动可用性规则、热点与范围检查；H-100 使用同一部件选择、聚焦、隔离和展示控件 | 普通应用、独立播放器与高级编辑中的对应控件复用实现；剧情进度和展示状态不写入 SceneSpec |
 | 静态交付与渲染生命周期 | 大文件流式响应、带内容验证器的条件请求；固定名称 GLB 重新验证；截图时即时渲染              | 只有带内容散列的构建脚本／样式使用 immutable；截图不要求每帧保留 drawing buffer        |
+| WebGL 异常恢复         | 共享图形状态、持久错误面板与重试；同一 runtime 暂停输入／模拟并重建 GPU 资源               | 用户暂停与可见性挂起独立保留；浏览器持续丢失连接时只能等待恢复，不能由应用强制修复     |
 | 下一阶段               | 保留 renderer 的场景更新、增量 SceneCommands 与对应取消／资源所有权回归                    | 尚未实现；应先量化编辑频率、重复加载和 GPU 资源计数，再设计缓存生命周期                |
 | 后续扩展               | 大世界流式加载、异步导出任务与更先进的 GPU 路径                                            | 由实际世界规模、导出阻塞或设备瓶颈触发；本轮不引入队列或替换引擎                       |
 
-### 首页初始 JavaScript 体积
+### 首页初始 JavaScript 体积（PR #5 历史测量）
 
-本轮对基线 `/tmp/virtualworld-baseline-dist/web` 与当前 `dist/web` 的 `index.html` 模块入口进行了本地测量。用 Rollup AST 递归跟随静态 `import`／带源地址的 `export`，排除动态 `import()` 及 Vite 的动态依赖预加载索引。两版入口均无额外静态 JavaScript import，因此入口体积等于初始 JavaScript 静态闭包体积。
+以下记录来自 PR #5 合并前的生产构建，对基线 `/tmp/virtualworld-baseline-dist/web` 与当时 `dist/web` 的 `index.html` 模块入口进行了本地测量；不代表后续 WebGL 恢复修改后的体积。用 Rollup AST 递归跟随静态 `import`／带源地址的 `export`，排除动态 `import()` 及 Vite 的动态依赖预加载索引。两版入口均无额外静态 JavaScript import，因此入口体积等于初始 JavaScript 静态闭包体积。
 
-| 测量项                      |    基线 |    当前 |              减少 |
-| --------------------------- | ------: | ------: | ----------------: |
-| 模块入口 raw bytes          | 984,629 | 271,283 | 713,346（72.45%） |
-| 模块入口 gzip bytes         | 268,214 |  81,821 | 186,393（69.49%） |
-| 初始静态 JS 闭包 raw bytes  | 984,629 | 271,283 | 713,346（72.45%） |
-| 初始静态 JS 闭包 gzip bytes | 268,214 |  81,821 | 186,393（69.49%） |
+| 测量项                      |    基线 | PR #5 构建 |              减少 |
+| --------------------------- | ------: | ---------: | ----------------: |
+| 模块入口 raw bytes          | 984,629 |    271,283 | 713,346（72.45%） |
+| 模块入口 gzip bytes         | 268,214 |     81,821 | 186,393（69.49%） |
+| 初始静态 JS 闭包 raw bytes  | 984,629 |    271,283 | 713,346（72.45%） |
+| 初始静态 JS 闭包 gzip bytes | 268,214 |     81,821 | 186,393（69.49%） |
 
-对应入口为基线 `assets/index-C3FEiV8w.js`、当前 `assets/index-BQIJ4Xfu.js`；gzip 使用 Node.js `zlib.gzipSync` 的默认参数逐文件计算后相加。此表只衡量初始 JavaScript，不包含 HTML、CSS、海报、模型或稍后加载的 runtime、LivePreview、WorldExperience、Rapier、Spark chunks。gzip 是同一参数下的压缩体积估计，不代表本地服务已经启用 HTTP gzip，也不等于首屏时间或帧率测量；开始实时预览后仍会加载运行时代码。
+对应入口为基线 `assets/index-C3FEiV8w.js`、PR #5 的 `assets/index-BQIJ4Xfu.js`；gzip 使用 Node.js `zlib.gzipSync` 的默认参数逐文件计算后相加。此表只衡量初始 JavaScript，不包含 HTML、CSS、海报、模型或稍后加载的 runtime、LivePreview、WorldExperience、Rapier、Spark chunks。gzip 是同一参数下的压缩体积估计，不代表本地服务已经启用 HTTP gzip，也不等于首屏时间或帧率测量；开始实时预览后仍会加载运行时代码。
 
 ## 模块与实际调用
 
@@ -108,6 +109,10 @@ flowchart LR
 
 渲染器默认不保留 drawing buffer；`screenshot()` 在截图操作内同步渲染再读取 PNG。首页 `HomePreview` 常驻海报，`schedulePreview` 等待可见与空闲后才加载 `LivePreview`；加载／初始化失败保留海报与提示，离开首页时取消未开始的工作，已经挂载的预览沿用视口的销毁逻辑。
 
+`GraphicsRecovery` 管理 `ready / lost / restoring / failed`，通过 `getGraphicsState()`、`subscribeGraphics()` 和 `retryGraphics()` 接入统一的 `graphics-status` 面板。构造失败归一为 `WebGLInitializationError` 并清理已分配资源，界面保留详情和使用最新 SceneSpec 的重试入口。普通资产／网络加载错误仍沿用原有错误通道。
+
+上下文丢失与页面可见性挂起、用户暂停分别保存。丢失时停止 animation loop、清理输入、阻止物理／机构步进与截图；恢复时保留 runtime、canvas 和场景状态，在 Three 完成自身恢复事件后重建 PMREM、阴影目标和 SparkRenderer，实际渲染成功才发布 `ready`。场景加载代次与 GPU 恢复代次共同限制异步资源归属；重复丢失、超时和销毁会使旧结果失效并清理在途 Spark 资源。15 秒期限分别约束等待浏览器恢复和完整重建过程。具体实现与验证见 [WebGL 恢复说明](webgl-recovery.md)。
+
 `SaveSystem` 单独使用浏览器 localStorage，以世界 ID 和剧情指纹隔离进度。加载检查结构与剧情条件，剧情改变时回到初始状态，存储损坏或被禁用时降级为当前会话。退出/重入体验可继续任务，「重置旅程」清除存档。存档不写入 SceneSpec，也不随导出 ZIP 携带。
 
 平面 WASD 将相机朝向投影到地面并归一化，使方向键跟随观察方向；垂直俯视时使用稳定的地面方向。角色也支持由 `navigation:{kind:'sphere',center,radius}` 明确声明的球面切线运动、径向重力与表面法线相机。静态 `mesh` 碰撞从实际加载对象的世界坐标三角形生成；球面可用显式球体与障碍代理。`actor` 声明角色 GLB、高度和 Idle/Walk/Interact 片段；节点 `animation` 声明独立环境动画。实例释放包含骨骼纹理。球面相机适配固定 Three r180 的 OrbitControls 缓存基底，升级 Three 时必须运行完整绕行回归测试。
@@ -126,4 +131,4 @@ flowchart LR
 
 API 的资源校验检查 SceneSpec 和文件存在性；CLI `world:validate` 另外校验 GLB 内容。两种校验边界不同。导出重写所有资源为相对 URL，包含静态播放器和许可证；无需模型接口、CDN、编辑服务。独立播放器等待加载完成后启动角色，避免资产未就绪时创建物理世界。端口隔离的浏览器测试验证服务关闭后的子目录部署。
 
-运行时与体验的本轮执行证据、浏览器覆盖与剩余限制见 [运行时与体验验证](validation-runtime-experience.md)。
+WebGL 异常恢复的执行证据与限制见 [WebGL 恢复说明](webgl-recovery.md)；此前加载与展示优化的执行记录见 [运行时与体验验证](validation-runtime-experience.md)。

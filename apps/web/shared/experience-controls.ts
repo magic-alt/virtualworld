@@ -16,6 +16,7 @@ export function mountExperienceControls(
   } = {},
 ) {
   const element = el('div', 'experience-controls');
+  let graphicsBlocked = runtime.getGraphicsState().status !== 'ready';
   const hotspots = el('div', 'experience-hotspots'),
     guidance = el('p', 'experience-guidance');
   hotspots.setAttribute('aria-label', '场景互动');
@@ -32,7 +33,9 @@ export function mountExperienceControls(
     const b = el('button', '', text);
     b.type = 'button';
     b.setAttribute('aria-label', label);
-    b.onclick = action;
+    b.onclick = () => {
+      if (!graphicsBlocked) action();
+    };
     return b;
   };
   const report = (error: unknown) => options.onError?.(error);
@@ -195,6 +198,7 @@ export function mountExperienceControls(
   };
   const blur = () => reset();
   const escape = (event: KeyboardEvent) => {
+    if (graphicsBlocked) return;
     if (event.key === 'Escape') {
       if (dialogPaused !== undefined) {
         options.onCloseDialog?.();
@@ -232,8 +236,12 @@ export function mountExperienceControls(
     pause.setAttribute('aria-label', metrics.paused ? '继续体验' : '暂停体验');
     mode.textContent = metrics.mode === 'view' ? '进入探索' : '自由观赏';
     mode.setAttribute('aria-label', metrics.mode === 'view' ? '切换第三人称探索' : '切换自由观赏');
-    touch.hidden = metrics.mode !== 'explore' || !!metrics.paused || runtime.spec.mode !== 'world';
-    hotspots.hidden = metrics.mode !== 'explore' || !!metrics.paused;
+    touch.hidden =
+      graphicsBlocked ||
+      metrics.mode !== 'explore' ||
+      !!metrics.paused ||
+      runtime.spec.mode !== 'world';
+    hotspots.hidden = graphicsBlocked || metrics.mode !== 'explore' || !!metrics.paused;
     guidance.hidden = hotspots.hidden || !runtime.spec.tasks.length;
     const visible = new Set<string>();
     const occupied: { x: number; y: number }[] = [];
@@ -311,12 +319,19 @@ export function mountExperienceControls(
       ),
     );
   }
+  const unsubscribeGraphics = runtime.subscribeGraphics((state) => {
+    graphicsBlocked = state.status !== 'ready';
+    element.inert = graphicsBlocked;
+    if (graphicsBlocked) reset();
+    update(runtime.getDiagnostics());
+  });
   update(runtime.getDiagnostics());
   return {
     element,
     update,
     setDialogOpen,
     dispose() {
+      unsubscribeGraphics();
       reset();
       document.removeEventListener('visibilitychange', visibility);
       document.removeEventListener('fullscreenchange', syncFullscreen);

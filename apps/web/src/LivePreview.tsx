@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { assertScene, type SceneSpec } from '@virtualworld/scene-schema';
+import type { GraphicsState } from '@virtualworld/engine';
 import { Viewport } from './Viewport';
 import { api } from './api';
 
 export default function LivePreview({
   onReady,
   onError,
+  onGraphics,
 }: {
   onReady: () => void;
   onError: () => void;
+  onGraphics: (state: GraphicsState) => void;
 }) {
   const [scene, setScene] = useState<SceneSpec>();
   useEffect(() => {
@@ -27,8 +30,12 @@ export default function LivePreview({
       preview
       scene={scene}
       callbacks={{ onReady, onError }}
+      onGraphics={onGraphics}
       onRuntime={(runtime) => {
-        void runtime.setMode('view');
+        if (!runtime) return;
+        void runtime.setMode('view').catch(() => {
+          if (runtime.getGraphicsState().status === 'ready') onError();
+        });
         runtime.controls.autoRotate = !matchMedia('(prefers-reduced-motion: reduce)').matches;
         runtime.controls.autoRotateSpeed = 0.35;
       }}

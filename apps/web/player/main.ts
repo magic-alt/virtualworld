@@ -1,6 +1,7 @@
-import { StudioRuntime } from '@virtualworld/engine';
+import { StudioRuntime, WebGLInitializationError } from '@virtualworld/engine';
 import { assertScene, CampaignSchema, type SceneSpec } from '@virtualworld/scene-schema';
 import { CampaignProgress } from '@virtualworld/interaction/campaign';
+import { mountGraphicsStatus } from '../shared/graphics-status';
 import { mountExperienceControls } from '../shared/experience-controls';
 import { mountMechanismControls } from '../shared/mechanism-controls';
 import '../shared/experience.css';
@@ -26,6 +27,7 @@ document.body.append(errorBox);
 let runtime: StudioRuntime | undefined;
 let experienceControls: ReturnType<typeof mountExperienceControls> | undefined;
 let mechanismControls: ReturnType<typeof mountMechanismControls> | undefined;
+let graphicsControls: ReturnType<typeof mountGraphicsStatus> | undefined;
 let generation = 0;
 let disposed = false;
 window.addEventListener(
@@ -33,8 +35,10 @@ window.addEventListener(
   () => {
     disposed = true;
     generation++;
+    graphicsControls?.dispose();
     mechanismControls?.dispose();
     experienceControls?.dispose();
+    if ((window as any).virtualworld === runtime) delete (window as any).virtualworld;
     runtime?.dispose();
   },
   { once: true },
@@ -62,8 +66,10 @@ try {
   title.append(el('small', '', 'VIRTUALWORLD EXPERIENCE'), heading, description);
   const quest = el('div', 'quest'),
     status = el('div', 'status', '加载场景…'),
-    toolbar = el('div', 'toolbar');
-  document.body.append(title, quest, status, toolbar);
+    toolbar = el('div', 'toolbar'),
+    chapterNavigation = el('nav', 'player-chapter-navigation');
+  chapterNavigation.setAttribute('aria-label', '旅程导航');
+  document.body.append(title, quest, status, toolbar, chapterNavigation);
   let dialog: HTMLElement | undefined;
   let chapterSelect: HTMLSelectElement | undefined;
   const refreshChapters = () => {
@@ -87,8 +93,24 @@ try {
     const version = ++generation;
     mechanismControls?.dispose();
     experienceControls?.dispose();
+    if ((window as any).virtualworld === runtime) delete (window as any).virtualworld;
     runtime?.dispose();
     runtime = undefined;
+    experienceControls = undefined;
+    mechanismControls = undefined;
+    graphicsControls?.dispose();
+    const graphics = mountGraphicsStatus({
+      onRetry: async () => {
+        if (disposed || version !== generation) return;
+        if (runtime) await runtime.retryGraphics();
+        else await showScene(scene);
+      },
+      onState: (state) => {
+        toolbar.inert = state.status !== 'ready';
+      },
+    });
+    graphicsControls = graphics;
+    document.body.append(graphics.element);
     dialog?.remove();
     errorBox.hidden = true;
     document.title = scene.name;
@@ -102,6 +124,7 @@ try {
       return row;
     });
     toolbar.replaceChildren();
+    chapterNavigation.replaceChildren();
     chapterSelect = undefined;
     if (progress) {
       chapterSelect = el('select');
@@ -112,69 +135,79 @@ try {
         const next = progress!.select(chapterSelect!.value);
         void showScene(next).catch(showError);
       };
-      toolbar.append(chapterSelect);
+      chapterNavigation.append(chapterSelect);
     }
-    const active = new StudioRuntime(viewport, scene, {
-      onError: (message) => {
-        if (version === generation) showError(message);
-      },
-      onStory: (state, node) => {
-        if (version !== generation || disposed) return;
-        rows.forEach((row, i) => {
-          const done = state.flags.includes(scene.tasks[i].flag);
-          row.className = done ? 'done' : '';
-          row.textContent = `${done ? '✓' : '○'}  ${scene.tasks[i].label}`;
-        });
-        refreshChapters();
-        experienceControls?.update(active.getDiagnostics());
-        if (!node?.interaction) return;
-        dialog?.remove();
-        dialog = el('div', 'dialog');
-        experienceControls?.setDialogOpen(true);
-        dialog.setAttribute('role', 'dialog');
-        dialog.setAttribute('aria-modal', 'true');
-        dialog.setAttribute('aria-label', node.interaction.title);
-        dialog.append(el('h2', '', node.interaction.title));
-        const text = el('p', '', state.message);
-        dialog.append(text);
-        for (const choice of node.interaction.choices || []) {
-          const button = el('button', '', choice.label);
-          button.onclick = () => {
-            text.textContent = choice.text;
-          };
-          dialog.append(button);
-        }
-        if (state.completed && progress) {
-          const chapters = progress.status();
-          const index = chapters.findIndex((chapter) => chapter.id === scene.id);
-          const next = chapters.slice(index + 1).find((chapter) => chapter.unlocked);
-          dialog.append(
-            el('p', '', next ? '本章完成 · 下一段旅程已解锁' : '旅程已完成 · 谢谢你陪伴这些相遇'),
-          );
-          if (next) {
-            const continueJourney = el('button', '', `下一章：${next.title}`);
-            continueJourney.onclick = () => {
-              experienceControls?.setDialogOpen(false);
-              void showScene(progress!.select(next.id)).catch(showError);
-            };
-            dialog.append(continueJourney);
-          }
-        }
-        const close = el('button', '', state.completed ? '本章已完成 · 继续探索' : '继续');
-        close.onclick = () => {
+    let active: StudioRuntime;
+    try {
+      active = new StudioRuntime(viewport, scene, {
+        onError: (message) => {
+          if (version === generation) showError(message);
+        },
+        onStory: (state, node) => {
+          if (version !== generation || disposed) return;
+          rows.forEach((row, i) => {
+            const done = state.flags.includes(scene.tasks[i].flag);
+            row.className = done ? 'done' : '';
+            row.textContent = `${done ? '✓' : '○'}  ${scene.tasks[i].label}`;
+          });
+          refreshChapters();
+          experienceControls?.update(active.getDiagnostics());
+          if (!node?.interaction) return;
           dialog?.remove();
-          experienceControls?.setDialogOpen(false);
-        };
-        dialog.append(close);
-        document.body.append(dialog);
-      },
-      onMetrics: (m) => {
-        if (version !== generation) return;
-        experienceControls?.update(m);
-        status.textContent = m.loading ? '正在加载世界…' : '';
-      },
-    });
+          dialog = el('div', 'dialog');
+          experienceControls?.setDialogOpen(true);
+          dialog.setAttribute('role', 'dialog');
+          dialog.setAttribute('aria-modal', 'true');
+          dialog.setAttribute('aria-label', node.interaction.title);
+          dialog.append(el('h2', '', node.interaction.title));
+          const text = el('p', '', state.message);
+          dialog.append(text);
+          for (const choice of node.interaction.choices || []) {
+            const button = el('button', '', choice.label);
+            button.onclick = () => {
+              text.textContent = choice.text;
+            };
+            dialog.append(button);
+          }
+          if (state.completed && progress) {
+            const chapters = progress.status();
+            const index = chapters.findIndex((chapter) => chapter.id === scene.id);
+            const next = chapters.slice(index + 1).find((chapter) => chapter.unlocked);
+            dialog.append(
+              el('p', '', next ? '本章完成 · 下一段旅程已解锁' : '旅程已完成 · 谢谢你陪伴这些相遇'),
+            );
+            if (next) {
+              const continueJourney = el('button', '', `下一章：${next.title}`);
+              continueJourney.onclick = () => {
+                experienceControls?.setDialogOpen(false);
+                void showScene(progress!.select(next.id)).catch(showError);
+              };
+              dialog.append(continueJourney);
+            }
+          }
+          const close = el('button', '', state.completed ? '本章已完成 · 继续探索' : '继续');
+          close.onclick = () => {
+            dialog?.remove();
+            experienceControls?.setDialogOpen(false);
+          };
+          dialog.append(close);
+          document.body.append(dialog);
+        },
+        onMetrics: (m) => {
+          if (version !== generation) return;
+          experienceControls?.update(m);
+          status.textContent = m.loading ? '正在加载世界…' : '';
+        },
+      });
+    } catch (error) {
+      if (error instanceof WebGLInitializationError) {
+        graphics.initializationFailed(error);
+        return;
+      }
+      throw error;
+    }
     runtime = active;
+    graphics.bind(active);
     experienceControls = mountExperienceControls(active, {
       onCloseDialog: () => {
         dialog?.remove();
@@ -204,7 +237,7 @@ try {
           void showScene(progress.select(progress.current())).catch(showError);
         } else active.resetProgress();
       };
-      toolbar.append(reset);
+      chapterNavigation.append(reset);
     } else if (!scene.mechanism) {
       let moving = false;
       const motion = el('button', '', '运动演示');

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { GraphicsRecovery, WebGLInitializationError, type GraphicsState } from './graphics';
+export { WebGLInitializationError, type GraphicsState } from './graphics';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { harmonicState, MechanismController, type MechanismState } from './mechanism';
 export type MechanismViewState = MechanismState & {
@@ -39,6 +41,7 @@ export type RuntimeMetrics = {
   paused?: boolean;
   quality?: RenderQuality;
   mechanism?: MechanismViewState;
+  graphics?: GraphicsState;
   radialUp?: number[];
   actorClip?: string;
   fps: number;
@@ -54,18 +57,20 @@ export type RuntimeMetrics = {
   hotspots?: { id: string; label: string; x: number; y: number; inRange: boolean }[];
 };
 export class StudioRuntime {
-  readonly ready: Promise<void>;
-  readonly renderer: THREE.WebGLRenderer;
+  readonly ready!: Promise<void>;
+  readonly renderer!: THREE.WebGLRenderer;
   readonly world = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(42, 1, 0.05, 500);
-  readonly controls: OrbitControls;
+  readonly controls!: OrbitControls;
   readonly objects = new Map<string, THREE.Object3D>();
-  readonly transform: TransformControls;
+  readonly transform!: TransformControls;
   private assets = new AssetRegistry();
   private saves = SaveSystem.browser();
   private content = new THREE.Group();
   private selector?: THREE.BoxHelper;
-  private observer: ResizeObserver;
+  private observer!: ResizeObserver;
+  private graphics?: GraphicsRecovery;
+  private suspended = false;
   private disposed = false;
   private generation = 0;
   private playing = false;
@@ -128,56 +133,182 @@ export class StudioRuntime {
     public spec: SceneSpec,
     private callbacks: RuntimeCallbacks = {},
   ) {
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: false,
-      preserveDrawingBuffer: false,
-    });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1;
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    try {
+      this.renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        preserveDrawingBuffer: false,
+      });
+      this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+      this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      this.renderer.toneMappingExposure = 1;
+      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.environment = this.buildEnvironment();
+      this.world.environment = this.environment.texture;
+      container.append(this.renderer.domElement);
+      this.renderer.domElement.tabIndex = 0;
+      this.renderer.domElement.setAttribute('aria-label', '交互式三维场景');
+      this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+      this.controls.enableDamping = true;
+      this.controls.minDistance = 1;
+      this.controls.maxDistance = 80;
+      this.controls.maxPolarAngle = Math.PI * 0.49;
+      this.transform = new TransformControls(this.camera, this.renderer.domElement);
+      this.transform.setSize(0.7);
+      this.world.add(this.transform.getHelper());
+      this.transform.addEventListener('dragging-changed', (e) => {
+        this.controls.enabled = !e.value && !this.paused && !this.activityBlocked;
+      });
+      this.transform.addEventListener('mouseUp', () => {
+        if (this.activityBlocked || this.paused) return;
+        const o = this.transform.object;
+        const node = this.spec.nodes.find((n) => n.id === this.selectedId);
+        if (o && node)
+          this.callbacks.onTransform?.(node.id, captureTransform(node, o, this.explosion));
+      });
+      this.observer = new ResizeObserver(() => this.resize());
+      this.observer.observe(container);
+      this.resize();
+      container.addEventListener('pointerdown', this.pointerDown);
+      container.addEventListener('pointerup', this.pointerUp);
+      window.addEventListener('keydown', this.keyDown);
+      window.addEventListener('keyup', this.keyUp);
+      window.addEventListener('blur', this.blur);
+      const gl = this.renderer.getContext(),
+        ext = gl.getExtension('WEBGL_debug_renderer_info');
+      if (ext) this.metrics.gpu = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL));
+      this.graphics = new GraphicsRecovery(
+        this.renderer.domElement,
+        () => this.renderer.getContext().isContextLost(),
+        (current) => this.restoreGraphics(current),
+        () => this.syncGraphics(),
+      );
+      if (this.renderer.getContext().isContextLost()) void this.graphics.retry();
+      this.ready = this.load(spec).catch((error) => this.reportError(error, this.generation));
+      this.syncGraphics();
+    } catch (error) {
+      this.disposed = true;
+      const release = [
+        () => this.graphics?.dispose(),
+        () => this.observer?.disconnect(),
+        () => this.transform?.dispose(),
+        () => this.controls?.dispose(),
+        () => this.assets.dispose(),
+        () => disposeObject(this.content),
+        () => this.environment?.dispose(),
+        () => this.renderer?.setAnimationLoop(null),
+        () => this.renderer?.dispose(),
+        () => this.renderer?.domElement.remove(),
+        () => container.removeEventListener('pointerdown', this.pointerDown),
+        () => container.removeEventListener('pointerup', this.pointerUp),
+        () => window.removeEventListener('keydown', this.keyDown),
+        () => window.removeEventListener('keyup', this.keyUp),
+        () => window.removeEventListener('blur', this.blur),
+      ];
+      for (const cleanup of release) {
+        try {
+          cleanup();
+        } catch {
+          /* Preserve the original initialization error. */
+        }
+      }
+      throw new WebGLInitializationError(error);
+    }
+  }
+  private buildEnvironment() {
     const room = new RoomEnvironment();
-    this.environment = pmrem.fromScene(room, 0.04);
-    this.world.environment = this.environment.texture;
-    room.dispose();
-    pmrem.dispose();
-    container.append(this.renderer.domElement);
-    this.renderer.domElement.tabIndex = 0;
-    this.renderer.domElement.setAttribute('aria-label', '交互式三维场景');
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.minDistance = 1;
-    this.controls.maxDistance = 80;
-    this.controls.maxPolarAngle = Math.PI * 0.49;
-    this.transform = new TransformControls(this.camera, this.renderer.domElement);
-    this.transform.setSize(0.7);
-    this.world.add(this.transform.getHelper());
-    this.transform.addEventListener('dragging-changed', (e) => {
-      this.controls.enabled = !e.value;
-    });
-    this.transform.addEventListener('mouseUp', () => {
-      const o = this.transform.object;
-      const node = this.spec.nodes.find((n) => n.id === this.selectedId);
-      if (o && node)
-        this.callbacks.onTransform?.(node.id, captureTransform(node, o, this.explosion));
-    });
-    this.observer = new ResizeObserver(() => this.resize());
-    this.observer.observe(container);
-    this.resize();
-    container.addEventListener('pointerdown', this.pointerDown);
-    container.addEventListener('pointerup', this.pointerUp);
-    window.addEventListener('keydown', this.keyDown);
-    window.addEventListener('keyup', this.keyUp);
-    window.addEventListener('blur', this.blur);
-    const gl = this.renderer.getContext(),
-      ext = gl.getExtension('WEBGL_debug_renderer_info');
-    if (ext) this.metrics.gpu = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL));
-    this.ready = this.load(spec).catch((error) => this.reportError(error, this.generation));
-    this.renderer.setAnimationLoop(this.frame);
+    let pmrem: THREE.PMREMGenerator | undefined;
+    try {
+      pmrem = new THREE.PMREMGenerator(this.renderer);
+      return pmrem.fromScene(room, 0.04);
+    } finally {
+      room.dispose();
+      pmrem?.dispose();
+    }
+  }
+  private async restoreGraphics(current: () => boolean) {
+    while (current()) {
+      const generation = this.generation;
+      await Promise.resolve(this.loadComplete).catch(() => {});
+      if (!current()) return;
+      if (generation !== this.generation) continue;
+      const environment = this.buildEnvironment();
+      if (!current()) {
+        environment.dispose();
+        return;
+      }
+      const previous = this.environment;
+      this.environment = environment;
+      this.world.environment = environment.texture;
+      previous?.dispose();
+      this.world.traverse((object) => {
+        if (
+          object instanceof THREE.DirectionalLight ||
+          object instanceof THREE.SpotLight ||
+          object instanceof THREE.PointLight
+        ) {
+          object.shadow.map?.dispose();
+          object.shadow.mapPass?.dispose();
+          object.shadow.map = null;
+          object.shadow.mapPass = null;
+          object.shadow.needsUpdate = true;
+        }
+      });
+      try {
+        await this.assets.restoreGraphics(
+          this.renderer,
+          this.world,
+          this.camera,
+          () => current() && generation === this.generation,
+        );
+      } catch (error) {
+        if (current() && generation !== this.generation) continue;
+        throw error;
+      }
+      if (!current()) return;
+      if (generation !== this.generation) continue;
+      this.renderer.resetState();
+      this.renderer.render(this.world, this.camera);
+      if (this.renderer.getContext().isContextLost())
+        throw new Error('浏览器图形连接再次中断，请等待恢复。');
+      return;
+    }
+  }
+  getGraphicsState(): GraphicsState {
+    return this.graphics?.snapshot() ?? { status: 'ready' };
+  }
+  subscribeGraphics(listener: (state: GraphicsState) => void) {
+    if (this.disposed) return () => {};
+    if (this.graphics) return this.graphics.subscribe(listener);
+    listener(this.getGraphicsState());
+    return () => {};
+  }
+  retryGraphics(): Promise<void> {
+    return this.graphics?.retry() ?? Promise.resolve();
+  }
+  private get activityBlocked() {
+    return this.disposed || this.suspended || !!this.graphics?.blocked;
+  }
+  private syncGraphics() {
+    this.last = 0;
+    this.keys.clear();
+    this.movement = { x: 0, y: 0, jump: false };
+    this.dragStart = undefined;
+    const blocked = this.activityBlocked;
+    const graphicsStatus = this.getGraphicsState().status;
+    if (graphicsStatus === 'lost' || graphicsStatus === 'failed') this.assets.releaseGraphics();
+    if (blocked) this.cameraTransition = undefined;
+    if (blocked && this.transform.dragging) {
+      this.transform.reset();
+      this.transform.dragging = false;
+    }
+    this.controls.enabled = !blocked && !this.paused;
+    this.transform.enabled = !blocked && !this.paused;
+    this.mechanismController?.tick(0, this.paused || blocked);
+    this.renderer.setAnimationLoop(blocked ? null : this.frame);
+    this.callbacks.onMetrics?.(this.getDiagnostics());
   }
   private resize() {
     const { width, height } = this.container.getBoundingClientRect();
@@ -215,18 +346,23 @@ export class StudioRuntime {
   }
   setPaused(paused: boolean) {
     this.paused = paused;
-    this.mechanismController?.tick(0, paused);
+    this.mechanismController?.tick(0, paused || this.activityBlocked);
     this.keys.clear();
     this.movement = { x: 0, y: 0, jump: false };
-    this.controls.enabled = !paused;
+    this.controls.enabled = !paused && !this.activityBlocked;
+    this.transform.enabled = !paused && !this.activityBlocked;
     this.last = 0;
   }
   setSuspended(suspended: boolean) {
     if (this.disposed) return;
-    this.last = 0;
-    this.renderer.setAnimationLoop(suspended ? null : this.frame);
+    this.suspended = suspended;
+    this.syncGraphics();
   }
   setMovement(input: { x: number; y: number; jump: boolean }) {
+    if (this.activityBlocked) {
+      this.movement = { x: 0, y: 0, jump: false };
+      return;
+    }
     this.movement = {
       x: Number.isFinite(input.x) ? THREE.MathUtils.clamp(input.x, -1, 1) : 0,
       y: Number.isFinite(input.y) ? THREE.MathUtils.clamp(input.y, -1, 1) : 0,
@@ -336,7 +472,7 @@ export class StudioRuntime {
     if (!preserveView) this.resetCamera();
     else updateOrbitControls(this.controls);
     if (spec.nodes.some((n) => n.kind === 'splat'))
-      await this.assets.prepareSplats(this.renderer, this.world);
+      await this.assets.prepareSplats(this.renderer, this.world, () => !this.graphics?.blocked);
     if (version !== this.generation || this.disposed) return;
     const loads: Promise<unknown>[] = [];
     for (const node of spec.nodes) {
@@ -457,6 +593,7 @@ export class StudioRuntime {
       sun.shadow.camera.updateProjectionMatrix();
     }
     this.metrics.loading = false;
+    this.mechanismController?.tick(0, this.paused || this.activityBlocked);
     if (spec.mechanism) this.fitMechanismView(preserveView ? undefined : 'default');
     this.select(this.selectedId);
     this.callbacks.onReady?.();
@@ -526,6 +663,7 @@ export class StudioRuntime {
     this.notifyMechanism();
   }
   animateJoints(enabled: boolean) {
+    if (this.activityBlocked) return;
     if (this.spec.mechanism) {
       this.mechanismController?.setMoving(enabled);
       return;
@@ -639,7 +777,7 @@ export class StudioRuntime {
     this.story = initialStory();
   }
   interact(id?: string) {
-    if (this.mode === 'view' || this.paused) return;
+    if (this.activityBlocked || this.mode === 'view' || this.paused) return;
     const target = id ? this.spec.nodes.find((n) => n.id === id) : this.nearest();
     if (!target?.interaction) return;
     if (this.playing && this.char && this.nodeDistance(target.id) > 2.6) return;
@@ -712,6 +850,7 @@ export class StudioRuntime {
       mode: this.mode,
       paused: this.paused,
       quality: this.quality,
+      graphics: this.getGraphicsState(),
       mechanism: this.spec.mechanism ? this.getMechanismState() : undefined,
       radialUp: this.char?.up.toArray(),
       actorClip: this.actorAction?.getClip().name,
@@ -761,11 +900,14 @@ export class StudioRuntime {
     return true;
   }
   screenshot() {
+    if (this.activityBlocked) throw new Error('图形画面暂不可用，请等待恢复后截图。');
+    this.assets.updateGraphics(this.world, this.camera, (error) => this.graphics?.fail(error));
     this.renderer.render(this.world, this.camera);
     return this.renderer.domElement.toDataURL('image/png');
   }
-  private frame = (now: number) => {
-    if (this.disposed) return;
+  private frame = (now: number) => this.renderFrame(now);
+  private renderFrame(now: number) {
+    if (this.activityBlocked || this.renderer.getContext().isContextLost()) return;
     const dt = this.paused ? 0 : this.last ? Math.min((now - this.last) / 1000, 0.05) : 1 / 60;
     this.last = now;
     this.metricFrames++;
@@ -817,6 +959,7 @@ export class StudioRuntime {
     }
     if (!this.paused) updateOrbitControls(this.controls);
     this.selector?.update();
+    this.assets.updateGraphics(this.world, this.camera, (error) => this.graphics?.fail(error));
     this.renderer.render(this.world, this.camera);
     if (now - this.metricAt > 700) {
       this.metrics = {
@@ -831,13 +974,15 @@ export class StudioRuntime {
       this.metricFrames = 0;
       this.callbacks.onMetrics?.(this.getDiagnostics());
     }
-  };
+  }
   private pointerDown = (event: PointerEvent) => {
+    if (this.activityBlocked) return;
     this.cameraTransition = undefined;
     this.dragStart = new THREE.Vector2(event.clientX, event.clientY);
   };
   private pointerUp = (event: PointerEvent) => {
     if (
+      this.activityBlocked ||
       (this.mode === 'view' && !this.spec.mechanism) ||
       this.paused ||
       !this.dragStart ||
@@ -873,7 +1018,7 @@ export class StudioRuntime {
     }
   };
   private keyDown = (event: KeyboardEvent) => {
-    if (this.paused || this.mode === 'view') return;
+    if (this.activityBlocked || this.paused || this.mode === 'view') return;
     const el = event.target as HTMLElement;
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || el.isContentEditable) return;
     if (
@@ -940,9 +1085,11 @@ export class StudioRuntime {
     if (state) this.mechanismListeners.forEach((listener) => listener(state));
   }
   resetMechanismMotion() {
+    if (this.activityBlocked) return;
     this.mechanismController?.resetMotion();
   }
   stepMechanism(radians: number) {
+    if (this.activityBlocked) return;
     this.mechanismController?.step(radians);
   }
   setBrakeInstalled(installed: boolean) {
@@ -1167,7 +1314,9 @@ export class StudioRuntime {
     }
   }
   dispose() {
+    if (this.disposed) return;
     this.disposed = true;
+    this.graphics?.dispose();
     this.mechanismController?.dispose();
     this.mechanismListeners.clear();
     this.generation++;

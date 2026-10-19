@@ -4,11 +4,31 @@ import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import type { SparkRenderer, SplatMesh } from '@sparkjsdev/spark';
 import type { SceneAsset, SceneNode } from '@virtualworld/scene-schema';
 
+type SparkRequest = {
+  world: THREE.Scene;
+  camera: THREE.Camera;
+  signature: string;
+  onFailure: (error: unknown) => void;
+};
+type SparkWork = {
+  retired: boolean;
+  failed: boolean;
+  signature?: string;
+  pending?: Promise<void>;
+  timer?: ReturnType<typeof setTimeout>;
+  request?: SparkRequest;
+};
+
 /** One registry per renderer. GLB source cache lives for one loaded scene. */
 export class AssetRegistry {
   private glbs = new Map<string, Promise<THREE.Object3D>>();
   private library?: typeof import('@sparkjsdev/spark');
   private spark?: SparkRenderer;
+  private restoringSpark?: SparkRenderer;
+  private graphicsGeneration = 0;
+  private graphicsRestore?: number;
+  private sparkWork = new WeakMap<SparkRenderer, SparkWork>();
+  private retiringUpdates = new Set<Promise<void>>();
   private libraryPromise?: Promise<typeof import('@sparkjsdev/spark')>;
   private disposed = false;
   constructor(
@@ -16,15 +36,159 @@ export class AssetRegistry {
     private importSplats = () => import('@sparkjsdev/spark'),
   ) {}
 
-  async prepareSplats(renderer: THREE.WebGLRenderer, world: THREE.Scene) {
+  async prepareSplats(renderer: THREE.WebGLRenderer, world: THREE.Scene, available = () => true) {
     if (this.disposed) return;
     this.libraryPromise ??= this.importSplats();
     this.library = await this.libraryPromise;
     if (this.disposed) return;
-    if (!this.spark) {
-      this.spark = new this.library.SparkRenderer({ renderer });
+    if (
+      !this.spark &&
+      this.graphicsRestore === undefined &&
+      available() &&
+      !renderer.getContext?.().isContextLost()
+    ) {
+      // SplatMesh is authored with lod:false; avoid Spark's unawaited LoD driver.
+      this.spark = this.makeSpark(this.library, renderer);
       world.add(this.spark);
     }
+  }
+  /** Spark owns generated GPU accumulators/order textures; retain SplatMesh CPU data and rebuild only its renderer. */
+  async restoreGraphics(
+    renderer: THREE.WebGLRenderer,
+    world: THREE.Scene,
+    camera: THREE.Camera,
+    current: () => boolean,
+  ) {
+    if (!this.libraryPromise) return;
+    this.releaseGraphics();
+    const generation = this.graphicsGeneration;
+    this.graphicsRestore = generation;
+    let replacement: SparkRenderer | undefined;
+    try {
+      const retiredUpdates = [...this.retiringUpdates];
+      if (retiredUpdates.length) await Promise.allSettled(retiredUpdates);
+      const library = await this.libraryPromise;
+      if (this.disposed || !current() || generation !== this.graphicsGeneration) return;
+      replacement = this.makeSpark(library, renderer);
+      this.restoringSpark = replacement;
+      const signature = this.graphicsSignature(world, camera);
+      const work = this.sparkWork.get(replacement)!;
+      const pending = replacement.update({ scene: world, camera });
+      work.pending = pending;
+      try {
+        await pending;
+      } finally {
+        this.retiringUpdates.delete(pending);
+        if (work.pending === pending) work.pending = undefined;
+      }
+      if (this.disposed || !current() || generation !== this.graphicsGeneration) return;
+      this.restoringSpark = undefined;
+      this.sparkWork.get(replacement)!.signature = signature;
+      this.spark = replacement;
+      world.add(replacement);
+    } finally {
+      if (replacement && this.spark !== replacement) {
+        if (this.restoringSpark === replacement) this.restoringSpark = undefined;
+        // The pinned Spark can resume GPU readback after early dispose and allocate
+        // a new sort worker/ordering texture. Dispose its own settled resources
+        // again, even after ownership was transferred to a newer restoration.
+        replacement.dispose();
+      }
+      if (this.graphicsRestore === generation) this.graphicsRestore = undefined;
+    }
+  }
+  /** Stop Spark background GPU work immediately, including a timed-out recovery. */
+  releaseGraphics() {
+    this.graphicsGeneration++;
+    this.graphicsRestore = undefined;
+    const renderers = new Set([this.spark, this.restoringSpark]);
+    this.spark = this.restoringSpark = undefined;
+    for (const spark of renderers) {
+      if (spark) {
+        const work = this.sparkWork.get(spark);
+        if (work) {
+          work.retired = true;
+          if (work.pending) this.retiringUpdates.add(work.pending);
+          work.request = undefined;
+          clearTimeout(work.timer);
+        }
+      }
+      spark?.removeFromParent();
+      spark?.dispose();
+    }
+  }
+  private makeSpark(library: typeof import('@sparkjsdev/spark'), renderer: THREE.WebGLRenderer) {
+    // Public update() is owned here: Spark's implicit render hook otherwise
+    // fires an uncaught async sort. LoD is not enabled on this project's splats.
+    const spark = new library.SparkRenderer({ renderer, autoUpdate: false, enableDriveLod: false });
+    this.sparkWork.set(spark, { retired: false, failed: false });
+    return spark;
+  }
+  private graphicsSignature(world: THREE.Scene, camera: THREE.Camera) {
+    world.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+    const parts: (string | number | boolean)[] = [
+      ...camera.matrixWorld.elements,
+      ...camera.projectionMatrix.elements,
+    ];
+    world.traverse((object) => {
+      if (!object.userData.isSplat) return;
+      let visible = true;
+      for (let parent: THREE.Object3D | null = object; parent; parent = parent.parent)
+        visible &&= parent.visible;
+      const splat = object as SplatMesh;
+      parts.push(
+        object.uuid,
+        visible,
+        ...object.matrixWorld.elements,
+        splat.version,
+        splat.isInitialized,
+        splat.numSplats,
+      );
+    });
+    return parts.join(',');
+  }
+  /** Queue the newest visible static-splat inputs; at most one public GPU update is in flight. */
+  updateGraphics(world: THREE.Scene, camera: THREE.Camera, onFailure: (error: unknown) => void) {
+    const spark = this.spark;
+    if (!spark || this.disposed) return;
+    const work = this.sparkWork.get(spark)!;
+    if (work.retired || work.failed) return;
+    work.request = { world, camera, signature: this.graphicsSignature(world, camera), onFailure };
+    this.pumpSpark(spark, work);
+  }
+  private pumpSpark(spark: SparkRenderer, work: SparkWork) {
+    if (work.retired || work.failed || work.pending) return;
+    const request = work.request;
+    work.request = undefined;
+    if (!request || request.signature === work.signature) return;
+    const active = () => !this.disposed && !work.retired && this.spark === spark;
+    work.timer = setTimeout(() => {
+      if (active()) {
+        work.failed = true;
+        request.onFailure(new Error('图形资源更新超时，请重试恢复。'));
+      }
+    }, 15000);
+    const pending = Promise.resolve()
+      .then(async () => {
+        if (!active()) return;
+        await spark.update({ scene: request.world, camera: request.camera });
+        if (active()) work.signature = request.signature;
+      })
+      .catch((error: unknown) => {
+        if (active() && !work.failed) {
+          work.failed = true;
+          request.onFailure(error);
+        }
+      })
+      .finally(() => {
+        clearTimeout(work.timer);
+        this.retiringUpdates.delete(pending);
+        work.pending = undefined;
+        if (work.retired || this.spark !== spark || this.disposed) spark.dispose();
+        else this.pumpSpark(spark, work);
+      });
+    work.pending = pending;
   }
   createSplat(asset: SceneAsset): SplatMesh {
     if (!this.library || this.disposed)
@@ -88,9 +252,7 @@ export class AssetRegistry {
   dispose() {
     this.disposed = true;
     this.clear();
-    this.spark?.removeFromParent();
-    this.spark?.dispose();
-    this.spark = undefined;
+    this.releaseGraphics();
   }
 }
 export async function loadAnimatedGlb(url: string) {
