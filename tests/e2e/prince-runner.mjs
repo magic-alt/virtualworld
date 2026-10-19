@@ -74,7 +74,7 @@ try {
     const app=await createApp({dataRoot:process.env.VW_PRINCE_DATA,projectRoot:process.cwd(),publicRoot:'public',studioRoot:'dist/web',playerRoot:'dist/player',llm:{baseUrl:'',model:'',key:''}});
     await app.listen({host:'127.0.0.1',port:3145});
     process.on('SIGTERM',()=>void app.close().then(()=>process.exit()));`;
-  app = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', code], {
+  app = spawn(process.execPath, ['--import', 'tsx', '-e', code], {
     env: { ...process.env, PORT: '3145', VW_PRINCE_DATA: join(root, 'data'), TRIPO_API_KEY: '' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { unzipSync, strFromU8 } from 'fflate';
 import { splitWorld } from '@virtualworld/scene-builder';
 import { industrialDemo } from '../fixtures/scenes';
+import { validTriangleGlb } from '../fixtures/glb';
 import { listWorlds, listCampaigns } from '@virtualworld/scene-builder/io';
 import { assertScene, type CampaignSpec, type SceneSpec } from '@virtualworld/scene-schema';
 import { createApp } from '../../apps/web/server/app';
@@ -41,7 +42,7 @@ async function setup() {
       },
     ],
   };
-  const assetBytes = Buffer.from('local fixture shared bytes; no external model request');
+  const assetBytes = await validTriangleGlb();
   const scenes = manifest.chapters.map((chapter, index) =>
     assertScene({
       ...industrialDemo(),

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:http';
@@ -92,16 +92,17 @@ describe('local project API', () => {
   });
   it('stores assets by digest and rejects unsafe filenames and formats', async () => {
     const app = await setup();
+    const bytes = await readFile('assets/optimized/showcase/prince-fox.glb');
     const upload = await app.inject({
       method: 'POST',
       url: '/api/assets?name=part.glb',
       headers: { 'content-type': 'application/octet-stream' },
-      payload: Buffer.from('glTF-test'),
+      payload: bytes,
     });
     expect(upload.statusCode).toBe(200);
     const asset = upload.json();
     expect(asset.url).toMatch(/^\/api\/assets\/[a-f0-9]{64}\.glb$/);
-    expect((await app.inject(asset.url)).rawPayload.toString()).toBe('glTF-test');
+    expect((await app.inject(asset.url)).rawPayload).toEqual(bytes);
     expect(
       (
         await app.inject({

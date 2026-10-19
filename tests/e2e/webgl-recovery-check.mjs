@@ -123,7 +123,8 @@ async function stopApp() {
   }
 }
 try {
-  app = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', code], {
+  // Node 24 detects ESM eval syntax; forcing input-type also changes fflate's inherited worker mode.
+  app = spawn(process.execPath, ['--import', 'tsx', '-e', code], {
     env: { ...process.env, PORT: '3147', VW_WEBGL_DATA: join(root, 'data'), TRIPO_API_KEY: '' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

@@ -1,0 +1,79 @@
+name: virtualworld
+
+services:
+  studio:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: studio
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    stop_grace_period: 90s
+    environment:
+      VW_SERVER_MODE: hosted
+      VW_HOST: 0.0.0.0
+      PORT: '3001'
+      VW_PUBLIC_ORIGIN: ${VW_PUBLIC_ORIGIN:?Set the exact HTTPS public origin}
+      VW_GATEWAY_SECRET: ${VW_GATEWAY_SECRET:?Set a random gateway secret}
+      VW_DATA_ROOT: /data
+      VW_MAX_PENDING_GENERATIONS: ${VW_MAX_PENDING_GENERATIONS:-8}
+      VW_MAX_AGENT_REQUESTS: ${VW_MAX_AGENT_REQUESTS:-2}
+      VW_MAX_EXPORTS: ${VW_MAX_EXPORTS:-1}
+      VW_MAX_EXPORT_MIB: ${VW_MAX_EXPORT_MIB:-256}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      TRIPO_BASE_URL: ${TRIPO_BASE_URL:-https://openapi.tripo3d.ai/v3}
+      TRIPO_MODEL: ${TRIPO_MODEL:-v3.1-20260211}
+      TRIPO_API_KEY: ${TRIPO_API_KEY:-}
+    volumes:
+      - workspace:/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    # No ports: the studio is reachable only through the authenticated proxy.
+
+  caddy:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: proxy
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    environment:
+      VW_PUBLIC_ORIGIN: ${VW_PUBLIC_ORIGIN:?Set the exact HTTPS public origin}
+      VW_GATEWAY_SECRET: ${VW_GATEWAY_SECRET:?Set a random gateway secret}
+      VW_AUTH_USER: ${VW_AUTH_USER:?Set the initial team account name}
+      VW_AUTH_HASH: ${VW_AUTH_HASH:?Set a bcrypt password hash}
+    ports:
+      - '80:8080'
+      - '443:8443'
+      - '443:8443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      studio:
+        condition: service_healthy
+
+volumes:
+  workspace:
+    name: ${VW_VOLUME_NAME:-virtualworld-workspace}
+  caddy_data:
+  caddy_config:

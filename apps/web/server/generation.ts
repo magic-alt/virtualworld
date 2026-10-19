@@ -12,6 +12,7 @@ import {
   type GenerationPhase,
 } from '../shared/generation';
 import { HttpError } from './store';
+import { parseRequest } from './request-validation';
 type RetainedJob = GenerationJob & {
   providers?: {
     llm: { baseUrl: string; model: string };
@@ -24,11 +25,35 @@ export class GenerationService {
   private writes: Promise<unknown> = Promise.resolve();
   private work: Promise<unknown> = Promise.resolve();
   private controller = new AbortController();
+  private pending = 0;
+  private closed = false;
+  private maxPending: number;
   constructor(
     private dataRoot: string,
     private projectRoot: string,
     private llm: LlmConfig,
-  ) {}
+    options: { maxPending?: number } = {},
+  ) {
+    this.maxPending = options.maxPending ?? 8;
+    if (!Number.isSafeInteger(this.maxPending) || this.maxPending < 1)
+      throw new Error('maxPending must be a positive safe integer');
+  }
+  capacity() {
+    return {
+      maxPending: this.maxPending,
+      pending: this.pending,
+      available: this.maxPending - this.pending,
+      closed: this.closed,
+    };
+  }
+  private assertOpen() {
+    if (this.closed) throw new HttpError(503, '生成服务正在关闭，无法接受新任务');
+  }
+  private assertCapacity() {
+    this.assertOpen();
+    if (this.pending >= this.maxPending)
+      throw new HttpError(429, '生成任务队列已满，请等待已有任务完成');
+  }
   capabilities() {
     return {
       llm: !!(this.llm.baseUrl && this.llm.key && this.llm.model),
@@ -65,7 +90,7 @@ export class GenerationService {
     }
   }
   get(id: string) {
-    RequestId.parse(id);
+    parseRequest(RequestId, id);
     const job = this.jobs.get(id);
     if (!job) throw new HttpError(404, '生成任务不存在');
     const { providers: _providers, ...publicJob } = structuredClone(job);
@@ -96,13 +121,15 @@ export class GenerationService {
     const operation = this.writes
       .catch(() => {})
       .then(async () => {
-        const input = GenerationInput.parse(raw),
+        this.assertOpen();
+        const input = parseRequest(GenerationInput, raw),
           existing = this.jobs.get(input.requestId);
         if (existing) {
           if (JSON.stringify(existing.input) !== JSON.stringify(input))
             throw new HttpError(409, '请求 ID 已用于不同内容');
           return this.get(existing.id);
         }
+        this.assertCapacity();
         const capabilities = this.capabilities();
         if (input.planner === 'llm' && !capabilities.llm)
           throw new HttpError(400, 'AI 服务尚未配置');
@@ -133,7 +160,15 @@ export class GenerationService {
             },
           },
         };
-        await this.persist(job);
+        // Admission stays serialized with durable creation, and is rechecked after reference IO.
+        this.assertCapacity();
+        this.pending++;
+        try {
+          await this.persist(job);
+        } catch (error) {
+          this.pending--;
+          throw error;
+        }
         this.enqueue(job);
         return this.get(job.id);
       });
@@ -144,22 +179,26 @@ export class GenerationService {
     const operation = this.writes
       .catch(() => {})
       .then(async () => {
-        const recovery = z
-          .object({
-            taskId: z
-              .string()
-              .regex(/^[a-zA-Z0-9_-]{1,200}$/)
-              .optional(),
-            taskNodeId: z
-              .string()
-              .regex(/^[a-zA-Z0-9_-]{1,100}$/)
-              .optional(),
-          })
-          .strict()
-          .parse(raw);
+        this.assertOpen();
+        const recovery = parseRequest(
+          z
+            .object({
+              taskId: z
+                .string()
+                .regex(/^[a-zA-Z0-9_-]{1,200}$/)
+                .optional(),
+              taskNodeId: z
+                .string()
+                .regex(/^[a-zA-Z0-9_-]{1,100}$/)
+                .optional(),
+            })
+            .strict(),
+          raw,
+        );
         this.get(id);
         const job = structuredClone(this.jobs.get(id)!);
         if (!['failed', 'interrupted'].includes(job.phase)) return this.get(id);
+        this.assertCapacity();
         if (job.input.assets === 'tripo' && !job.providers)
           throw new HttpError(409, '原始服务标识缺失，请检查账本后使用 CLI 恢复任务');
         const next = {
@@ -168,7 +207,13 @@ export class GenerationService {
           error: undefined,
           updatedAt: new Date().toISOString(),
         };
-        await this.persist(next);
+        this.pending++;
+        try {
+          await this.persist(next);
+        } catch (error) {
+          this.pending--;
+          throw error;
+        }
         this.enqueue(next, recovery);
         return this.get(id);
       });
@@ -208,10 +253,13 @@ export class GenerationService {
             .filter((key): key is string => !!key)
             .reduce((s, key) => s.split(key).join('[redacted]'), message);
           await phase(this.controller.signal.aborted ? 'interrupted' : 'failed', safe);
+        } finally {
+          this.pending--;
         }
       });
   }
   async close() {
+    this.closed = true;
     this.controller.abort();
     await this.writes.catch(() => {});
     await this.work.catch(() => {});

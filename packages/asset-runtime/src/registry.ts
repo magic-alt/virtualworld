@@ -222,7 +222,11 @@ export class AssetRegistry {
     }
     instance.traverse((child) => {
       child.userData.nodeId = node.id;
-      if (child instanceof THREE.Mesh) {
+      if (
+        child instanceof THREE.Mesh ||
+        child instanceof THREE.Line ||
+        child instanceof THREE.Points
+      ) {
         child.geometry = child.geometry.clone();
         const mats = (Array.isArray(child.material) ? child.material : [child.material]).map(
           (m) => {

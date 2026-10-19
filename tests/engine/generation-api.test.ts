@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { createServer } from 'node:http';
 import { builtinPlan } from '@virtualworld/planner/world';
 import { mkdtemp, rm, readFile, mkdir, writeFile } from 'node:fs/promises';
@@ -27,6 +28,27 @@ const input = {
   planner: 'builtin',
   assets: 'builtin',
 };
+it('keeps retained generation schema failures internal rather than marking them request errors', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'vw-generation-invalid-retained-'));
+  cleanup.push(() => rm(root, { recursive: true, force: true }));
+  const directory = join(root, 'data/generations');
+  await mkdir(directory, { recursive: true });
+  await writeFile(
+    join(directory, `${input.requestId}.json`),
+    JSON.stringify({
+      version: 1,
+      id: input.requestId,
+      worldId: `world-${input.requestId}`,
+      input: { ...input, planner: 'invalid-retained-planner' },
+      phase: 'failed',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+  );
+  await expect(
+    createApp({ dataRoot: join(root, 'data'), projectRoot: root }),
+  ).rejects.toBeInstanceOf(z.ZodError);
+});
 it('publishes an offline generated world and deduplicates concurrent requests durably', async () => {
   const { app, root } = await setup();
   const responses = await Promise.all(

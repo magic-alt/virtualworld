@@ -1,0 +1,24 @@
+{
+	admin off
+	http_port 8080
+	https_port 8443
+}
+
+{$VW_PUBLIC_ORIGIN} {
+	# Every application, API, asset and health URL requires edge authentication.
+	basic_auth {
+		{$VW_AUTH_USER} {$VW_AUTH_HASH}
+		# Add further independent accounts here: username bcrypt_hash
+	}
+
+	encode zstd gzip
+	reverse_proxy studio:3001 {
+		# Set, never append, the gateway credential; it is never sent to browsers.
+		header_up X-Virtualworld-Gateway {$VW_GATEWAY_SECRET}
+		header_up -Authorization
+		header_up -X-Forwarded-User
+		header_up -X-Auth-Request-User
+		header_up -Remote-User
+		# Preserve the incoming public Host. The app ignores forwarded identities.
+	}
+}
