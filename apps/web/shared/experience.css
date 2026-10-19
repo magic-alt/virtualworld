@@ -55,6 +55,49 @@
   outline: 2px solid #dfd2b1;
   outline-offset: 3px;
 }
+.experience-hotspots {
+  position: absolute;
+  inset: 0;
+}
+.experience-controls .experience-hotspot {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  max-width: 210px;
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  background: #18251fec;
+  border-color: #f0ddb480;
+  pointer-events: auto;
+  box-shadow: 0 4px 16px #0005;
+}
+.experience-controls .experience-hotspot[data-status='locked'] {
+  border-style: dashed;
+  color: #d2c9b7;
+}
+.experience-controls .experience-hotspot[data-status='completed'] {
+  border-color: #a9cf8c70;
+  color: #c6e4ac;
+}
+.experience-controls .experience-hotspot:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.experience-controls .experience-guidance {
+  position: absolute;
+  bottom: 87px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  margin: 0;
+  padding: 7px 13px;
+  border-radius: 12px;
+  background: #17201ee8;
+  color: #f1e7d2;
+  text-align: center;
+  font-size: 12px;
+}
 .experience-dock {
   position: absolute;
   bottom: 25px;
@@ -166,6 +209,9 @@
 @media (pointer: coarse) {
   .experience-touch {
     display: block;
+  }
+  .experience-controls .experience-guidance {
+    bottom: 225px;
   }
 }
 @media (max-width: 640px) {

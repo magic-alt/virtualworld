@@ -107,7 +107,7 @@
 }
 .joint-panel .joint-readings {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 .joint-panel .joint-reading {
@@ -169,7 +169,7 @@
     left: 12px;
     right: 12px;
     width: auto;
-    max-height: 38dvh;
+    max-height: 44dvh;
     border-radius: 14px;
   }
   .joint-panel > summary {
@@ -179,25 +179,64 @@
     padding: 0 16px 16px;
   }
   .joint-panel button {
-    min-height: 40px;
+    min-height: 44px;
   }
   .joint-panel .joint-subsystem button {
-    min-height: 36px;
+    min-height: 44px;
   }
   .joint-panel input[type='checkbox'] {
     width: 18px;
     height: 18px;
   }
   .joint-panel .joint-readings {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .joint-panel .joint-reading {
     padding: 6px;
   }
   .joint-panel .joint-reading span {
-    font-size: 9px;
+    font-size: 11px;
   }
   .joint-panel .joint-reading output {
     font-size: 12px;
+  }
+}
+
+.joint-panel .joint-heading {
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+.joint-panel .joint-selection {
+  margin: 0;
+  color: #d4c49e;
+}
+.joint-panel .joint-reading output {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.joint-panel .joint-subsystem {
+  flex-wrap: wrap;
+}
+.joint-panel .joint-subsystem label {
+  min-width: 160px;
+}
+.joint-panel .joint-subsystem-state {
+  color: #9cacae;
+  font-size: 10px;
+}
+.joint-panel--editor {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: min(296px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+}
+@media (max-width: 700px) {
+  .joint-panel--editor {
+    top: auto;
+    bottom: 12px;
+    left: 12px;
+    width: auto;
+    max-height: 44%;
   }
 }

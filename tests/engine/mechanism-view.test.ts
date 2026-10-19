@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { StudioRuntime } from '@virtualworld/engine';
@@ -39,6 +39,18 @@ function fixture() {
   Object.assign(runtime, {
     spec,
     objects: new Map(),
+    world: new THREE.Scene(),
+    mode: 'edit',
+    callbacks: { onSelect: vi.fn() },
+    transform: {
+      object: undefined as THREE.Object3D | undefined,
+      attach(object: THREE.Object3D) {
+        this.object = object;
+      },
+      detach() {
+        this.object = undefined;
+      },
+    },
     camera,
     controls: new OrbitControls(camera, null),
     container: { getBoundingClientRect: () => ({ width: 390, height: 844 }) },
@@ -51,6 +63,7 @@ function fixture() {
     hiddenSubsystems: new Set(),
     section: false,
     explosion: 0,
+    mechanismInsets: { top: 0, bottom: 0, left: 0, right: 0 },
   });
   for (const n of spec.nodes) {
     const mesh = new THREE.Mesh(
@@ -151,4 +164,94 @@ it('frames vertical authored defaults with a finite nonparallel up basis and asy
     expect(r.controls.target.z).toBeLessThan(0);
     expect(r.camera.position.toArray().every(Number.isFinite)).toBe(true);
   }
+});
+
+it('preserves an arbitrary orbit direction and up vector when reframing without a named view', () => {
+  const r = fixture();
+  r.fitMechanismView('top');
+  (r.controls as any)._rotateLeft(0.7);
+  (r.controls as any)._rotateUp(0.4);
+  r.controls.update();
+  const direction = r.camera.position.clone().sub(r.controls.target).normalize();
+  const up = r.camera.up.clone();
+  r.explode(0.5);
+  r.fitMechanismView();
+  expect(
+    r.camera.position.clone().sub(r.controls.target).normalize().distanceTo(direction),
+  ).toBeLessThan(1e-6);
+  expect(r.camera.up.distanceTo(up)).toBeLessThan(1e-6);
+  r.fitMechanismView('front');
+  expect(r.camera.position.clone().sub(r.controls.target).normalize().z).toBeLessThan(-0.99);
+});
+
+it('rejects unavailable brake inspection and exits isolation when the brake is removed', () => {
+  const r = fixture();
+  const saved = JSON.stringify(r.spec);
+  r.isolateSubsystem('brake');
+  r.selectSubsystem('brake');
+  r.setBrakeInstalled(false);
+  expect(r.getMechanismState()?.isolatedSubsystem).toBeUndefined();
+  expect(r.getMechanismState()?.selectedSubsystem).toBeUndefined();
+  expect(r.objects.get('wave')!.visible).toBe(true);
+  r.isolateSubsystem('brake');
+  r.selectSubsystem('brake');
+  const camera = r.camera.position.clone();
+  r.focusSubsystem('brake');
+  expect(r.getMechanismState()?.isolatedSubsystem).toBeUndefined();
+  expect(r.getMechanismState()?.selectedSubsystem).toBeUndefined();
+  expect(r.camera.position.equals(camera)).toBe(true);
+  expect(JSON.stringify(r.spec)).toBe(saved);
+});
+
+it('focuses selected visible subsystem geometry inside the viewport safe area without changing visibility', () => {
+  const r = fixture();
+  r.objects.get('brake')!.position.x = 1;
+  r.setMechanismViewportInsets({ top: 120, bottom: 290, left: 16, right: 16 });
+  r.fitMechanismView('front');
+  const distance = r.camera.position.distanceTo(r.controls.target);
+  r.selectSubsystem('brake');
+  r.focusSubsystem();
+  expect(r.getMechanismState()?.selectedSubsystem).toBe('brake');
+  expect(r.objects.get('wave')!.visible).toBe(true);
+  expect(r.camera.position.distanceTo(r.controls.target)).toBeLessThan(distance);
+  r.camera.updateMatrixWorld(true);
+  const point = new THREE.Vector3(1, 0, 0).project(r.camera);
+  expect((1 - point.y) * 422).toBeGreaterThan(120);
+  expect((1 - point.y) * 422).toBeLessThan(554);
+  r.setSubsystemVisible('brake', false);
+  expect(r.getMechanismState()?.selectedSubsystem).toBeUndefined();
+});
+
+it('clears a prior tree selection and transform handles when selecting an inspection subsystem', () => {
+  const r = fixture();
+  const saved = JSON.stringify(r.spec);
+  r.select('full');
+  const selector = r.world.children.find((object) => object instanceof THREE.BoxHelper);
+  expect(selector).toBeDefined();
+  expect(r.transform.object).toBe(r.objects.get('full'));
+  r.selectSubsystem('housing');
+  expect(r.transform.object).toBeUndefined();
+  expect(r.world.children).not.toContain(selector);
+  expect((r as any).selectedId).toBeUndefined();
+  expect((r as any).callbacks.onSelect).toHaveBeenCalledExactlyOnceWith(undefined);
+  expect(r.getMechanismState()?.selectedSubsystem).toBe('housing');
+  expect(JSON.stringify(r.spec)).toBe(saved);
+});
+
+it('keeps existing edit selection untouched when inspection requests an invalid or uninstalled subsystem', () => {
+  const r = fixture();
+  const saved = JSON.stringify(r.spec);
+  r.select('full');
+  const selector = r.world.children.find((object) => object instanceof THREE.BoxHelper);
+  r.selectSubsystem('not-a-subsystem');
+  expect(r.transform.object).toBe(r.objects.get('full'));
+  expect(r.world.children).toContain(selector);
+  r.setBrakeInstalled(false);
+  r.selectSubsystem('brake');
+  expect(r.transform.object).toBe(r.objects.get('full'));
+  expect(r.world.children).toContain(selector);
+  expect((r as any).selectedId).toBe('full');
+  expect((r as any).callbacks.onSelect).not.toHaveBeenCalled();
+  expect(r.getMechanismState()?.selectedSubsystem).toBeUndefined();
+  expect(JSON.stringify(r.spec)).toBe(saved);
 });

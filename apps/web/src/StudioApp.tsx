@@ -1,3 +1,4 @@
+import { mountMechanismControls } from '../shared/mechanism-controls';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Orbit,
@@ -105,6 +106,14 @@ export default function StudioApp({
   const [scene, setScene] = useState<SceneSpec>(() => emptyScene()),
     history = useRef(new SceneHistory(scene)),
     runtime = useRef<StudioRuntime | null>(null);
+  const [mechanismRuntime, setMechanismRuntime] = useState<StudioRuntime | null>(null);
+  const mechanismHost = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!mechanismRuntime || !scene.mechanism || !mechanismHost.current) return;
+    const panel = mountMechanismControls(mechanismRuntime, { embedded: true });
+    mechanismHost.current.append(panel.element);
+    return () => panel.dispose();
+  }, [mechanismRuntime, scene.mechanism]);
   const scope = useRef(new ProjectScope(scene.id)),
     projectRequest = useRef(0),
     focusAfterLoad = useRef<string | undefined>(undefined);
@@ -132,8 +141,6 @@ export default function StudioApp({
   const [playing, setPlaying] = useState(false),
     [explosion, setExplosion] = useState(0),
     [moving, setMoving] = useState(false),
-    [section, setSection] = useState(false),
-    [inputRpm, setInputRpm] = useState(6),
     [tool, setTool] = useState<'translate' | 'rotate' | 'scale'>('translate'),
     [isolated, setIsolated] = useState(false);
   const [metrics, setMetrics] = useState<RuntimeMetrics>(),
@@ -278,8 +285,6 @@ export default function StudioApp({
     setSelected(next.nodes.find((n) => n.id === 'housing')?.id);
     setPlaying(false);
     setMoving(false);
-    setSection(false);
-    setInputRpm(6);
     setExplosion(0);
     setIsolated(false);
     setProposal(null);
@@ -381,17 +386,11 @@ export default function StudioApp({
     runtime.current?.select(selected);
   }
   useEffect(() => {
-    runtime.current?.explode(explosion);
-  }, [explosion]);
+    if (!scene.mechanism) runtime.current?.explode(explosion);
+  }, [explosion, !!scene.mechanism]);
   useEffect(() => {
-    runtime.current?.animateJoints(moving);
-  }, [moving]);
-  useEffect(() => {
-    runtime.current?.setSection(section);
-  }, [section]);
-  useEffect(() => {
-    runtime.current?.setTransmissionSpeed(inputRpm);
-  }, [inputRpm]);
+    if (!scene.mechanism) runtime.current?.animateJoints(moving);
+  }, [moving, !!scene.mechanism]);
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
       const editing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(
@@ -939,36 +938,7 @@ export default function StudioApp({
               )}
             </div>
             <div className="stage-toolbar-right">
-              {scene.mechanism && (
-                <>
-                  <button
-                    className={`motion-button ${section ? 'on' : ''}`}
-                    aria-pressed={section}
-                    onClick={() => setSection(!section)}
-                  >
-                    剖视
-                  </button>
-                  <label className="transmission-speed">
-                    输入{' '}
-                    <input
-                      aria-label="输入转速"
-                      type="range"
-                      min="0"
-                      max="30"
-                      step="1"
-                      value={inputRpm}
-                      onChange={(e) => setInputRpm(Number(e.target.value))}
-                    />
-                    {inputRpm} rpm
-                  </label>
-                  <span title="固定刚轮，波发生器输入，柔轮输出">
-                    −1:
-                    {scene.mechanism.flexTeeth /
-                      (scene.mechanism.ringTeeth - scene.mechanism.flexTeeth)}
-                  </span>
-                </>
-              )}
-              {scene.mode === 'industrial' && !playing && (
+              {scene.mode === 'industrial' && !scene.mechanism && !playing && (
                 <>
                   <span className="explode-label">展开</span>
                   <input
@@ -1039,17 +1009,17 @@ export default function StudioApp({
             </div>
           </div>
           <div className="viewport-shell">
+            <div ref={mechanismHost} />
             <Viewport
               scene={scene}
               selected={selected}
               onRuntime={(r) => {
                 runtime.current = r;
+                setMechanismRuntime(r);
               }}
               callbacks={{
                 onSelect: setSelected,
                 onReady: () => {
-                  runtime.current?.setSection(section);
-                  runtime.current?.setTransmissionSpeed(inputRpm);
                   if (resumeAfterLoad.current === scene.id) {
                     resumeAfterLoad.current = undefined;
                     void startPlay();
@@ -1236,22 +1206,26 @@ export default function StudioApp({
                   ) : (
                     <>
                       <span>自由旋转 · 点击零件查看说明</span>
-                      <button onClick={() => setMoving(!moving)}>
-                        <Play size={12} />
-                        运动演示
-                      </button>
-                      <label>
-                        爆炸图
-                        <input
-                          aria-label="体验爆炸展开"
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={explosion}
-                          onChange={(e) => setExplosion(Number(e.target.value))}
-                        />
-                      </label>
+                      {!scene.mechanism && (
+                        <>
+                          <button onClick={() => setMoving(!moving)}>
+                            <Play size={12} />
+                            运动演示
+                          </button>
+                          <label>
+                            爆炸图
+                            <input
+                              aria-label="体验爆炸展开"
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.01"
+                              value={explosion}
+                              onChange={(e) => setExplosion(Number(e.target.value))}
+                            />
+                          </label>
+                        </>
+                      )}
                     </>
                   )}
                 </div>

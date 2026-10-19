@@ -307,7 +307,11 @@ try {
     nodes: window.virtualworld.spec.nodes.length,
     assets: window.virtualworld.spec.assets.length,
   }));
-  await page.getByRole('status').getByRole('button', { name: '关闭通知', exact: true }).click();
+  // The first toast may expire while CAD checks run; await its removal before the next import.
+  await page
+    .getByRole('status')
+    .filter({ hasText: '已导入 cube-mm.step' })
+    .waitFor({ state: 'hidden', timeout: 15000 });
   await page
     .getByLabel('导入模型文件', { exact: true })
     .setInputFiles('public/fixtures/cube-mm.step');
@@ -368,19 +372,68 @@ try {
     const from = position[axis];
     if (Math.abs(from - target) < 0.15) return;
     const increasing = target > from;
-    const key = axis === 0 ? (increasing ? 'd' : 'a') : increasing ? 's' : 'w';
-    await targetPage.keyboard.down(key);
-    try {
-      await targetPage.waitForFunction(
-        ({ axis, target, increasing }) => {
-          const p = window.virtualworld.getDiagnostics().player;
-          return p && (increasing ? p[axis] >= target : p[axis] <= target);
+    const deadline = Date.now() + 20000;
+    const destination = [...position];
+    destination[axis] = target;
+    while (true) {
+      const direction = await targetPage.evaluate(
+        ({ axis, target, increasing, destination }) => {
+          const runtime = window.virtualworld;
+          const player = runtime.getDiagnostics().player;
+          // Keep the entry tolerance: keyboard quantization can approach without crossing.
+          if (
+            Math.abs(player[axis] - target) < 0.15 ||
+            (increasing ? player[axis] >= target : player[axis] <= target)
+          )
+            return { reached: true };
+          const forward = runtime.camera.getWorldDirection(runtime.camera.position.clone());
+          forward.y = 0;
+          if (forward.lengthSq() < 1e-8) forward.set(1, 0, 0);
+          forward.normalize();
+          const right = forward.clone().set(-forward.z, 0, forward.x);
+          const desired = forward
+            .clone()
+            .fromArray(destination)
+            .sub(forward.clone().fromArray(player));
+          desired.y = 0;
+          desired.normalize();
+          return {
+            reached: false,
+            player,
+            forward: desired.dot(forward),
+            right: desired.dot(right),
+          };
         },
-        { axis, target, increasing },
-        { timeout: 20000, polling: 50 },
+        { axis, target, increasing, destination },
       );
-    } finally {
-      await targetPage.keyboard.up(key);
+      if (direction.reached) return;
+      assert.ok(Date.now() < deadline, `Timed out moving axis ${axis} from ${from} to ${target}`);
+      // Choose the nearest keyboard direction to the world-space destination.
+      // Re-evaluate after actual travel so diagonal key quantization does not drift off the route.
+      const keys = [];
+      const threshold = Math.sin(Math.PI / 8);
+      if (direction.forward > threshold) keys.push('w');
+      if (direction.forward < -threshold) keys.push('s');
+      if (direction.right > threshold) keys.push('d');
+      if (direction.right < -threshold) keys.push('a');
+      for (const key of keys) await targetPage.keyboard.down(key);
+      try {
+        await targetPage.waitForFunction(
+          ({ axis, target, increasing, start }) => {
+            const player = window.virtualworld.getDiagnostics().player;
+            return (
+              player &&
+              (Math.abs(player[axis] - target) < 0.15 ||
+                (increasing ? player[axis] >= target : player[axis] <= target) ||
+                Math.hypot(player[0] - start[0], player[2] - start[2]) >= 0.18)
+            );
+          },
+          { axis, target, increasing, start: direction.player },
+          { timeout: Math.max(1, deadline - Date.now()), polling: 'raf' },
+        );
+      } finally {
+        for (const key of keys) await targetPage.keyboard.up(key);
+      }
     }
   }
   async function interact(x, z, title) {

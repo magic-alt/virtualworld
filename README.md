@@ -34,6 +34,14 @@ docs/
 
 包之间使用公开 workspace 入口；这些目录都有实际调用代码。完整职责与缓存/数据协议见 [架构说明](docs/architecture.md)。
 
+## 当前技术路线
+
+继续使用锁文件固定的 React 19、Three.js 0.180、Rapier 与 Spark，保留同一个 SceneSpec 和编辑器／播放器运行时。本轮改善首页加载边界、共享展示交互和静态交付，不替换引擎或修改模型。
+
+首页先显示海报，在预览可见且浏览器空闲后启动实时 3D；世界体验与高级编辑分别按需加载。Rapier 的探索时加载和 Spark 的点云场景加载是已有能力，本轮继续保留。大模型文件采用流式响应与条件请求；同名更新的 GLB 必须重新验证，只有带内容散列的构建脚本／样式长期缓存。
+
+本轮生产构建的初始 JavaScript 静态闭包从 984,629 降至 271,283 bytes；同参数 gzip 估计从 268,214 降至 81,821 bytes。后续预览和体验运行代码按需下载，这些数字不代表整个世界的总资源或首屏耗时。测量口径和下一阶段的 renderer 保留／增量场景更新边界见 [架构说明](docs/architecture.md#技术路线与阶段边界)。
+
 ## 从描述生成世界
 
 网页首页可直接提交描述、查看实际任务阶段，并在完成后进入世界。配置 LLM 后支持 PNG/JPEG 参考图；无密钥时明确使用不调用模型的「程序化体验」。默认使用内置资产，Tripo 需要显式选择并勾选可能收费的确认。
@@ -82,9 +90,9 @@ npm run asset:optimize -- --input ./model.glb --output ./output/model.glb --blen
 
 ## Blender 案例
 
-首页将 **小王子三章** 作为一段旅程展示，进入后继续已保存的章节；依次体验沙漠相遇、B-612 回忆、地球玫瑰园与狐狸。按章完成互动后解锁下一章；章节独立保存，支持继续和重置全部旅程。B-612 使用径向重力和球面相机。金发角色、飞行员和狐狸由本地 Blender 制作，动画与纹理均包含在 GLB 中。**H-100 谐波关节** 保留为交互展示案例。
+首页将 **小王子三章** 作为一段旅程展示，进入后继续已保存的章节；依次体验沙漠相遇、B-612 回忆、地球玫瑰园与狐狸。场景中提供可点击的互动热点、距离提示和任务状态；E／附近互动优先处理可用且未完成的任务。按章完成互动后解锁下一章，最终章显示旅程完成；章节独立保存，支持继续和重置全部旅程。B-612 使用径向重力和球面相机。金发角色、飞行员和狐狸由本地 Blender 制作，动画与纹理均包含在 GLB 中。**H-100 谐波关节** 保留为交互展示案例。
 
-H-100 支持选件、装配/爆炸、剖视和输入转速演示。200/202 齿对应输出角速度为输入的 −1/100；底座/壳体直径 215/180 mm，总高 165 mm，通孔 20 mm。它是可验证名义几何的工程教学样件，齿形、变形和轴承滚道有简化，不是制造 CAD 或载荷/寿命证明。
+H-100 支持选件、装配/爆炸、剖视和输入转速演示；可点击可见部件或使用面板选择，查看说明、聚焦或隔离。展开和重新构图保留当前观察方向，移除可选制动器时退出其隔离状态。体验、导出播放器和高级编辑使用同一组展示控件；在高级编辑中观察有效部件时，会清除普通编辑选中和变换手柄，场景树与属性面板同步回到未选中状态。200/202 齿对应输出角速度为输入的 −1/100；底座/壳体直径 215/180 mm，总高 165 mm，通孔 20 mm。它是可验证名义几何的工程教学样件，齿形、变形和轴承滚道有简化，不是制造 CAD 或载荷/寿命证明。
 
 已提交可直接运行的 GLB、JSON 和生成记录。重建需要 Blender 5.2.2 LTS，可指定安装路径：
 
@@ -120,11 +128,13 @@ npm run build
 npm run world:validate
 npm run test:browser
 npm run test:showcases
+npm run test:runtime-quality
+npm run test:prince
 npm run demos:validate
 npm run format:check
 npm audit
 ```
 
-浏览器检查使用本机 Edge/Chrome；可设置 `PLAYWRIGHT_EXECUTABLE_PATH`，或安装 Playwright Chromium。脚本用临时数据与 3133–3136 端口，产物在 `output/playwright/`。
+浏览器检查使用本机 Edge/Chrome；可设置 `PLAYWRIGHT_EXECUTABLE_PATH`，或安装 Playwright Chromium。脚本使用临时数据及各自的本地端口；运行时质量检查使用 3144，小王子应用／独立导出检查使用 3145／3146，产物在 `output/playwright/`。
 
-实际测试与未执行范围见 [验证报告](docs/validation.md)和[Blender 案例验收](docs/blender-showcases.md)。目前不包含多人协作、计费或云生成队列。第三方来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+`test:runtime-quality` 检查海报／懒加载边界和暂停／运行中的即时截图；`test:prince` 检查小王子应用体验与子目录独立导出。当前执行结果与未执行范围见 [运行时与体验验证](docs/validation-runtime-experience.md)、[早期验证报告](docs/validation.md)和[Blender 案例验收](docs/blender-showcases.md)。目前不包含多人协作、计费或云生成队列。第三方来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

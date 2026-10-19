@@ -6,6 +6,7 @@ export type MechanismViewState = MechanismState & {
   explosion: number;
   hiddenSubsystems: string[];
   isolatedSubsystem?: string;
+  selectedSubsystem?: string;
 };
 import { updateOrbitControls } from './sphere-camera';
 import { sphereOccludes } from '@virtualworld/interaction';
@@ -13,14 +14,20 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { AssetRegistry, disposeObject } from '@virtualworld/asset-runtime';
 import type { SceneSpec, SceneNode, Vector3Tuple } from '@virtualworld/scene-schema';
-import { advanceStory, initialStory, SaveSystem, type StoryState } from '@virtualworld/interaction';
+import {
+  advanceStory,
+  initialStory,
+  interactionStatus,
+  SaveSystem,
+  type StoryState,
+} from '@virtualworld/interaction';
 import { primitive } from './geometry';
 import type { CharacterController } from '@virtualworld/interaction/character';
 import { captureTransform } from './transforms';
 export type PresentationMode = 'view' | 'explore' | 'edit';
 export type RenderQuality = 'low' | 'balanced' | 'high';
 export type RuntimeCallbacks = {
-  onSelect?: (id: string) => void;
+  onSelect?: (id?: string) => void;
   onTransform?: (id: string, patch: Partial<SceneNode>) => void;
   onStory?: (state: StoryState, node?: SceneNode) => void;
   onMetrics?: (metrics: RuntimeMetrics) => void;
@@ -91,6 +98,7 @@ export class StudioRuntime {
   private mechanismListeners = new Set<(state: MechanismViewState) => void>();
   private hiddenSubsystems = new Set<string>();
   private isolatedSubsystem?: string;
+  private selectedSubsystem?: string;
   private mechanismView: 'default' | 'front' | 'side' | 'top' | 'bottom' = 'default';
   private mechanismInsets = { top: 100, bottom: 80, left: 20, right: 20 };
   private isolatedId?: string;
@@ -123,7 +131,7 @@ export class StudioRuntime {
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: false,
-      preserveDrawingBuffer: true,
+      preserveDrawingBuffer: false,
     });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -176,7 +184,7 @@ export class StudioRuntime {
     this.renderer.setSize(Math.max(1, width), Math.max(1, height));
     this.camera.aspect = Math.max(1, width) / Math.max(1, height);
     this.camera.updateProjectionMatrix();
-    if (this.spec.mechanism && !this.metrics.loading) this.fitMechanismView(this.mechanismView);
+    if (this.spec.mechanism && !this.metrics.loading) this.fitMechanismView();
   }
   async setMode(mode: PresentationMode) {
     const from = this.camera.position.clone(),
@@ -259,6 +267,7 @@ export class StudioRuntime {
     this.mechanismController?.dispose();
     this.hiddenSubsystems.clear();
     this.isolatedSubsystem = undefined;
+    this.selectedSubsystem = undefined;
     this.explosion = 0;
     this.inputRpm = 6;
     this.mechanismController = spec.mechanism
@@ -448,6 +457,7 @@ export class StudioRuntime {
       sun.shadow.camera.updateProjectionMatrix();
     }
     this.metrics.loading = false;
+    if (spec.mechanism) this.fitMechanismView(preserveView ? undefined : 'default');
     this.select(this.selectedId);
     this.callbacks.onReady?.();
   }
@@ -640,10 +650,17 @@ export class StudioRuntime {
     this.callbacks.onStory?.(this.story, target);
   }
   nearest() {
-    return this.spec.nodes
-      .filter((n) => n.interaction && n.visible)
-      .sort((a, b) => this.nodeDistance(a.id) - this.nodeDistance(b.id))
-      .find((n) => this.nodeDistance(n.id) < 2.6);
+    const nearby = this.spec.nodes
+      .filter((node) => {
+        const object = this.objects.get(node.id);
+        return node.interaction && node.visible && object && this.objectVisible(object);
+      })
+      .map((node) => ({ node, distance: this.nodeDistance(node.id) }))
+      .filter(({ distance }) => distance < 2.6)
+      .sort((a, b) => a.distance - b.distance);
+    return (
+      nearby.find(({ node }) => interactionStatus(node, this.story) === 'available') ?? nearby[0]
+    )?.node;
   }
   private nodeDistance(id: string) {
     const o = this.objects.get(id);
@@ -744,6 +761,7 @@ export class StudioRuntime {
     return true;
   }
   screenshot() {
+    this.renderer.render(this.world, this.camera);
     return this.renderer.domElement.toDataURL('image/png');
   }
   private frame = (now: number) => {
@@ -820,7 +838,7 @@ export class StudioRuntime {
   };
   private pointerUp = (event: PointerEvent) => {
     if (
-      this.mode === 'view' ||
+      (this.mode === 'view' && !this.spec.mechanism) ||
       this.paused ||
       !this.dragStart ||
       this.dragStart.distanceTo(new THREE.Vector2(event.clientX, event.clientY)) > 5 ||
@@ -841,6 +859,12 @@ export class StudioRuntime {
       )
       .find((h) => h.object.userData.nodeId && this.objectVisible(h.object));
     const id = hit?.object.userData.nodeId as string | undefined;
+    if (this.spec.mechanism) {
+      this.selectSubsystem(
+        this.spec.mechanism.subsystems?.find((s) => s.nodeIds.includes(id ?? ''))?.id,
+      );
+      return;
+    }
     if (!id) return;
     if (this.playing) this.interact(id);
     else {
@@ -899,6 +923,7 @@ export class StudioRuntime {
           explosion: this.explosion,
           hiddenSubsystems: [...this.hiddenSubsystems],
           isolatedSubsystem: this.isolatedSubsystem,
+          selectedSubsystem: this.selectedSubsystem,
         }
       : undefined;
   }
@@ -922,6 +947,11 @@ export class StudioRuntime {
   }
   setBrakeInstalled(installed: boolean) {
     this.mechanismController?.setBrakeInstalled(installed);
+    if (!installed) {
+      const brake = this.spec.mechanism?.subsystems?.find((s) => s.optional === 'brake');
+      if (brake?.id === this.isolatedSubsystem) this.isolatedSubsystem = undefined;
+      if (brake?.id === this.selectedSubsystem) this.selectedSubsystem = undefined;
+    }
     this.isolate(this.isolatedId);
     this.notifyMechanism();
   }
@@ -931,28 +961,83 @@ export class StudioRuntime {
   setSubsystemVisible(id: string, visible: boolean) {
     if (!this.spec.mechanism?.subsystems?.some((s) => s.id === id)) return;
     if (visible) this.hiddenSubsystems.delete(id);
-    else this.hiddenSubsystems.add(id);
+    else {
+      this.hiddenSubsystems.add(id);
+      if (this.selectedSubsystem === id) this.selectedSubsystem = undefined;
+      if (this.isolatedSubsystem === id) this.isolatedSubsystem = undefined;
+    }
     this.isolate(this.isolatedId);
     this.notifyMechanism();
   }
   isolateSubsystem(id?: string) {
-    if (id && !this.spec.mechanism?.subsystems?.some((s) => s.id === id)) return;
+    if (id && !this.subsystemAvailable(id)) return;
     this.isolatedSubsystem = id;
-    if (id) this.hiddenSubsystems.delete(id);
+    if (id) {
+      this.hiddenSubsystems.delete(id);
+      this.selectedSubsystem = id;
+    }
     this.isolate(this.isolatedId);
     this.notifyMechanism();
+  }
+  private subsystemAvailable(id: string) {
+    const subsystem = this.spec.mechanism?.subsystems?.find((s) => s.id === id);
+    return (
+      !!subsystem &&
+      (subsystem.optional !== 'brake' || !!this.mechanismController?.snapshot().brakeInstalled)
+    );
+  }
+  selectSubsystem(id?: string) {
+    if (
+      id &&
+      (!this.subsystemAvailable(id) ||
+        !this.spec.mechanism?.subsystems
+          ?.find((s) => s.id === id)
+          ?.nodeIds.some((nodeId) => {
+            const object = this.objects.get(nodeId);
+            return object && this.objectVisible(object);
+          }))
+    )
+      return;
+    this.select();
+    this.callbacks.onSelect?.(undefined);
+    this.selectedSubsystem = id;
+    this.notifyMechanism();
+  }
+  focusSubsystem(id = this.selectedSubsystem) {
+    if (!id || !this.subsystemAvailable(id)) return;
+    const subsystem = this.spec.mechanism?.subsystems?.find((s) => s.id === id);
+    if (
+      !subsystem?.nodeIds.some((nodeId) => {
+        const object = this.objects.get(nodeId);
+        return object && this.objectVisible(object);
+      })
+    )
+      return;
+    this.selectSubsystem(id);
+    this.frameMechanism(undefined, id);
   }
   setMechanismViewportInsets(insets: { top: number; bottom: number; left: number; right: number }) {
     if (Object.values(insets).every((v) => Number.isFinite(v) && v >= 0))
       this.mechanismInsets = { ...insets };
   }
-  fitMechanismView(
-    view: 'default' | 'front' | 'side' | 'top' | 'bottom' = this.mechanismView ?? 'default',
+  fitMechanismView(view?: 'default' | 'front' | 'side' | 'top' | 'bottom') {
+    this.frameMechanism(view);
+  }
+  private frameMechanism(
+    view?: 'default' | 'front' | 'side' | 'top' | 'bottom',
+    subsystemId?: string,
   ) {
-    this.mechanismView = view;
+    if (view) this.mechanismView = view;
+    const nodeIds = subsystemId
+      ? this.spec.mechanism?.subsystems?.find((s) => s.id === subsystemId)?.nodeIds
+      : undefined;
     const bounds = new THREE.Box3();
     for (const [id, object] of this.objects) {
-      if (this.spec.nodes.find((n) => n.id === id)?.kind !== 'mesh' || !this.objectVisible(object))
+      if (
+        (nodeIds && !nodeIds.includes(id)) ||
+        this.spec.nodes.find((n) => n.id === id)?.kind !== 'mesh' ||
+        !this.objectVisible(object)
+      )
         continue;
       object.updateWorldMatrix(true, true);
       object.traverseVisible((child) => {
@@ -974,24 +1059,31 @@ export class StudioRuntime {
     const halfAngle = Math.atan(Math.min((tan * usableH) / h, (((tan * w) / h) * usableW) / w));
     const radius = Math.max(0.001, bounds.getSize(new THREE.Vector3()).length() / 2);
     const distance = (radius * 1.12) / Math.sin(halfAngle);
-    const direction = new THREE.Vector3(
-      ...({
-        default: [1, 0.65, -1],
-        front: [0, 0, -1],
-        side: [1, 0, 0],
-        top: [0, 1, 0],
-        bottom: [0, -1, 0],
-      }[view] as [number, number, number]),
-    ).normalize();
+    const direction = view
+      ? new THREE.Vector3(
+          ...({
+            default: [1, 0.65, -1],
+            front: [0, 0, -1],
+            side: [1, 0, 0],
+            top: [0, 1, 0],
+            bottom: [0, -1, 0],
+          }[view] as [number, number, number]),
+        ).normalize()
+      : this.camera.position.clone().sub(this.controls.target).normalize();
+    if (direction.lengthSq() < 1e-12) direction.set(1, 0.65, -1).normalize();
     if (view === 'default') {
       const authored = new THREE.Vector3(...this.spec.camera.position).sub(
         new THREE.Vector3(...this.spec.camera.target),
       );
       if (authored.lengthSq() > 1e-12) direction.copy(authored.normalize());
     }
-    const up = new THREE.Vector3(
-      ...((Math.abs(direction.y) > 0.999 ? [0, 0, 1] : [0, 1, 0]) as [number, number, number]),
-    );
+    const up = !view
+      ? this.camera.up.clone()
+      : new THREE.Vector3(
+          ...((Math.abs(direction.y) > 0.999 ? [0, 0, 1] : [0, 1, 0]) as [number, number, number]),
+        );
+    if (Math.abs(up.dot(direction)) > 0.999) up.set(0, 0, 1);
+    if (Math.abs(up.dot(direction)) > 0.999) up.set(0, 1, 0);
     const right = up.clone().cross(direction).normalize();
     const actualUp = direction.clone().cross(right).normalize();
     const target = bounds.getCenter(new THREE.Vector3());
@@ -1015,6 +1107,7 @@ export class StudioRuntime {
   resetMechanismPresentation() {
     this.hiddenSubsystems.clear();
     this.isolatedSubsystem = undefined;
+    this.selectedSubsystem = undefined;
     this.isolatedId = undefined;
     this.mechanismController?.setBrakeInstalled(true);
     this.mechanismController?.setSpeed(6);

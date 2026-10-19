@@ -120,7 +120,7 @@
       "id": "sunset",
       "name": "安静地看日落",
       "kind": "group",
-      "position": [2, 5.9, 1],
+      "position": [1.9, 5.9, -1.2],
       "rotation": [0, 0, 0],
       "scale": [1, 1, 1],
       "size": [1, 1, 1],
