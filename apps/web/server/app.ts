@@ -303,7 +303,10 @@ export async function createApp(
     reply.raw.on('close', abort);
     try {
       checkConnected();
-      const { scene } = parseRequest(z.object({ scene: SceneSchema }), req.body);
+      const { scene, target } = parseRequest(
+        z.object({ scene: SceneSchema, target: z.enum(['web', 'unity', 'godot']).optional() }),
+        req.body,
+      );
       assertInputScene(scene);
       const zip = await exports.run(async () => {
         checkConnected();
@@ -312,6 +315,7 @@ export async function createApp(
         const campaign = scene.campaign ? await store.campaign(scene.campaign.id) : undefined;
         checkConnected();
         return createExport(scene, {
+          target,
           playerRoot,
           assetRoot,
           publicRoot,
