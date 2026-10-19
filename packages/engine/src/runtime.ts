@@ -3,6 +3,7 @@ import { GraphicsRecovery, WebGLInitializationError, type GraphicsState } from '
 export { WebGLInitializationError, type GraphicsState } from './graphics';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { harmonicState, MechanismController, type MechanismState } from './mechanism';
+import { MechanismOrbitController } from './mechanism-orbit';
 export type MechanismViewState = MechanismState & {
   section: boolean;
   explosion: number;
@@ -62,6 +63,7 @@ export class StudioRuntime {
   readonly world = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(42, 1, 0.05, 500);
   readonly controls!: OrbitControls;
+  private mechanismOrbit?: MechanismOrbitController;
   readonly objects = new Map<string, THREE.Object3D>();
   readonly transform!: TransformControls;
   private assets = new AssetRegistry();
@@ -156,6 +158,17 @@ export class StudioRuntime {
       this.controls.maxDistance = 80;
       this.controls.maxPolarAngle = Math.PI * 0.49;
       this.transform = new TransformControls(this.camera, this.renderer.domElement);
+      this.mechanismOrbit = new MechanismOrbitController(
+        this.renderer.domElement,
+        this.camera,
+        this.controls,
+        () =>
+          this.controls.enabled &&
+          !this.paused &&
+          !this.activityBlocked &&
+          !this.transform.dragging,
+      );
+      this.mechanismOrbit.setMechanismEnabled(!!spec.mechanism);
       this.transform.setSize(0.7);
       this.world.add(this.transform.getHelper());
       this.transform.addEventListener('dragging-changed', (e) => {
@@ -194,6 +207,7 @@ export class StudioRuntime {
         () => this.graphics?.dispose(),
         () => this.observer?.disconnect(),
         () => this.transform?.dispose(),
+        () => this.mechanismOrbit?.dispose(),
         () => this.controls?.dispose(),
         () => this.assets.dispose(),
         () => disposeObject(this.content),
@@ -296,6 +310,7 @@ export class StudioRuntime {
     this.keys.clear();
     this.movement = { x: 0, y: 0, jump: false };
     this.dragStart = undefined;
+    this.mechanismOrbit?.cancel();
     const blocked = this.activityBlocked;
     const graphicsStatus = this.getGraphicsState().status;
     if (graphicsStatus === 'lost' || graphicsStatus === 'failed') this.assets.releaseGraphics();
@@ -346,6 +361,7 @@ export class StudioRuntime {
   }
   setPaused(paused: boolean) {
     this.paused = paused;
+    this.mechanismOrbit?.cancel();
     this.mechanismController?.tick(0, paused || this.activityBlocked);
     this.keys.clear();
     this.movement = { x: 0, y: 0, jump: false };
@@ -393,11 +409,14 @@ export class StudioRuntime {
       this.spec.id === spec.id &&
       JSON.stringify(this.spec.camera) === JSON.stringify(spec.camera);
     const version = ++this.generation;
+    const preservedUp = preserveView && spec.mechanism ? this.camera.up.clone() : undefined;
     this.spec = structuredClone(spec);
     this.inputAngle = 0;
     this.section = false;
     this.isolatedId = undefined;
     this.stop();
+    if (preservedUp) this.camera.up.copy(preservedUp);
+    this.mechanismOrbit?.setMechanismEnabled(!!spec.mechanism);
     this.transform.detach();
     this.clearContent();
     this.mechanismController?.dispose();
@@ -1034,6 +1053,7 @@ export class StudioRuntime {
   };
   private blur = () => {
     this.keys.clear();
+    this.mechanismOrbit?.cancel();
     this.setMovement({ x: 0, y: 0, jump: false });
   };
   resetProgress() {
@@ -1329,6 +1349,7 @@ export class StudioRuntime {
     window.removeEventListener('keyup', this.keyUp);
     window.removeEventListener('blur', this.blur);
     this.transform.dispose();
+    this.mechanismOrbit?.dispose();
     this.controls.dispose();
     this.clearContent();
     this.assets.dispose();

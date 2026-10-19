@@ -36,6 +36,75 @@ async function ready(page) {
   await page.locator('.joint-panel').waitFor();
 }
 const state = (page) => page.evaluate(() => window.virtualworld.getMechanismState());
+// Drive real pointer events across all named views. Repeated drags cover a
+// complete revolution without leaving the viewport or relying on internal
+// OrbitControls methods (whose polar angle is intrinsically clamped).
+async function checkFreeOrbit(page) {
+  const canvas = page.locator('canvas[aria-label="交互式三维场景"]');
+  const rect = await canvas.boundingBox();
+  assert.ok(rect && rect.height > 200, 'mechanism canvas must be interactive');
+  const x = rect.x + rect.width * 0.36;
+  const startY = rect.y + rect.height * 0.3;
+  const read = () =>
+    page.evaluate(() => {
+      const r = window.virtualworld;
+      return {
+        direction: r.camera.position.clone().sub(r.controls.target).normalize().toArray(),
+        up: r.camera.up.toArray(),
+        distance: r.camera.position.distanceTo(r.controls.target),
+        target: r.controls.target.toArray(),
+        rotateEnabled: r.controls.enableRotate,
+        panEnabled: r.controls.enablePan,
+        zoomEnabled: r.controls.enableZoom,
+      };
+    });
+  const displacement = (a, b) => Math.hypot(...a.map((value, i) => value - b[i]));
+  for (const view of ['默认视角', '正视', '侧视', '顶视', '底视']) {
+    await page.getByRole('button', { name: view, exact: true }).click();
+    const initial = await read();
+    assert.equal(initial.rotateEnabled, false, 'spherical pole-clamped input must be disabled');
+    assert.equal(initial.panEnabled, true);
+    assert.equal(initial.zoomEnabled, true);
+    let previous = initial;
+    for (let segment = 0; segment < 6; segment++) {
+      await page.mouse.move(x, startY);
+      await page.mouse.down();
+      await page.mouse.move(x, startY + rect.height / 6, { steps: 5 });
+      await page.mouse.up();
+      const current = await read();
+      assert.ok(
+        displacement(previous.direction, current.direction) > 0.5,
+        `${view}: vertical orbit stopped at segment ${segment + 1}`,
+      );
+      assert.ok(Math.abs(current.distance - initial.distance) < 1e-4);
+      assert.ok(current.up.every(Number.isFinite));
+      previous = current;
+    }
+    assert.ok(displacement(initial.direction, previous.direction) < 0.03);
+    assert.ok(displacement(initial.up, previous.up) < 0.03);
+  }
+  await page.getByRole('button', { name: '默认视角', exact: true }).click();
+  const beforeZoom = await read();
+  await page.mouse.move(x, startY);
+  await page.mouse.wheel(0, -300);
+  await page.waitForTimeout(100);
+  const afterZoom = await read();
+  assert.ok(
+    Math.abs(beforeZoom.distance - afterZoom.distance) > 0.001,
+    'wheel zoom must remain active',
+  );
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(x + 80, startY + 30, { steps: 4 });
+  await page.mouse.up({ button: 'right' });
+  await page.waitForTimeout(100);
+  const afterPan = await read();
+  assert.ok(
+    displacement(afterPan.target, afterZoom.target) > 0.001,
+    'right-button pan must remain active',
+  );
+  await page.getByRole('button', { name: '默认视角', exact: true }).click();
+  check('all five mechanism views support 360° orbit, wheel zoom and right-button pan');
+}
 async function inspectSubsystems(page) {
   if (!(await page.locator('.joint-panel').evaluate((e) => e.open)))
     await page.locator('.joint-panel>summary').click();
@@ -351,6 +420,7 @@ try {
   check(
     'assembled reducer/output is exposed below the motor-only shell, with real support bays and actual mounting bores',
   );
+  await checkFreeOrbit(page);
   await page.getByRole('button', { name: '全屏显示', exact: true }).click();
   await page.waitForFunction(() => !!document.fullscreenElement);
   assert.equal(

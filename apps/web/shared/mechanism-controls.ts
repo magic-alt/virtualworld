@@ -114,6 +114,7 @@ export function mountMechanismControls(
     },
     { signal: listeners.signal },
   );
+  text('p', '左键或单指拖动可自由旋转 360°；滚轮缩放，右键平移。').className = 'joint-note';
   const views = text('div', '');
   views.className = 'joint-row';
   for (const [view, label] of [
