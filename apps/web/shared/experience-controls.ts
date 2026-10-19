@@ -1,4 +1,5 @@
 import type { StudioRuntime, RuntimeMetrics, RenderQuality } from '@virtualworld/engine';
+import { interactionStatus } from '@virtualworld/interaction';
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text = '') {
   const node = document.createElement(tag);
   node.className = className;
@@ -15,6 +16,11 @@ export function mountExperienceControls(
   } = {},
 ) {
   const element = el('div', 'experience-controls');
+  const hotspots = el('div', 'experience-hotspots'),
+    guidance = el('p', 'experience-guidance');
+  hotspots.setAttribute('aria-label', '场景互动');
+  guidance.setAttribute('role', 'status');
+  const hotspotButtons = new Map<string, HTMLButtonElement>();
   const dock = el('div', 'experience-dock'),
     journal = el('section', 'experience-journal'),
     settings = el('section', 'experience-settings');
@@ -176,7 +182,7 @@ export function mountExperienceControls(
   const interact = button('互动', '附近互动', () => runtime.interact());
   touch.append(stick, jump, interact);
   dock.append(pause, mode, notes, full, menu);
-  element.append(dock, journal, settings, touch);
+  element.append(hotspots, guidance, dock, journal, settings, touch);
   let hiddenPaused = false;
   const visibility = () => {
     if (document.hidden) {
@@ -208,6 +214,7 @@ export function mountExperienceControls(
   function setDialogOpen(open: boolean) {
     if (open && !settings.hidden) menu.click();
     dock.inert = open;
+    hotspots.inert = open;
     if (open && dialogPaused === undefined) {
       dialogPaused = !!runtime.getDiagnostics().paused;
       runtime.setPaused(true);
@@ -226,6 +233,73 @@ export function mountExperienceControls(
     mode.textContent = metrics.mode === 'view' ? '进入探索' : '自由观赏';
     mode.setAttribute('aria-label', metrics.mode === 'view' ? '切换第三人称探索' : '切换自由观赏');
     touch.hidden = metrics.mode !== 'explore' || !!metrics.paused || runtime.spec.mode !== 'world';
+    hotspots.hidden = metrics.mode !== 'explore' || !!metrics.paused;
+    guidance.hidden = hotspots.hidden || !runtime.spec.tasks.length;
+    const visible = new Set<string>();
+    const occupied: { x: number; y: number }[] = [];
+    const bounds = element.getBoundingClientRect();
+    for (const hotspot of metrics.hotspots || []) {
+      const node = runtime.spec.nodes.find((n) => n.id === hotspot.id);
+      if (!node) continue;
+      const status = interactionStatus(node, metrics.story);
+      if (status === 'none') continue;
+      visible.add(hotspot.id);
+      let b = hotspotButtons.get(hotspot.id);
+      if (!b) {
+        b = button('', '', () => runtime.interact(hotspot.id));
+        b.className = 'experience-hotspot';
+        b.dataset.nodeId = hotspot.id;
+        hotspotButtons.set(hotspot.id, b);
+        hotspots.append(b);
+      }
+      const state =
+        status === 'locked'
+          ? '先完成前置任务'
+          : status === 'completed'
+            ? '已完成 · 回顾'
+            : '可互动';
+      const hint = hotspot.inRange ? state : `${state} · 靠近后互动`;
+      const label = `${hotspot.label} · ${hint}`;
+      if (b.textContent !== label) b.textContent = label;
+      b.setAttribute('aria-label', `${hotspot.label}，${hint}`);
+      b.title = hint;
+      b.dataset.status = status;
+      b.disabled = !hotspot.inRange || !!metrics.paused;
+      // Separate nearby anchors, including the two visits to the same rose garden.
+      const x = Math.max(105, Math.min(bounds.width - 105, hotspot.x));
+      const minY = 155;
+      const maxY = Math.max(
+        minY,
+        bounds.height - (matchMedia('(pointer: coarse)').matches ? 270 : 180),
+      );
+      const anchorY = Math.max(minY, Math.min(maxY, hotspot.y));
+      let y = anchorY;
+      for (let row = 0; row < 12; row++) {
+        const candidate = anchorY + (row % 2 ? 1 : -1) * Math.ceil(row / 2) * 64;
+        if (candidate < minY || candidate > maxY) continue;
+        if (!occupied.some((p) => Math.abs(p.x - x) < 220 && Math.abs(p.y - candidate) < 64)) {
+          y = candidate;
+          break;
+        }
+      }
+      occupied.push({ x, y });
+      b.style.left = `${x}px`;
+      b.style.top = `${y}px`;
+    }
+    for (const [id, b] of hotspotButtons) {
+      if (!visible.has(id)) {
+        b.remove();
+        hotspotButtons.delete(id);
+      }
+    }
+    const nearby = runtime.nearest();
+    const next = runtime.spec.tasks.find((task) => !metrics.story.flags.includes(task.flag));
+    const instruction = nearby?.interaction
+      ? `E / 互动：${nearby.interaction.title}${interactionStatus(nearby, metrics.story) === 'locked' ? ' · 请先完成手记中的前置任务' : ''}`
+      : next
+        ? `下一步：${next.label} · 靠近场景标记后互动`
+        : '本章已完成 · 可以继续探索和回顾相遇';
+    if (guidance.textContent !== instruction) guidance.textContent = instruction;
     journal.replaceChildren(
       el('h3', '', '旅程手记'),
       ...runtime.spec.tasks.map((task) =>

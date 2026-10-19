@@ -1,13 +1,15 @@
 import { lazy, Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { ArrowRight, ArrowUpRight, Globe2, Sparkles } from 'lucide-react';
-import { assertScene, type SceneSpec } from '@virtualworld/scene-schema';
-import { Viewport } from './Viewport';
 import { api } from './api';
 import { WorldComposer } from './WorldComposer';
-import { WorldExperience } from './WorldExperience';
+import { HomePreview } from './HomePreview';
+import { LazyBoundary } from './LazyBoundary';
 import harmonicCover from './assets/harmonic-cover.jpg';
 import './world.css';
 const StudioApp = lazy(() => import('./StudioApp'));
+const WorldExperience = lazy(() =>
+  import('./WorldExperience').then((module) => ({ default: module.WorldExperience })),
+);
 type Project = { id: string; name: string; mode: string; description: string; revision: number };
 type Route = { project?: string; edit: boolean };
 function currentRoute(): Route {
@@ -72,19 +74,29 @@ export default function App() {
     );
   if (route.project)
     return (
-      <WorldExperience
+      <LazyBoundary
         key={route.project}
-        id={route.project}
-        onBack={() => navigate()}
-        onEdit={(id) => navigate(id, true)}
-        onDirtyChange={onDirtyChange}
-      />
+        fallback={
+          <div className="world-loading" role="alert">
+            世界暂时无法打开。<button onClick={() => navigate()}>返回世界首页</button>
+          </div>
+        }
+      >
+        <Suspense fallback={<div className="world-loading">正在打开世界…</div>}>
+          <WorldExperience
+            key={route.project}
+            id={route.project}
+            onBack={() => navigate()}
+            onEdit={(id) => navigate(id, true)}
+            onDirtyChange={onDirtyChange}
+          />
+        </Suspense>
+      </LazyBoundary>
     );
   return <Home onOpen={(id) => navigate(id)} onEdit={() => navigate(undefined, true)} />;
 }
 function Home({ onOpen, onEdit }: { onOpen: (id: string) => void; onEdit: () => void }) {
   const [projects, setProjects] = useState<Project[]>([]),
-    [preview, setPreview] = useState<SceneSpec>(),
     [error, setError] = useState('');
   const [catalogVersion, setCatalogVersion] = useState(0);
   useEffect(() => {
@@ -99,13 +111,6 @@ function Home({ onOpen, onEdit }: { onOpen: (id: string) => void; onEdit: () => 
       });
     return () => controller.abort();
   }, [catalogVersion]);
-  useEffect(() => {
-    const controller = new AbortController();
-    void api('/api/projects/little-prince-desert', { signal: controller.signal })
-      .then((s) => setPreview(assertScene(s)))
-      .catch(() => {});
-    return () => controller.abort();
-  }, []);
   const chapters = new Set(['little-prince-desert', 'little-prince-b612', 'little-prince-earth']);
   const personal = projects.filter((p) => !chapters.has(p.id) && p.id !== 'demo-harmonic-joint');
   return (
@@ -147,21 +152,7 @@ function Home({ onOpen, onEdit }: { onOpen: (id: string) => void; onEdit: () => 
             </a>
           </div>
           <div className="hero-world" aria-label="小王子世界预览">
-            {preview ? (
-              <Viewport
-                preview
-                scene={preview}
-                callbacks={{}}
-                onRuntime={(runtime) => {
-                  void runtime.setMode('view');
-                  runtime.controls.autoRotate = !matchMedia('(prefers-reduced-motion: reduce)')
-                    .matches;
-                  runtime.controls.autoRotateSpeed = 0.35;
-                }}
-              />
-            ) : (
-              <img src="/world-previews/desert.jpg" alt="小王子的沙海世界" />
-            )}
+            <HomePreview />
             <div className="hero-world-caption">
               <div>
                 <span className="world-eyebrow light">A WORLD TO WANDER</span>

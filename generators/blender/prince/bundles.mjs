@@ -146,7 +146,7 @@ for (const [index, [key, title]] of chapters.entries()) {
     task(
       'sunset',
       '安静地看日落',
-      [2, 5.9, 1],
+      [1.9, 5.9, -1.2],
       '把椅子挪一点，就能再陪夕阳坐一会儿。今天的照料已经完成，想念也慢慢变得清楚。',
       'sunset',
       ['sapling'],

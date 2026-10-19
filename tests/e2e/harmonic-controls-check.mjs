@@ -36,8 +36,103 @@ async function ready(page) {
   await page.locator('.joint-panel').waitFor();
 }
 const state = (page) => page.evaluate(() => window.virtualworld.getMechanismState());
+async function inspectSubsystems(page) {
+  if (!(await page.locator('.joint-panel').evaluate((e) => e.open)))
+    await page.locator('.joint-panel>summary').click();
+  await page.getByRole('button', { name: '恢复展示', exact: true }).click();
+  const original = await page.evaluate(() => JSON.stringify(window.virtualworld.spec));
+  await page.getByRole('button', { name: '单独观察输出支承', exact: true }).click();
+  await page.evaluate(() => window.virtualworld.selectSubsystem());
+  const candidates = await page.evaluate(() => {
+    const r = window.virtualworld;
+    const rect = r.renderer.domElement.getBoundingClientRect();
+    const points = [];
+    r.camera.updateMatrixWorld(true);
+    r.objects.get('harmonic-output-flange').traverseVisible((mesh) => {
+      if (!mesh.isMesh) return;
+      mesh.updateWorldMatrix(true, false);
+      const positions = mesh.geometry.getAttribute('position');
+      const indices = mesh.geometry.index;
+      const count = indices ? indices.count : positions.count;
+      const step = Math.max(3, Math.floor(count / 90 / 3) * 3);
+      for (let i = 0; i + 2 < count; i += step) {
+        const center = r.camera.position.clone().set(0, 0, 0);
+        for (let offset = 0; offset < 3; offset++) {
+          const index = indices ? indices.getX(i + offset) : i + offset;
+          center.x += positions.getX(index) / 3;
+          center.y += positions.getY(index) / 3;
+          center.z += positions.getZ(index) / 3;
+        }
+        center.applyMatrix4(mesh.matrixWorld).project(r.camera);
+        const x = rect.left + ((center.x + 1) * rect.width) / 2;
+        const y = rect.top + ((1 - center.y) * rect.height) / 2;
+        if (
+          center.z > -1 &&
+          center.z < 1 &&
+          document.elementFromPoint(x, y) === r.renderer.domElement
+        )
+          points.push({ x, y });
+      }
+    });
+    return points;
+  });
+  assert.ok(candidates.length, 'visible output triangles must be available for inspection picking');
+  for (const point of candidates) {
+    await page.mouse.click(point.x, point.y);
+    if ((await state(page)).selectedSubsystem === 'output') break;
+  }
+  assert.equal(
+    (await state(page)).selectedSubsystem,
+    'output',
+    'a visible mesh click selects its subsystem',
+  );
+  assert.equal(
+    await page.evaluate(() => !!window.virtualworld.transform.object),
+    false,
+    'inspection does not attach transform handles',
+  );
+  await page.getByRole('button', { name: '恢复展示', exact: true }).click();
+  // Simulate a user orbit, then exercise the visible control that used to discard it.
+  const direction = await page.evaluate(() => {
+    const r = window.virtualworld;
+    r.camera.position.copy(r.controls.target).add(r.camera.position.clone().set(0.3, 0.15, 0.2));
+    r.controls.update();
+    return r.camera.position.clone().sub(r.controls.target).normalize().toArray();
+  });
+  await page.getByLabel('爆炸展开', { exact: true }).fill('0.5');
+  await page.getByLabel('剖视', { exact: true }).check();
+  await page.waitForTimeout(100);
+  const after = await page.evaluate(() => {
+    const r = window.virtualworld;
+    return r.camera.position.clone().sub(r.controls.target).normalize().toArray();
+  });
+  assert.ok(after.every((v, i) => Math.abs(v - direction[i]) < 1e-5));
+  await page.getByRole('button', { name: '了解双编码器', exact: true }).click();
+  assert.equal((await state(page)).selectedSubsystem, 'encoders');
+  await page.getByRole('button', { name: '聚焦所选部件', exact: true }).click();
+  assert.equal((await state(page)).isolatedSubsystem, undefined);
+  await page.getByRole('button', { name: '单独观察永磁掉电抱闸', exact: true }).click();
+  await page.getByLabel('安装可选抱闸', { exact: true }).uncheck();
+  assert.equal((await state(page)).isolatedSubsystem, undefined);
+  assert.equal((await state(page)).selectedSubsystem, undefined);
+  assert.equal(
+    await page.getByRole('button', { name: '单独观察永磁掉电抱闸', exact: true }).isDisabled(),
+    true,
+  );
+  assert.equal(
+    await page.getByRole('button', { name: '聚焦所选部件', exact: true }).isDisabled(),
+    true,
+  );
+  assert.equal(
+    await page.evaluate(() => window.virtualworld.objects.get('harmonic-rotor-yoke').visible),
+    true,
+  );
+  await page.getByRole('button', { name: '恢复展示', exact: true }).click();
+  assert.equal(await page.evaluate(() => JSON.stringify(window.virtualworld.spec)), original);
+}
 async function exercise(page, name) {
   console.log('START', name);
+  await inspectSubsystems(page);
   const summary = page.locator('.joint-panel>summary');
   if (!(await page.locator('.joint-panel').evaluate((e) => e.open))) await summary.click();
   const original = await page.evaluate(() => JSON.stringify(window.virtualworld.spec));
@@ -314,6 +409,17 @@ try {
       window.virtualworld.getDiagnostics().mode === 'edit',
   );
   assert.equal(await page.evaluate(() => window.virtualworld.spec.id), 'demo-harmonic-joint');
+  await page.locator('.joint-panel--editor').waitFor();
+  await inspectSubsystems(page);
+  const editorRpm = page.getByLabel('输入转速数值', { exact: true });
+  await editorRpm.fill('-12');
+  await editorRpm.press('Tab');
+  assert.equal((await state(page)).inputRpm, -12);
+  await page.getByRole('button', { name: '输入 +15°', exact: true }).click();
+  assert.ok(Math.abs((await state(page)).inputAngle - Math.PI / 12) < 1e-8);
+  check(
+    'advanced editor reuses shared transient mechanism selection, focus, brake, direction and reverse-speed controls',
+  );
   await page.goto(`${origin}/?project=demo-harmonic-joint`);
   await ready(page);
   assert.equal((await state(page)).inputAngle, 0);

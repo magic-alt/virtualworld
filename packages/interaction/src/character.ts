@@ -127,11 +127,11 @@ export class CharacterController {
       this.movement.x;
     if (this.center)
       this.up.copy(radialUp(new THREE.Vector3().copy(this.body.translation()), this.center));
-    const direction = this.center
-      ? tangentForward(this.cameraForward, this.up)
-          .multiplyScalar(-forward)
-          .add(tangentForward(this.cameraForward, this.up).cross(this.up).multiplyScalar(right))
-      : new THREE.Vector3(right, 0, forward);
+    const heading = tangentForward(this.cameraForward, this.up);
+    const direction = heading
+      .clone()
+      .multiplyScalar(-forward)
+      .add(heading.clone().cross(this.up).multiplyScalar(right));
     this.moving = direction.lengthSq() > 0;
     this.controller.setUp(this.up);
     if (this.center)

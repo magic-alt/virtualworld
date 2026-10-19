@@ -351,10 +351,14 @@ try {
   await page.goto(`${origin}/?edit=1`);
   await ready(page, 'demo-harmonic-joint');
   check('Advanced editing retains the real harmonic engineering showcase');
+  await page.locator('.joint-panel--editor').waitFor();
+  if (!(await page.locator('.joint-panel--editor').evaluate((panel) => panel.open)))
+    await page.locator('.joint-panel--editor > summary').click();
   const baseline = await page.evaluate(() => {
     const r = window.virtualworld;
     return {
       revision: r.spec.revision,
+      scene: JSON.stringify(r.spec),
       poses: Object.fromEntries(
         [...r.objects].map(([id, o]) => [
           id,
@@ -363,7 +367,7 @@ try {
       ),
     };
   });
-  await page.getByRole('button', { name: '剖视', exact: true }).click();
+  await page.getByLabel('剖视', { exact: true }).check();
   await page.waitForFunction(() => window.virtualworld.getDiagnostics().mechanism.section);
   assert.equal(
     await page.evaluate(() => {
@@ -380,11 +384,12 @@ try {
   await page.waitForTimeout(300);
   await page.screenshot({ path: join(output, 'harmonic-section-exploded.png') });
   await range(page.getByLabel('爆炸展开', { exact: true }), 0);
-  await page.getByRole('button', { name: '剖视', exact: true }).click();
+  await page.getByLabel('剖视', { exact: true }).uncheck();
   const restored = await page.evaluate(() => {
     const r = window.virtualworld;
     return {
       revision: r.spec.revision,
+      scene: JSON.stringify(r.spec),
       poses: Object.fromEntries(
         [...r.objects].map(([id, o]) => [
           id,
@@ -395,9 +400,9 @@ try {
   });
   assert.deepEqual(restored, baseline);
   check('Section visibility and explosion restore exact poses without serializing play state');
-  await page.getByRole('button', { name: '剖视', exact: true }).click();
-  await range(page.getByLabel('输入转速', { exact: true }), 12);
-  await page.getByRole('button', { name: '运动演示', exact: true }).click();
+  await page.getByLabel('剖视', { exact: true }).check();
+  await range(page.getByLabel('输入 RPM', { exact: true }), 12);
+  await page.getByRole('button', { name: '播放机构', exact: true }).click();
   const angles = () =>
     page.evaluate(() => {
       const r = window.virtualworld,
@@ -411,7 +416,7 @@ try {
       };
     });
   for (const rpm of [12, -12]) {
-    if (rpm < 0) await page.evaluate(() => window.virtualworld.setTransmissionSpeed(-12));
+    if (rpm < 0) await range(page.getByLabel('输入 RPM', { exact: true }), rpm);
     const a = await angles();
     await page.waitForTimeout(850);
     const b = await angles(),
@@ -426,35 +431,51 @@ try {
       before: a,
       after: b,
       measuredRatio: di / dout,
-      method:
-        rpm < 0
-          ? 'public runtime.setTransmissionSpeed(-12); studio slider has nonnegative range'
-          : 'real studio RPM slider',
+      method: 'real shared mechanism RPM slider in the advanced editor',
     };
   }
   check(
     'Measured actual input/flex/output transforms show negative1:100 in both RPM directions; fixed parts stay fixed',
   );
   await profile(page, 'harmonic');
-  await page.getByRole('button', { name: '停止运动', exact: true }).click();
-  await page.evaluate(() => window.virtualworld.fitMechanismView('bottom'));
+  await page.getByRole('button', { name: '暂停机构', exact: true }).click();
+  await page.getByRole('button', { name: '底视', exact: true }).click();
   const screen = await page.evaluate(() => {
     const r = window.virtualworld,
       o = r.objects.get('harmonic-output-flange'),
       p = r.camera.position.clone().set(0.031, 0.0001, 0);
     o.localToWorld(p);
+    r.camera.updateMatrixWorld(true);
     p.project(r.camera);
+    const ray = r.transform.getRaycaster();
+    ray.setFromCamera({ x: p.x, y: p.y }, r.camera);
+    const hit = ray.intersectObjects([...r.objects.values()], true).find(({ object }) => {
+      for (let ancestor = object; ancestor; ancestor = ancestor.parent)
+        if (!ancestor.visible) return false;
+      return !!object.userData.nodeId;
+    });
     const b = r.renderer.domElement.getBoundingClientRect();
-    return { x: b.left + ((p.x + 1) * b.width) / 2, y: b.top + ((1 - p.y) * b.height) / 2 };
+    return {
+      x: b.left + ((p.x + 1) * b.width) / 2,
+      y: b.top + ((1 - p.y) * b.height) / 2,
+      hitId: hit?.object.userData.nodeId,
+    };
   });
-  await page.mouse.click(screen.x, screen.y);
-  await page.getByRole('textbox', { name: '对象名称', exact: true }).waitFor();
   assert.equal(
-    await page.getByRole('textbox', { name: '对象名称', exact: true }).inputValue(),
-    'output-flange',
+    screen.hitId,
+    'harmonic-output-flange',
+    'the real canvas ray must hit the output flange',
   );
+  await page.mouse.click(screen.x, screen.y);
+  await page.waitForFunction(
+    () => window.virtualworld.getMechanismState().selectedSubsystem === 'output',
+  );
+  assert.equal(await page.locator('.joint-selection').textContent(), '已选择 · 输出支承');
+  assert.equal(await page.evaluate(() => !!window.virtualworld.transform.object), false);
   await page.screenshot({ path: join(output, 'harmonic-section-selected.png') });
-  check('Actual canvas ray selection identifies output flange');
+  check(
+    'Actual canvas ray hits the output flange and selects output inspection without transform handles',
+  );
   const harmonicExport = await fetch(`${origin}/api/export`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

@@ -1,5 +1,5 @@
 import Fastify from 'fastify';
-import { readFile, mkdir, writeFile, stat } from 'node:fs/promises';
+import { mkdir, writeFile, stat } from 'node:fs/promises';
 import { join, resolve, extname } from 'node:path';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -9,6 +9,7 @@ import { AgentInput, propose, type LlmConfig } from '@virtualworld/planner';
 import { createExport, within } from './export';
 import { recordUpload, readUpload } from '@virtualworld/scene-builder/asset-library';
 import { GenerationService } from './generation';
+import { serveStatic } from './static';
 const LIMIT = 100 * 1024 * 1024;
 const types: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -207,23 +208,31 @@ export async function createApp(
       .header('Content-Disposition', 'attachment; filename="virtualworld.zip"');
     return zip;
   });
-  async function serve(file: string, reply: any) {
-    try {
-      const buffer = await readFile(file);
-      return reply.type(types[extname(file)] || 'application/octet-stream').send(buffer);
-    } catch {
-      throw new HttpError(404, '文件不存在');
-    }
-  }
-  app.get<{ Params: { '*': string } }>('/fixtures/*', async (req, reply) =>
-    serve(within(publicRoot, `fixtures/${req.params['*']}`), reply),
-  );
-  app.get<{ Params: { '*': string } }>('/assets/optimized/*', async (req, reply) =>
-    serve(within(assetLibraryRoot, `optimized/${req.params['*']}`), reply),
-  );
-  app.get<{ Params: { '*': string } }>('/*', async (req, reply) => {
-    const path = req.params['*'] || 'index.html';
-    return serve(within(studioRoot, path), reply);
+  app.route<{ Params: { '*': string } }>({
+    method: ['GET', 'HEAD'],
+    url: '/fixtures/*',
+    handler: (req, reply) =>
+      serveStatic(within(publicRoot, `fixtures/${req.params['*']}`), publicRoot, req, reply),
+  });
+  app.route<{ Params: { '*': string } }>({
+    method: ['GET', 'HEAD'],
+    url: '/assets/optimized/*',
+    handler: (req, reply) =>
+      serveStatic(
+        within(assetLibraryRoot, `optimized/${req.params['*']}`),
+        assetLibraryRoot,
+        req,
+        reply,
+      ),
+  });
+  app.route<{ Params: { '*': string } }>({
+    method: ['GET', 'HEAD'],
+    url: '/*',
+    handler: (req, reply) => {
+      const path = req.params['*'] || 'index.html';
+      const immutable = /^assets\/[^/]+-[A-Za-z0-9_-]{8,}\.(?:js|css)$/.test(path);
+      return serveStatic(within(studioRoot, path), studioRoot, req, reply, immutable);
+    },
   });
   await app.ready();
   return app;

@@ -311,6 +311,20 @@ function Experience({
       if (mounted.current && operation.current === token) setBusy('');
     }
   }
+  const chapters = journey.progress?.status();
+  const chapterIndex = chapters?.findIndex((chapter) => chapter.id === scene.id) ?? -1;
+  const nextChapter = chapters?.slice(chapterIndex + 1).find((chapter) => chapter.unlocked);
+  const completionText = nextChapter
+    ? '本章完成 · 下一段旅程已解锁'
+    : '旅程已完成 · 谢谢你陪伴这些相遇';
+  const continueJourney = () => {
+    if (nextChapter) {
+      leave(() => {
+        clearDialog();
+        switchChapter(journey.progress!.select(nextChapter.id));
+      });
+    } else clearDialog();
+  };
   return (
     <main className="world-experience" data-testid="world-experience">
       <div className="experience-canvas" ref={host} data-testid="viewport" />
@@ -348,16 +362,14 @@ function Experience({
               leave(() => switchChapter(journey.progress!.select(id)));
             }}
           >
-            {journey.progress.status().map((chapter) => (
+            {chapters!.map((chapter) => (
               <option key={chapter.id} value={chapter.id} disabled={!chapter.unlocked}>
                 {chapter.completed ? '✓ ' : chapter.unlocked ? '' : '🔒 '}
                 {chapter.title}
               </option>
             ))}
           </select>
-          <span>
-            {story.completed ? '本章完成 · 下一段旅程已解锁' : '每一次相遇，都是故事的开始。'}
-          </span>
+          <span>{story.completed ? completionText : '每一次相遇，都是故事的开始。'}</span>
         </div>
       )}
       {loading && (
@@ -389,6 +401,12 @@ function Experience({
               {choice.label}
             </button>
           ))}
+          {story.completed && journey.progress && <p role="status">{completionText}</p>}
+          {story.completed && nextChapter && (
+            <button className="world-button" onClick={continueJourney}>
+              下一章：{nextChapter.title} <ArrowUpRight size={16} />
+            </button>
+          )}
           <button className="world-button" onClick={clearDialog}>
             {story.completed ? '本章已完成 · 继续探索' : '继续探索'} <ArrowUpRight size={16} />
           </button>

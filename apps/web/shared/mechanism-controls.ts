@@ -2,9 +2,12 @@ import type { StudioRuntime, MechanismViewState } from '@virtualworld/engine';
 import './mechanism.css';
 
 /** One accessible, transient observation panel for the app and offline player. */
-export function mountMechanismControls(runtime: StudioRuntime) {
+export function mountMechanismControls(
+  runtime: StudioRuntime,
+  options: { embedded?: boolean } = {},
+) {
   const element = document.createElement('details');
-  element.className = 'joint-panel';
+  element.className = `joint-panel${options.embedded ? ' joint-panel--editor' : ''}`;
   element.open = window.innerWidth > 700;
   element.setAttribute('aria-label', '机构控制');
   const summary = document.createElement('summary');
@@ -139,10 +142,16 @@ export function mountMechanismControls(runtime: StudioRuntime) {
   if (brake)
     text('p', '永磁抱闸：通电释放，掉电理想保持；不计算制动距离或额定性能。').className =
       'joint-note';
-  const description = text('p', '选择一个子系统，了解其结构与传动关系。');
+  text('h3', '部件观察').className = 'joint-heading';
+  const selectedLabel = text('p', '未选择部件');
+  selectedLabel.className = 'joint-selection';
+  const focus = button('聚焦所选部件', () => runtime.focusSubsystem());
+  const description = text('p', '点选模型部件或下方说明，了解其结构与传动关系。');
   description.className = 'joint-description';
   const subsystemInputs = new Map<string, HTMLInputElement>();
   const isolateButtons = new Map<string, HTMLButtonElement>();
+  const selectButtons = new Map<string, HTMLButtonElement>();
+  const subsystemStatuses = new Map<string, HTMLElement>();
   for (const subsystem of runtime.spec.mechanism?.subsystems ?? []) {
     const row = text('div', '');
     row.className = 'joint-subsystem';
@@ -159,11 +168,15 @@ export function mountMechanismControls(runtime: StudioRuntime) {
     const info = button(
       `了解${subsystem.name}`,
       () => {
-        description.textContent = subsystem.description;
+        runtime.selectSubsystem(subsystem.id);
       },
       row,
     );
     info.textContent = '说明';
+    selectButtons.set(subsystem.id, info);
+    const stateLabel = text('span', '', row);
+    stateLabel.className = 'joint-subsystem-state';
+    subsystemStatuses.set(subsystem.id, stateLabel);
     const isolate = button(
       `单独观察${subsystem.name}`,
       () => {
@@ -172,7 +185,7 @@ export function mountMechanismControls(runtime: StudioRuntime) {
             ? undefined
             : subsystem.id,
         );
-        description.textContent = subsystem.description;
+        runtime.selectSubsystem(subsystem.id);
         fit();
       },
       row,
@@ -198,7 +211,6 @@ export function mountMechanismControls(runtime: StudioRuntime) {
       runtime.resetMechanismPresentation();
       element.scrollTop = 0;
       summary.focus({ preventScroll: true });
-      description.textContent = '选择一个子系统，了解其结构与传动关系。';
       fit();
     },
     actions,
@@ -240,11 +252,40 @@ export function mountMechanismControls(runtime: StudioRuntime) {
       power.checked = state.brakeInstalled && !state.brakePowered;
       power.disabled = !state.brakeInstalled;
     }
+    const selected = runtime.spec.mechanism?.subsystems?.find(
+      (s) => s.id === state.selectedSubsystem,
+    );
+    setText(selectedLabel, selected ? `已选择 · ${selected.name}` : '未选择部件');
+    setText(description, selected?.description ?? '点选模型部件或下方说明，了解其结构与传动关系。');
+    focus.disabled = !selected;
     for (const subsystem of runtime.spec.mechanism?.subsystems ?? []) {
       const check = subsystemInputs.get(subsystem.id)!;
       check.checked = !state.hiddenSubsystems.includes(subsystem.id);
       check.disabled = subsystem.optional === 'brake' && !state.brakeInstalled;
+      const unavailable = subsystem.optional === 'brake' && !state.brakeInstalled;
+      const selected = state.selectedSubsystem === subsystem.id;
+      const isolated = state.isolatedSubsystem === subsystem.id;
+      const hidden = state.hiddenSubsystems.includes(subsystem.id);
+      const temporarilyHidden = !!state.isolatedSubsystem && !isolated;
+      const info = selectButtons.get(subsystem.id)!;
+      info.disabled = unavailable || hidden || temporarilyHidden;
+      info.setAttribute('aria-pressed', String(selected));
+      setText(
+        subsystemStatuses.get(subsystem.id)!,
+        unavailable
+          ? '未安装'
+          : hidden
+            ? '已隐藏'
+            : temporarilyHidden
+              ? '暂隐'
+              : isolated
+                ? '单看'
+                : selected
+                  ? '已选择'
+                  : '可见',
+      );
       const b = isolateButtons.get(subsystem.id)!;
+      b.disabled = unavailable;
       b.setAttribute('aria-pressed', String(state.isolatedSubsystem === subsystem.id));
     }
   }
@@ -255,10 +296,10 @@ export function mountMechanismControls(runtime: StudioRuntime) {
     const rect = element.getBoundingClientRect();
     const mobile = window.innerWidth <= 700;
     runtime.setMechanismViewportInsets({
-      top: mobile ? 120 : 110,
-      bottom: mobile ? rect.height + 96 : 90,
-      left: mobile ? 16 : 24,
-      right: mobile ? 16 : rect.width + 48,
+      top: options.embedded ? 16 : mobile ? 120 : 110,
+      bottom: options.embedded ? (mobile ? rect.height + 24 : 16) : mobile ? rect.height + 96 : 90,
+      left: options.embedded ? 16 : mobile ? 16 : 24,
+      right: mobile ? 16 : rect.width + (options.embedded ? 24 : 48),
     });
     runtime.fitMechanismView();
   }

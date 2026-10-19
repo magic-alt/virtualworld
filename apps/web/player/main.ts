@@ -132,6 +132,8 @@ try {
         dialog = el('div', 'dialog');
         experienceControls?.setDialogOpen(true);
         dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute('aria-label', node.interaction.title);
         dialog.append(el('h2', '', node.interaction.title));
         const text = el('p', '', state.message);
         dialog.append(text);
@@ -141,6 +143,22 @@ try {
             text.textContent = choice.text;
           };
           dialog.append(button);
+        }
+        if (state.completed && progress) {
+          const chapters = progress.status();
+          const index = chapters.findIndex((chapter) => chapter.id === scene.id);
+          const next = chapters.slice(index + 1).find((chapter) => chapter.unlocked);
+          dialog.append(
+            el('p', '', next ? '本章完成 · 下一段旅程已解锁' : '旅程已完成 · 谢谢你陪伴这些相遇'),
+          );
+          if (next) {
+            const continueJourney = el('button', '', `下一章：${next.title}`);
+            continueJourney.onclick = () => {
+              experienceControls?.setDialogOpen(false);
+              void showScene(progress!.select(next.id)).catch(showError);
+            };
+            dialog.append(continueJourney);
+          }
         }
         const close = el('button', '', state.completed ? '本章已完成 · 继续探索' : '继续');
         close.onclick = () => {

@@ -22,6 +22,8 @@
     "test:browser": "node tests/e2e/browser-check.mjs && node --import tsx tests/e2e/world-experience-check.mjs",
     "test:showcases": "node tests/e2e/showcases-check.mjs",
     "test:harmonic": "node tests/e2e/harmonic-controls-check.mjs",
+    "test:prince": "node tests/e2e/prince-runner.mjs",
+    "test:runtime-quality": "node tests/e2e/runtime-quality-check.mjs",
     "test:harmonic-build-failure": "node tests/e2e/harmonic-build-failure-check.mjs",
     "fixtures": "tsx scripts/fixtures.ts",
     "notices": "tsx scripts/notices.ts",
