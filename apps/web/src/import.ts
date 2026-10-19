@@ -1,18 +1,18 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-import { node } from '@virtualworld/scene-schema';
+import { AssetSchema, node } from '@virtualworld/scene-schema';
 import { groupCommands } from '@virtualworld/scene-builder';
 import type { SceneAsset, SceneNode, Vector3Tuple } from '@virtualworld/scene-schema';
 import type { SceneCommand } from '@virtualworld/scene-schema';
 import { cadToGroup, type CadResult } from '@virtualworld/asset-runtime';
 import { assertSelfContainedGlb } from '@virtualworld/asset-runtime';
-export async function upload(
+async function requestUpload(
   file: Blob,
   name: string,
   signal?: AbortSignal,
   sourceAssetId?: string,
-): Promise<SceneAsset> {
+): Promise<unknown> {
   const query = new URLSearchParams({ name, ...(sourceAssetId ? { sourceAssetId } : {}) });
   const response = await fetch(`/api/assets?${query}`, {
     method: 'POST',
@@ -23,6 +23,32 @@ export async function upload(
   const body = await response.json();
   if (!response.ok) throw new Error(body.error);
   return body;
+}
+export async function upload(
+  file: Blob,
+  name: string,
+  signal?: AbortSignal,
+  sourceAssetId?: string,
+): Promise<SceneAsset> {
+  return AssetSchema.parse(await requestUpload(file, name, signal, sourceAssetId));
+}
+async function uploadSource(
+  file: Blob,
+  name: string,
+  signal: AbortSignal,
+): Promise<{ id: string }> {
+  const body = await requestUpload(file, name, signal);
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    !('type' in body) ||
+    body.type !== 'source' ||
+    !('id' in body) ||
+    typeof body.id !== 'string' ||
+    !/^a-[a-f0-9]{20}$/.test(body.id)
+  )
+    throw new Error('STEP 原始资源响应无效');
+  return { id: body.id };
 }
 function readStep(buffer: ArrayBuffer, signal: AbortSignal): Promise<CadResult> {
   return new Promise((resolve, reject) => {
@@ -104,7 +130,7 @@ export async function importFile(
     onProgress('生成可移植 GLB…');
     const converted = (await new GLTFExporter().parseAsync(group, { binary: true })) as ArrayBuffer;
     group = (await new GLTFLoader().parseAsync(converted, '')).scene;
-    const original = await upload(file, safeName, signal);
+    const original = await uploadSource(file, safeName, signal);
     asset = await upload(
       new Blob([converted]),
       safeName.replace(/\.(step|stp)$/i, '.glb'),
@@ -115,7 +141,9 @@ export async function importFile(
   } else {
     onProgress('解析 GLB 层级…');
     assertSelfContainedGlb(buffer);
-    group = (await new GLTFLoader().parseAsync(buffer, '')).scene;
+    const gltf = await new GLTFLoader().parseAsync(buffer, '');
+    group = gltf.scene;
+    group.animations = gltf.animations;
     asset = await upload(file, safeName, signal);
   }
   if (signal.aborted) throw new DOMException('已取消', 'AbortError');

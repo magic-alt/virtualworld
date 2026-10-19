@@ -13,6 +13,34 @@ export function groupCommands(
 ): SceneCommand[] {
   const prefix = `import-${crypto.randomUUID().slice(0, 8)}`;
   const commands: SceneCommand[] = [{ type: 'addAsset', asset }];
+  // SceneSpec's decomposed parts represent static, positive-scale triangle meshes.
+  // Keep every other glTF hierarchy intact so bones, tracks and object classes
+  // remain authoritative in the asset instead of being reconstructed lossily.
+  let preserveRoot = false;
+  group.traverse((object) => {
+    if (
+      object.animations.length ||
+      !['Group', 'Object3D', 'Mesh'].includes(object.type) ||
+      object.scale.toArray().some((value) => value <= 0) ||
+      !object.matrixAutoUpdate ||
+      object.rotation.order !== 'XYZ'
+    )
+      preserveRoot = true;
+  });
+  if (preserveRoot) {
+    const clip = group.animations.find(
+      (animation) => animation.name.length > 0 && animation.name.length <= 100,
+    );
+    commands.push({
+      type: 'addNode',
+      node: node(prefix, name, 'glb', [0, 0, 0], [1, 1, 1], '#ffffff', {
+        assetId: asset.id,
+        materialOverride: false,
+        ...(clip ? { animation: { clip: clip.name, loop: true, speed: 1 } } : {}),
+      }),
+    });
+    return commands;
+  }
   function visit(object: THREE.Object3D, path: string, parentId?: string) {
     const id = path ? `${prefix}-${path.replaceAll('.', '-')}` : prefix;
     const mesh = object instanceof THREE.Mesh;
@@ -31,6 +59,7 @@ export function groupCommands(
       color,
       {
         kind: mesh ? 'mesh' : 'group',
+        visible: object.visible,
         parentId,
         rotation: [object.rotation.x, object.rotation.y, object.rotation.z],
         scale: object.scale.toArray() as Vector3Tuple,

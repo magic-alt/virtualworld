@@ -15,7 +15,7 @@ const code = `import {createApp} from './apps/web/server/app.ts';
 const app=await createApp({dataRoot:process.env.VW_QA_DATA,projectRoot:process.cwd(),publicRoot:'public',studioRoot:process.env.VW_QA_STUDIO_ROOT||'dist/web',playerRoot:'dist/player'});
 await app.listen({host:'127.0.0.1',port:3144});
 process.on('SIGTERM',()=>void app.close().then(()=>process.exit()));`;
-const app = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', code], {
+const app = spawn(process.execPath, ['--import', 'tsx', '-e', code], {
   env: { ...process.env, PORT: '3144', VW_QA_DATA: dataRoot },
   stdio: ['ignore', 'pipe', 'pipe'],
 });

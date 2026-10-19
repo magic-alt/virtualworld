@@ -64,7 +64,7 @@ const model = createServer(async (req, res) => {
 model.listen(0, '127.0.0.1');
 await once(model, 'listening');
 const code = `import {createApp} from './apps/web/server/app.ts'; const app=await createApp({dataRoot:process.env.TEST_DATA,projectRoot:process.env.TEST_PROJECT,publicRoot:'public',studioRoot:'dist/web',playerRoot:'dist/player'}); await app.listen({host:'127.0.0.1',port:3137}); process.on('SIGTERM',()=>void app.close().then(()=>process.exit()));`;
-const app = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', code], {
+const app = spawn(process.execPath, ['--import', 'tsx', '-e', code], {
   env: {
     ...process.env,
     PORT: '3137',
