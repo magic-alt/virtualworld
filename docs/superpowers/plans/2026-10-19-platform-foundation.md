@@ -101,4 +101,4 @@ Files: new `apps/web/server/config.ts`, `access.ts`, `admission.ts`, `app.ts`,
 - [x] Independently review branch and fix material findings with regressions.
 - [x] Update audit/deployment documentation with exact executed evidence and
       staged architecture for public viewing, team editing and future multiplayer.
-- [ ] Commit, push feature branch and open a reviewable PR; do not merge/deploy.
+- [x] Commit, push feature branch and open a reviewable PR; do not merge/deploy.
