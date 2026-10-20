@@ -22,6 +22,9 @@ export class CharacterController {
   private velocityY = 0;
   private time = 0;
   private jumpHeld = false;
+  private planeBounds?: { minX: number; maxX: number; minZ: number; maxZ: number };
+  private recoveryPosition?: THREE.Vector3;
+  private recoveryFloor = -Infinity;
   private constructor(
     scene: SceneSpec,
     objects: Map<string, THREE.Object3D>,
@@ -39,6 +42,9 @@ export class CharacterController {
       this.up.copy(radialUp(new THREE.Vector3(...scene.spawn), this.center));
     }
     this.world = new RAPIER.World({ x: 0, y: this.center ? 0 : -9.81, z: 0 });
+    const navigationBounds =
+      scene.navigation?.kind === 'plane' ? scene.navigation.bounds : undefined;
+    let lowestColliderY = Infinity;
     for (const node of scene.nodes) {
       if (!node.collider || !node.visible) continue;
       const object = objects.get(node.id);
@@ -64,10 +70,15 @@ export class CharacterController {
           const indices = index
             ? (Array.from(index.array) as number[])
             : Array.from({ length: positions.count }, (_, i) => i);
-          if (indices.length >= 3)
+          if (indices.length >= 3) {
+            const worldVertices = new Float32Array(vertices);
             this.world.createCollider(
-              RAPIER.ColliderDesc.trimesh(new Float32Array(vertices), new Uint32Array(indices)),
+              RAPIER.ColliderDesc.trimesh(worldVertices, new Uint32Array(indices)),
             );
+            if (navigationBounds)
+              for (const vertexIndex of indices)
+                lowestColliderY = Math.min(lowestColliderY, worldVertices[vertexIndex * 3 + 1]);
+          }
         });
         continue;
       }
@@ -77,7 +88,20 @@ export class CharacterController {
           ? RAPIER.ColliderDesc.ball(x * Math.max(s.x, s.y, s.z))
           : RAPIER.ColliderDesc.cuboid((x * s.x) / 2, (y * s.y) / 2, (z * s.z) / 2);
       desc.setTranslation(p.x, p.y, p.z).setRotation(q);
-      this.world.createCollider(desc);
+      const collider = this.world.createCollider(desc);
+      if (navigationBounds) {
+        let halfHeight: number;
+        if (node.collider.shape === 'ball') halfHeight = collider.radius();
+        else {
+          const half = collider.halfExtents();
+          const rotation = collider.rotation();
+          q.set(rotation.x, rotation.y, rotation.z, rotation.w);
+          const axes = new THREE.Matrix4().makeRotationFromQuaternion(q).elements;
+          halfHeight =
+            Math.abs(axes[1]) * half.x + Math.abs(axes[5]) * half.y + Math.abs(axes[9]) * half.z;
+        }
+        lowestColliderY = Math.min(lowestColliderY, collider.translation().y - halfHeight);
+      }
     }
     const [x, y, z] = scene.spawn;
     this.body = this.world.createRigidBody(
@@ -94,6 +118,24 @@ export class CharacterController {
       ),
       this.body,
     );
+    if (navigationBounds) {
+      const { min, max } = navigationBounds;
+      const margin = this.collider.radius() + 0.02;
+      this.planeBounds = {
+        minX: min[0] + margin,
+        maxX: max[0] - margin,
+        minZ: min[1] + margin,
+        maxZ: max[1] - margin,
+      };
+      // Spawn is the fallback until the first grounded position is available.
+      this.recoveryPosition = new THREE.Vector3().copy(this.body.translation());
+      // Valid drops can land far below the last contact. Recover only once the
+      // entire capsule is beneath the physical world, with the controller gap.
+      this.recoveryFloor =
+        (Number.isFinite(lowestColliderY) ? lowestColliderY : y) -
+        this.collider.halfHeight() -
+        margin;
+    }
     this.controller = this.world.createCharacterController(0.02);
     this.controller.enableAutostep(0.45, 0.2, true);
     this.controller.enableSnapToGround(0.4);
@@ -113,6 +155,12 @@ export class CharacterController {
     initialization ??= RAPIER.init();
     await initialization;
     return new CharacterController(scene, objects, actor, height);
+  }
+  private constrainPlanePosition(position: THREE.Vector3) {
+    if (!this.planeBounds) return;
+    const bounds = this.planeBounds;
+    position.x = THREE.MathUtils.clamp(position.x, bounds.minX, bounds.maxX);
+    position.z = THREE.MathUtils.clamp(position.z, bounds.minZ, bounds.maxZ);
   }
   step(dt: number, spawn: Vector3Tuple) {
     dt = Math.min(dt, 0.04);
@@ -146,22 +194,34 @@ export class CharacterController {
     if (jumping && !this.jumpHeld && grounded) this.velocityY = 5.2;
     this.jumpHeld = jumping;
     this.velocityY -= 14 * dt;
-    this.controller.computeColliderMovement(this.collider, {
-      x: (direction.x * 3.6 + this.up.x * this.velocityY) * dt,
-      y: (direction.y * 3.6 + this.up.y * this.velocityY) * dt,
-      z: (direction.z * 3.6 + this.up.z * this.velocityY) * dt,
-    });
-    const movement = this.controller.computedMovement();
     const p = this.body.translation();
-    this.body.setNextKinematicTranslation({
-      x: p.x + movement.x,
-      y: p.y + movement.y,
-      z: p.z + movement.z,
-    });
+    const target = new THREE.Vector3(
+      (direction.x * 3.6 + this.up.x * this.velocityY) * dt,
+      (direction.y * 3.6 + this.up.y * this.velocityY) * dt,
+      (direction.z * 3.6 + this.up.z * this.velocityY) * dt,
+    );
+    if (this.planeBounds) {
+      // Constrain only the outward component, preserving jumps and edge travel.
+      target.add(p);
+      this.constrainPlanePosition(target);
+      target.sub(p);
+    }
+    this.controller.computeColliderMovement(this.collider, target);
+    const movement = this.controller.computedMovement();
+    target.set(p.x + movement.x, p.y + movement.y, p.z + movement.z);
+    // Sloped collision surfaces can also deflect an otherwise valid movement.
+    this.constrainPlanePosition(target);
+    this.body.setNextKinematicTranslation(target);
     this.world.timestep = dt;
     this.world.step();
     const next = this.body.translation();
-    if (
+    if (this.recoveryPosition) {
+      if (next.y < this.recoveryFloor) {
+        this.body.setTranslation(this.recoveryPosition, true);
+        this.body.setNextKinematicTranslation(this.recoveryPosition);
+        this.velocityY = 0;
+      } else if (this.controller.computedGrounded()) this.recoveryPosition.copy(next);
+    } else if (
       this.center
         ? new THREE.Vector3().copy(next).distanceTo(this.center) < this.radius * 0.5 ||
           new THREE.Vector3().copy(next).distanceTo(this.center) > this.radius + 30

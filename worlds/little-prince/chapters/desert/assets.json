@@ -7,7 +7,7 @@
       "name": "prince-desert",
       "type": "glb",
       "url": "/assets/optimized/showcase/prince-desert.glb",
-      "bytes": 2328020,
+      "bytes": 6040060,
       "source": "generators/blender/prince/build.py"
     },
     {
