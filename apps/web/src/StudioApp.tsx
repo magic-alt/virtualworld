@@ -71,6 +71,7 @@ import { Viewport } from './Viewport';
 import { Inspector } from './Inspector';
 import { importFile } from './import';
 import { ProjectScope } from './operations';
+import { api, json, readJsonResponse } from './api';
 type Project = { id: string; name: string; mode: string; description: string; revision: number };
 type Proposal = {
   summary: string;
@@ -78,16 +79,6 @@ type Proposal = {
   baseRevision: number;
   projectId: string;
 };
-async function api(path: string, options?: RequestInit) {
-  const response = await fetch(path, options);
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
-  return body;
-}
-const json = (body: unknown) => ({
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
-});
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob),
     a = document.createElement('a');
@@ -486,7 +477,7 @@ export default function StudioApp({
         method: 'POST',
         ...json({ scene, target: exportTarget }),
       });
-      if (!response.ok) throw new Error((await response.json()).error);
+      if (!response.ok) await readJsonResponse(response, '/api/export');
       download(
         await response.blob(),
         `${scene.name}${exportTarget === 'web' ? '' : `-${exportTarget}`}.zip`,

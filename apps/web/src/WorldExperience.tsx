@@ -15,7 +15,7 @@ import { mountGraphicsStatus } from '../shared/graphics-status';
 import { mountExperienceControls } from '../shared/experience-controls';
 import { mountMechanismControls } from '../shared/mechanism-controls';
 import '../shared/experience.css';
-import { api, json } from './api';
+import { api, json, readJsonResponse } from './api';
 type Journey = { initial: SceneSpec; progress?: CampaignProgress; projectId: string };
 export function WorldExperience({
   id,
@@ -322,7 +322,7 @@ function Experience({
     setBusy('正在打包世界…');
     try {
       const response = await fetch('/api/export', { method: 'POST', ...json({ scene }) });
-      if (!response.ok) throw new Error((await response.json()).error || '导出失败');
+      if (!response.ok) await readJsonResponse(response, '/api/export');
       const blob = await response.blob();
       if (!mounted.current || version !== generation.current) return;
       const url = URL.createObjectURL(blob),

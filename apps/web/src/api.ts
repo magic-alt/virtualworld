@@ -1,7 +1,22 @@
 export async function api(path: string, options?: RequestInit) {
   const response = await fetch(path, options);
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+  return readJsonResponse(response, path);
+}
+export async function readJsonResponse(response: Response, path: string) {
+  const context = `${path}（HTTP ${response.status}）`;
+  const text = await response.text();
+  const hint = '请检查 API 服务是否已启动及代理连接是否正常。';
+  if (!text.trim()) throw new Error(`${context}：响应为空。${hint}`);
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    throw new Error(`${context}：服务返回无效 JSON。${hint}`);
+  }
+  if (!body || typeof body !== 'object')
+    throw new Error(`${context}：服务返回无效 JSON 数据。${hint}`);
+  if (!response.ok)
+    throw new Error(typeof body.error === 'string' && body.error ? body.error : context);
   return body;
 }
 export const json = (body: unknown) => ({
