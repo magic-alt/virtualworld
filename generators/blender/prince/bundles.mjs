@@ -69,7 +69,7 @@ for (const [index, [key, title]] of chapters.entries()) {
     node('landscape', title, 'prince-' + key, [0, 0, 0], {
       collider: {
         shape: index === 1 ? 'ball' : 'mesh',
-        size: index === 1 ? [6, 6, 6] : [22, 1, 22],
+        size: index === 1 ? [6, 6, 6] : index === 0 ? [220, 1, 220] : [22, 1, 22],
       },
     }),
   ];
@@ -216,7 +216,12 @@ for (const [index, [key, title]] of chapters.entries()) {
       target: index === 1 ? [0, 6, 0] : [0, 0.7, 0],
     },
     spawn: index === 1 ? [0.8, 6.1, 1.2] : index === 0 ? [0, -0.08, 2] : [0, 0.1, 2],
-    navigation: index === 1 ? { kind: 'sphere', center: [0, 0, 0], radius: 6 } : { kind: 'plane' },
+    navigation:
+      index === 1
+        ? { kind: 'sphere', center: [0, 0, 0], radius: 6 }
+        : index === 0
+          ? { kind: 'plane', bounds: { min: [-100, -100], max: [100, 100] } }
+          : { kind: 'plane' },
     actor: {
       assetId: 'prince-character',
       ...(index === 0 ? { nodeId: 'prince' } : {}),

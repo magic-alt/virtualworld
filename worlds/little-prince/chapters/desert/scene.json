@@ -20,7 +20,7 @@
       "visible": true,
       "collider": {
         "shape": "mesh",
-        "size": [22, 1, 22]
+        "size": [220, 1, 220]
       }
     },
     {
@@ -92,7 +92,11 @@
   },
   "spawn": [0, -0.08, 2],
   "navigation": {
-    "kind": "plane"
+    "kind": "plane",
+    "bounds": {
+      "min": [-100, -100],
+      "max": [100, 100]
+    }
   },
   "actor": {
     "assetId": "prince-character",

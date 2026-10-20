@@ -2,12 +2,12 @@
   "version": 1,
   "id": "prince-desert",
   "seed": 612,
-  "generator": "Blender 5.2 fixed offline recipe",
+  "generator": "Blender 5.2 fixed offline recipe + deterministic sand horizon",
   "source": "generators/blender/prince/build.py",
-  "sha256": "518e363f0e94417cf8e05382d2d55d3ce70c2160df37dad0bdb05e02e5a0f880",
-  "bytes": 2328020,
-  "meshes": 6,
-  "triangles": 67624,
+  "sha256": "d375c9d8377e2256a1e8613ae9c96903d4c4cd28343df616ad14b4afcc442477",
+  "bytes": 3754492,
+  "meshes": 7,
+  "triangles": 106536,
   "warnings": [
     {
       "code": "UNUSED_OBJECT",
@@ -34,10 +34,20 @@
       "pointer": "/accessors/18"
     }
   ],
-  "primitives": 6,
+  "primitives": 7,
   "clips": [],
   "validator": {
     "errors": 0,
     "warnings": 0
+  },
+  "postprocess": "generators/blender/prince/extend-desert.ts",
+  "terrain": {
+    "width": 220,
+    "depth": 220,
+    "authoredCenterWidth": 22,
+    "walkableBounds": {
+      "min": [-100, -100],
+      "max": [100, 100]
+    }
   }
 }

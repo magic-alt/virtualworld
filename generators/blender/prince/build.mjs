@@ -63,4 +63,6 @@ for (const name of ['character', 'pilot', 'fox', 'desert', 'b612', 'earth']) {
   writeFileSync(receiptPath, JSON.stringify(receipt, null, 2) + '\n');
   if (report.issues.numErrors) throw new Error(name + ': glTF validation errors; inspect receipt');
 }
+const { buildDesertHorizon } = await import('./extend-desert.ts');
+await buildDesertHorizon();
 await import('./bundles.mjs');

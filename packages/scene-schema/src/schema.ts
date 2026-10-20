@@ -118,7 +118,18 @@ export const SceneSchema = z
     tasks: z.array(z.object({ flag: identifier, label: z.string().max(200) }).strict()).max(100),
     navigation: z
       .discriminatedUnion('kind', [
-        z.object({ kind: z.literal('plane') }).strict(),
+        z
+          .object({
+            kind: z.literal('plane'),
+            bounds: z
+              .object({
+                min: z.tuple([z.number().finite(), z.number().finite()]),
+                max: z.tuple([z.number().finite(), z.number().finite()]),
+              })
+              .strict()
+              .optional(),
+          })
+          .strict(),
         z
           .object({
             kind: z.literal('sphere'),
@@ -245,6 +256,18 @@ export function validateScene(input: unknown): string[] {
       scene.nodes.some((node) => node.parentId === preview.id)
     )
       errors.push('角色预览必须引用同一 GLB 的可见独立网格，不能带子节点、碰撞或交互');
+  }
+  if (scene.navigation?.kind === 'plane' && scene.navigation.bounds) {
+    const { min, max } = scene.navigation.bounds;
+    const margin = (scene.actor ? scene.actor.height * 0.17 : 0.27) + 0.02;
+    if (min.some((value, axis) => max[axis] - value <= margin * 2))
+      errors.push('平面活动边界必须留出角色碰撞体的通行空间');
+    if (
+      [scene.spawn[0], scene.spawn[2]].some(
+        (value, axis) => value < min[axis] + margin || value > max[axis] - margin,
+      )
+    )
+      errors.push('出生点必须位于平面活动边界内，并留出角色碰撞体的空间');
   }
   if (scene.campaign && scene.campaign.chapterId !== scene.id) errors.push('章节 ID 与场景不一致');
   if (scene.mechanism) {
