@@ -33,7 +33,8 @@
     "asset:optimize": "tsx generators/scene-builder/src/cli.ts optimize",
     "world:cli": "tsx generators/scene-builder/src/cli.ts",
     "demos:build": "tsx scripts/demos.ts build",
-    "demos:validate": "tsx scripts/demos.ts validate"
+    "demos:validate": "tsx scripts/demos.ts validate",
+    "native:export": "node --import tsx scripts/native-project.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.3",

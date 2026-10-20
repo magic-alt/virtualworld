@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { EngineExperience } from './EngineExperience';
 import { ArrowLeft, ArrowUpRight, Download, Loader2, Sparkles, X, Undo2, Save } from 'lucide-react';
 import { StudioRuntime, WebGLInitializationError, type RuntimeMetrics } from '@virtualworld/engine';
 import {
@@ -17,17 +18,54 @@ import { mountMechanismControls } from '../shared/mechanism-controls';
 import '../shared/experience.css';
 import { api, json, readJsonResponse } from './api';
 type Journey = { initial: SceneSpec; progress?: CampaignProgress; projectId: string };
-export function WorldExperience({
-  id,
-  onBack,
-  onEdit,
-  onDirtyChange,
-}: {
+type WorldExperienceProps = {
   id: string;
   onBack: () => void;
   onEdit: (id: string) => void;
   onDirtyChange: (dirty: boolean) => void;
-}) {
+};
+export function WorldExperience(props: WorldExperienceProps) {
+  const dirty = useRef(false);
+  const activeScene = useRef(props.id);
+  useEffect(() => {
+    activeScene.current = props.id;
+    dirty.current = false;
+  }, [props.id]);
+  const sceneChanged = useCallback((id: string) => {
+    activeScene.current = id;
+  }, []);
+  const dirtyChanged = useCallback(
+    (value: boolean) => {
+      dirty.current = value;
+      props.onDirtyChange(value);
+    },
+    [props.onDirtyChange],
+  );
+  return (
+    <EngineExperience
+      id={props.id}
+      onBack={props.onBack}
+      beforeSwitch={() => !dirty.current || confirm('世界有未保存的修改，确定切换引擎？')}
+      activeSceneId={() => activeScene.current}
+      renderWeb={(engineControls) => (
+        <BrowserWorldExperience
+          {...props}
+          engineControls={engineControls}
+          onDirtyChange={dirtyChanged}
+          onSceneChange={sceneChanged}
+        />
+      )}
+    />
+  );
+}
+function BrowserWorldExperience({
+  id,
+  onBack,
+  onEdit,
+  onDirtyChange,
+  engineControls,
+  onSceneChange,
+}: WorldExperienceProps & { engineControls: ReactNode; onSceneChange: (id: string) => void }) {
   const [journey, setJourney] = useState<Journey>(),
     [error, setError] = useState('');
   useEffect(() => {
@@ -81,6 +119,8 @@ export function WorldExperience({
       onBack={onBack}
       onEdit={onEdit}
       onDirtyChange={onDirtyChange}
+      engineControls={engineControls}
+      onSceneChange={onSceneChange}
     />
   );
 }
@@ -89,11 +129,15 @@ function Experience({
   onBack,
   onEdit,
   onDirtyChange,
+  engineControls,
+  onSceneChange,
 }: {
   journey: Journey;
   onBack: () => void;
   onEdit: (id: string) => void;
   onDirtyChange: (dirty: boolean) => void;
+  engineControls: ReactNode;
+  onSceneChange: (id: string) => void;
 }) {
   const [scene, setScene] = useState(journey.initial),
     [loading, setLoading] = useState(true),
@@ -130,6 +174,9 @@ function Experience({
     onDirtyChange(dirty);
     return () => onDirtyChange(false);
   }, [dirty, onDirtyChange]);
+  useEffect(() => {
+    onSceneChange(scene.id);
+  }, [scene.id, onSceneChange]);
   const clearDialog = () => setDialog(undefined);
   useEffect(() => {
     mounted.current = true;
@@ -372,6 +419,7 @@ function Experience({
           <h1>{scene.name}</h1>
         </div>
         <div className="experience-header-actions">
+          {engineControls}
           <button onClick={() => setAiOpen((v) => !v)} aria-label="用 AI 改变世界">
             <Sparkles size={17} />
             <span>继续创造</span>

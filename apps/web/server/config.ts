@@ -1,5 +1,6 @@
 import { resolve, join } from 'node:path';
 import { z } from 'zod';
+import { EngineRuntimeRegistry } from '../shared/engine-runtime';
 
 export const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '[::1]'];
 const HostedPolicy = z
@@ -80,6 +81,9 @@ export function readServerConfig(env: NodeJS.ProcessEnv = process.env) {
     port,
     dataRoot,
     accessPolicy,
+    engineRuntimes: EngineRuntimeRegistry.parse(
+      env.VW_ENGINE_RUNTIMES ? JSON.parse(env.VW_ENGINE_RUNTIMES) : [],
+    ),
     generatedRoot: mode === 'hosted' ? join(dataRoot!, 'workspace') : undefined,
     limits: serviceLimits({
       maxPendingGenerations: integer(
