@@ -111,6 +111,7 @@ export class StudioRuntime {
   private isolatedId?: string;
   private mixers: THREE.AnimationMixer[] = [];
   private actorSource?: THREE.Object3D;
+  private actorPreview?: { object: THREE.Object3D; visible: boolean };
   private actorMixer?: THREE.AnimationMixer;
   private actorAction?: THREE.AnimationAction;
   private interactUntil = 0;
@@ -333,18 +334,23 @@ export class StudioRuntime {
     if (this.spec.mechanism && !this.metrics.loading) this.fitMechanismView();
   }
   async setMode(mode: PresentationMode) {
+    const requestedGeneration = this.generation;
     const from = this.camera.position.clone(),
       fromTarget = this.controls.target.clone(),
       fromUp = this.camera.up.clone();
     this.cameraTransition = undefined;
     this.mode = mode;
     this.setPaused(false);
-    if (mode === 'explore') await this.play();
-    else {
+    if (mode === 'explore') {
+      const playing = this.play();
+      const request = this.playRequest;
+      await playing;
+      if (request !== this.playRequest) return;
+    } else {
       this.stop();
       this.select(mode === 'edit' ? this.selectedId : undefined);
     }
-    if (this.disposed || this.mode !== mode) return;
+    if (this.disposed || requestedGeneration !== this.generation || this.mode !== mode) return;
     const grid = this.content.getObjectByName('editor-grid');
     if (grid) grid.visible = mode === 'edit' && this.spec.mode === 'industrial';
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches && mode !== 'edit') {
@@ -518,6 +524,12 @@ export class StudioRuntime {
               if (version !== this.generation || this.disposed) {
                 disposeObject(instance);
                 return;
+              }
+              if (spec.actor?.nodeId === node.id) {
+                const height = new THREE.Box3()
+                  .setFromObject(instance)
+                  .getSize(new THREE.Vector3()).y;
+                if (height > 0) instance.scale.multiplyScalar(spec.actor.height / height);
               }
               holder.add(instance);
               if (node.animation) {
@@ -717,6 +729,7 @@ export class StudioRuntime {
       this.reportError(new Error('角色资源尚未加载'), this.generation);
       return;
     }
+    const spec = this.spec;
     this.originalCamera = {
       position: this.camera.position.clone(),
       target: this.controls.target.clone(),
@@ -727,20 +740,28 @@ export class StudioRuntime {
     this.explode(0);
     this.controls.enablePan = false;
     this.callbacks.onStory?.(this.story);
-    if (this.spec.mode === 'world') {
+    if (spec.mode === 'world') {
       try {
-        const generation = this.generation;
+        const actorSource = this.actorSource;
+        const objects = new Map(this.objects);
         const { CharacterController } = await import('@virtualworld/interaction/character');
+        if (
+          !this.playing ||
+          this.disposed ||
+          requestedGeneration !== this.generation ||
+          request !== this.playRequest
+        )
+          return;
         const char = await CharacterController.create(
-          this.spec,
-          this.objects,
-          this.actorSource,
-          this.spec.actor?.height,
+          spec,
+          objects,
+          actorSource,
+          spec.actor?.height,
         );
         if (
           !this.playing ||
           this.disposed ||
-          generation !== this.generation ||
+          requestedGeneration !== this.generation ||
           request !== this.playRequest
         ) {
           char.dispose();
@@ -748,12 +769,17 @@ export class StudioRuntime {
         }
         this.char = char;
         this.actorSource = undefined;
-        if (this.spec.actor) {
+        if (spec.actor) {
           this.actorMixer = new THREE.AnimationMixer(char.object);
-          this.setActorClip(this.spec.actor.clips.idle);
+          this.setActorClip(spec.actor.clips.idle);
+          const preview = spec.actor.nodeId ? objects.get(spec.actor.nodeId) : undefined;
+          if (preview) {
+            this.actorPreview = { object: preview, visible: preview.visible };
+            preview.visible = false;
+          }
         }
         this.world.add(char.object);
-        if (this.spec.navigation?.kind === 'sphere') {
+        if (spec.navigation?.kind === 'sphere') {
           this.camera.up.copy(char.up);
           this.camera.position
             .copy(char.object.position)
@@ -763,8 +789,14 @@ export class StudioRuntime {
         this.controls.target.copy(char.object.position).add(new THREE.Vector3(0, 1, 0));
         this.controls.maxDistance = 20;
       } catch (error) {
-        this.reportError(error, this.generation);
-        this.stop();
+        if (
+          requestedGeneration === this.generation &&
+          request === this.playRequest &&
+          !this.disposed
+        ) {
+          this.reportError(error, requestedGeneration);
+          this.stop();
+        }
       }
     }
   }
@@ -784,6 +816,10 @@ export class StudioRuntime {
       else disposeObject(this.char.object);
       this.char.dispose();
       this.char = undefined;
+    }
+    if (this.actorPreview) {
+      this.actorPreview.object.visible = this.actorPreview.visible;
+      this.actorPreview = undefined;
     }
     this.camera.up.set(0, 1, 0);
     this.controls.enablePan = true;
@@ -852,6 +888,10 @@ export class StudioRuntime {
           )
             o.visible = false;
         } else if (this.isolatedSubsystem && node.kind !== 'group') o.visible = false;
+      }
+      if (o && this.actorPreview?.object === o) {
+        this.actorPreview.visible = o.visible;
+        o.visible = false;
       }
     }
   }
@@ -1313,6 +1353,7 @@ export class StudioRuntime {
     });
   }
   private clearContent() {
+    this.actorPreview = undefined;
     for (const mixer of this.mixers) {
       mixer.stopAllAction();
       mixer.uncacheRoot(mixer.getRoot());

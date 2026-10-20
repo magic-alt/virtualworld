@@ -82,22 +82,26 @@ for (const [index, [key, title]] of chapters.entries()) {
   };
   if (index === 0) {
     nodes.push(
-      node('prince', '金发的小旅人', 'prince-character', [0.3, -0.08, -1.4], {
+      node('prince', '小王子（你控制的角色）', 'prince-character', [0, -0.08, 2], {
+        animation: { clip: 'Idle', loop: true },
+      }),
+      node('pilot', '飞机旁的飞行员', 'prince-pilot', [-1.4, -0.08, -0.6], {
+        rotation: [0, 0.5, 0],
         animation: { clip: 'Idle', loop: true },
       }),
     );
     task(
       'meeting',
       '请画一只羊',
-      [0.3, 0.8, -1.4],
-      '发动机停在沙海深处。一个金发孩子却只惦记一只羊。我画了一个有透气孔的箱子，他说：这样，羊也有自己的家了。',
+      [-1.4, 0.8, -0.6],
+      '我走到迫降的飞机旁，请飞行员画一只羊。他画下一个留有透气孔的箱子；我想，那只羊现在就住在里面。',
       'sheep',
     );
     task(
       'plane',
-      '修理飞机',
+      '陪飞行员修理飞机',
       [-3, 0.8, -1],
-      '我还需要修理引擎。孩子讲起远方的一朵花，让这片安静的沙漠第一次有了牵挂。',
+      '飞行员继续修理引擎。我在一旁讲起自己的小星球和那朵花。沙海很大，心里的牵挂却让我想起每天的照料。',
       'depart',
       ['sheep'],
     );
@@ -194,7 +198,7 @@ for (const [index, [key, title]] of chapters.entries()) {
     id,
     name: title,
     description: [
-      '沙漠中，一位迫降的飞行员遇见金发的小旅人。走到机翼旁，听听那只箱子里的羊。',
+      '扮演小王子，在沙丘间自由行走，去飞机旁找飞行员，请他画一只羊，再陪他修理飞机。WASD / 方向键或移动摇杆控制小王子。',
       '在小小的星球上照料玫瑰、清扫火山、辨认幼苗，再陪夕阳坐一会儿。',
       '先走进玫瑰花园，再与麦田边的狐狸慢慢熟悉，最后回到花旁，想想远方的牵挂。',
     ][index],
@@ -211,10 +215,11 @@ for (const [index, [key, title]] of chapters.entries()) {
       position: index === 1 ? [8, 10, 8] : [6, 5, 8],
       target: index === 1 ? [0, 6, 0] : [0, 0.7, 0],
     },
-    spawn: index === 1 ? [0.8, 6.1, 1.2] : [0, 0.1, 2],
+    spawn: index === 1 ? [0.8, 6.1, 1.2] : index === 0 ? [0, -0.08, 2] : [0, 0.1, 2],
     navigation: index === 1 ? { kind: 'sphere', center: [0, 0, 0], radius: 6 } : { kind: 'plane' },
     actor: {
-      assetId: index === 0 ? 'prince-pilot' : 'prince-character',
+      assetId: 'prince-character',
+      ...(index === 0 ? { nodeId: 'prince' } : {}),
       height: 1.6,
       clips: { idle: 'Idle', walk: 'Walk', interact: 'Interact' },
     },
