@@ -614,10 +614,12 @@ async function approach(page, id, touch) {
         player: metrics.player,
       };
     }, id);
-    if (direction.distance < 2.25) return;
+    if (direction.distance < 2.25) {
+      await checkpoint(`${id}: target is within the approach distance`);
+      return;
+    }
     await withMovement(page, direction, touch, () => waitForMovement(page, direction.player));
-    if (step % 10 === 9)
-      await checkpoint(`Approaching ${id}: ${step + 1} effective movement segments`);
+    await checkpoint(`Approaching ${id}: ${step + 1} effective movement segments`);
   }
   throw new Error(`Could not approach ${id} using real movement input`);
 }
@@ -629,8 +631,10 @@ async function revealHotspot(page, id) {
         (id) => window.virtualworld.getDiagnostics().hotspots.some((hotspot) => hotspot.id === id),
         id,
       )
-    )
+    ) {
+      await checkpoint(`${id}: hotspot projects into the current view`);
       return;
+    }
     const gesture = await page.evaluate(() => {
       const canvas = document.querySelector('canvas');
       const rect = canvas.getBoundingClientRect();
@@ -695,8 +699,10 @@ async function revealHotspot(page, id) {
       (id) => window.virtualworld.getDiagnostics().hotspots.some((hotspot) => hotspot.id === id),
       id,
     )
-  )
+  ) {
+    await checkpoint(`${id}: hotspot projects into the current view`);
     return;
+  }
   const diagnostic = await page.evaluate((id) => {
     const runtime = window.virtualworld;
     const node = runtime.spec.nodes.find((node) => node.id === id);
@@ -721,12 +727,16 @@ async function encounter(page, id, flag, touch) {
   await revealHotspot(page, id);
   const hotspot = page.locator(`.experience-hotspot[data-node-id="${id}"]`);
   await hotspot.waitFor({ state: 'visible' });
+  await checkpoint(`${id}: hotspot button is visible`);
   await page.waitForFunction((id) => {
     const button = document.querySelector(`.experience-hotspot[data-node-id="${id}"]`);
     return button && !button.disabled;
   }, id);
+  await checkpoint(`${id}: hotspot button is enabled; waiting for a real click`);
   await hotspot.click();
+  await checkpoint(`${id}: hotspot clicked through the visible UI`);
   await page.getByRole('dialog').waitFor();
+  await checkpoint(`${id}: encounter dialog is visible`);
   assert.ok(
     await page.evaluate(
       (flag) => window.virtualworld.getDiagnostics().story.flags.includes(flag),
@@ -755,6 +765,7 @@ async function closeEncounter(page, standalone) {
     })
     .click();
   await page.getByRole('dialog').waitFor({ state: 'hidden' });
+  await checkpoint('Encounter dialog closed through the visible UI');
 }
 async function campaign(url, label, touch = false, standalone = false) {
   await checkpoint(`${label}: creating browser context`);
@@ -828,6 +839,7 @@ async function campaign(url, label, touch = false, standalone = false) {
   const replay = page.locator('.experience-hotspot[data-node-id="meeting"]');
   assert.equal(await replay.getAttribute('data-status'), 'completed');
   await replay.click();
+  await checkpoint(`${label}: completed desert encounter replay clicked`);
   await closeEncounter(page, standalone);
   await encounter(page, 'plane', 'depart', touch);
   await page.getByRole('button', { name: '下一章：每天照料的小星球', exact: true }).waitFor();
