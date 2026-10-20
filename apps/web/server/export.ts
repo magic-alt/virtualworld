@@ -51,7 +51,8 @@ export async function createExport(
 ) {
   const { signal } = options;
   const target = options.target ?? 'web';
-  if (!['web', 'unity', 'godot'].includes(target)) throw new HttpError(400, '非法导出目标');
+  if (!['web', 'unity', 'godot', 'unreal'].includes(target))
+    throw new HttpError(400, '非法导出目标');
   const checkCancelled = () => signal?.throwIfAborted();
   checkCancelled();
   const maxBytes = options.maxBytes ?? 256 * 1024 * 1024;
@@ -296,6 +297,7 @@ export async function createExport(
       target,
       scenes,
       entrySceneId: scene.id,
+      campaign,
       assetBytes: (url) => {
         const bytes = files[url];
         if (!bytes) throw new HttpError(400, '导出资源快照缺失');

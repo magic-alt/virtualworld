@@ -1,5 +1,26 @@
 import type { SceneNode, SceneSpec } from '@virtualworld/scene-schema';
 import { Euler, Quaternion } from 'three';
+export type EngineTarget = 'unity' | 'unreal' | 'godot';
+export function nativeRuntime(target: EngineTarget) {
+  if (target === 'godot') return undefined;
+  return {
+    version: 1 as const,
+    implementation: 'native' as const,
+    validation: 'requires-engine' as const,
+    features: [
+      'scene-selection',
+      'environment',
+      'actor-control',
+      'actor-animation',
+      'plane-navigation',
+      'spherical-navigation',
+      'story',
+      'campaign',
+      'harmonic-control',
+      'node-animation',
+    ],
+  };
+}
 export interface CompatibilityFinding {
   code: string;
   feature: string;
@@ -44,8 +65,9 @@ export function nativeNode(node: SceneNode, scene: SceneSpec, model?: string) {
     metadataJson: JSON.stringify(node),
   };
 }
-export function findings(scene: SceneSpec): CompatibilityFinding[] {
+export function findings(scene: SceneSpec, target: EngineTarget = 'godot'): CompatibilityFinding[] {
   const result: CompatibilityFinding[] = [];
+  const native = target === 'unity' || target === 'unreal';
   const add = (code: string, feature: string, message: string, node?: SceneNode) =>
     result.push({
       code,
@@ -57,21 +79,39 @@ export function findings(scene: SceneSpec): CompatibilityFinding[] {
     });
   if (scene.tasks.length || scene.actor || scene.campaign)
     add(
-      'GAMEPLAY_UNMAPPED',
+      native ? 'NATIVE_RUNTIME_REQUIRES_VALIDATION' : 'GAMEPLAY_UNMAPPED',
       'scene gameplay',
-      'Story, campaign progression and actor control remain metadata.',
+      native
+        ? 'Native runtime source implements actor control, story and campaign progression; engine compilation and gameplay validation are still required.'
+        : 'Story, campaign progression and actor control remain metadata.',
     );
   if (scene.navigation?.kind === 'sphere')
     add(
-      'SPHERICAL_NAVIGATION_UNMAPPED',
+      native ? 'NATIVE_RUNTIME_REQUIRES_VALIDATION' : 'SPHERICAL_NAVIGATION_UNMAPPED',
       'spherical navigation',
-      'Native adapter uses authored coordinates; spherical locomotion is not implemented.',
+      native
+        ? 'Native runtime source constrains actor movement to the authored sphere; validate collision, orientation and camera behavior in the target engine.'
+        : 'Native adapter uses authored coordinates; spherical locomotion is not implemented.',
+    );
+  if (target === 'unreal' && scene.actor)
+    add(
+      'CHARACTER_JUMP_UNMAPPED',
+      'actor jump',
+      'The Unreal source controller supports grounded plane/sphere movement; character jump and airborne gravity are not implemented.',
     );
   if (scene.mechanism)
     add(
-      'HARMONIC_CONTROL_UNMAPPED',
+      native ? 'NATIVE_RUNTIME_REQUIRES_VALIDATION' : 'HARMONIC_CONTROL_UNMAPPED',
       'harmonic mechanism',
-      'Harmonic control and deformation are not executed.',
+      native
+        ? 'Native runtime source implements signed transmission, named morph deformation and mechanism controls; validate mesh imports and motion in the target engine.'
+        : 'Harmonic control and deformation are not executed.',
+    );
+  if (native)
+    add(
+      'NATIVE_RUNTIME_REQUIRES_VALIDATION',
+      'environment',
+      'Native camera and environment setup is included; lighting, materials and rendering require validation in the target engine.',
     );
   if (scene.environment.fog)
     add(
@@ -80,20 +120,38 @@ export function findings(scene: SceneSpec): CompatibilityFinding[] {
       'Browser exponential fog is not reproduced exactly.',
     );
   for (const node of scene.nodes) {
-    if (node.interaction || node.joint)
+    if (!native && (node.interaction || node.joint))
       add(
         'GAMEPLAY_UNMAPPED',
         'node gameplay',
         'Interaction and joint controls remain metadata; joint value is baked into initial rotation.',
         node,
       );
-    if (node.animation)
+    if (native && node.interaction)
       add(
-        'ANIMATION_PLAYBACK_UNMAPPED',
-        'animation playback',
-        'Whole GLB clips are retained; requested playback is not started.',
+        'NATIVE_RUNTIME_REQUIRES_VALIDATION',
+        'node interaction',
+        'Native runtime source implements interaction prerequisites, flags and dialogue choices; validate the authored interaction in the target engine.',
         node,
       );
+    if (native && node.joint)
+      add(
+        'GAMEPLAY_UNMAPPED',
+        'joint control',
+        'Generic joint controls remain metadata; joint value is baked into the initial rotation. Harmonic mechanism controls are handled separately.',
+        node,
+      );
+    if (node.animation) {
+      const playback = native && node.shape === 'glb' && node.assetNode === undefined;
+      add(
+        playback ? 'NATIVE_RUNTIME_REQUIRES_VALIDATION' : 'ANIMATION_PLAYBACK_UNMAPPED',
+        'animation playback',
+        playback
+          ? 'Native runtime source starts the requested whole-GLB clip with authored loop and speed; clip import and playback require validation in the target engine.'
+          : 'Whole GLB clips are retained; general requested node playback is not mapped by this adapter.',
+        node,
+      );
+    }
     if (node.kind === 'splat')
       add('SPLAT_UNSUPPORTED', 'splat', 'Splat rendering is not implemented.', node);
     if (node.kind === 'light')

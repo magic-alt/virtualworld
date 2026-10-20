@@ -14,6 +14,7 @@ const verifyStartupFailure = process.argv.includes('--verify-startup-failure');
 const readyMarker = `VW_ENGINE_EXPORT_READY_${randomUUID()} `;
 const boot = `
 import { createServer } from 'node:net';
+import { createServer as createHttpServer } from 'node:http';
 import { once } from 'node:events';
 import { createApp } from './apps/web/server/app.ts';
 if (process.env.VW_EXPORT_SMOKE_EARLY_EXIT === '1') process.exit(23);
@@ -24,13 +25,25 @@ reservation.listen(0, '127.0.0.1');
 await once(reservation, 'listening');
 const port = reservation.address().port;
 await new Promise((resolve, reject) => reservation.close((error) => error ? reject(error) : resolve()));
+// A separate transport fixture verifies host lifecycle only, never native rendering.
+const fixture = createHttpServer((_request, response) => {
+  response.writeHead(200, { 'content-type': 'text/html' });
+  response.end('<!doctype html><html><body><p id="fixture">Engine surface transport fixture</p></body></html>');
+});
+fixture.listen(0, '127.0.0.1');
+await once(fixture, 'listening');
+const fixtureOrigin = 'http://127.0.0.1:' + fixture.address().port;
 const app = await createApp({
   dataRoot: process.env.VW_DATA_ROOT,
   accessPolicy: { mode: 'local', port },
   llm: { baseUrl: '', key: '', model: '' },
+  engineRuntimes: ['unity','unreal'].map((engine) => ({
+    engine, sceneId: 'native-browser', revision: 0,
+    url: fixtureOrigin + '/?engine=' + engine,
+  })),
 });
 await app.listen({ host: '127.0.0.1', port });
-process.on('SIGTERM', () => void app.close().then(() => process.exit(0)));
+process.on('SIGTERM', () => void app.close().then(() => fixture.close(() => process.exit(0))));
 console.log(process.env.VW_EXPORT_SMOKE_READY_MARKER + JSON.stringify({ origin: 'http://127.0.0.1:' + port }));
 `;
 const app = spawn(process.execPath, ['--import', 'tsx', '-e', boot], {
@@ -164,10 +177,13 @@ try {
     await page.getByRole('button', { name: '导出网页', exact: true }).waitFor();
     assert.equal(await page.getByLabel('导出目标', { exact: true }).inputValue(), 'web');
     checks.push('Default target is web and existing 导出网页 accessible action is preserved');
-    for (const [target, label, required] of [
-      ['godot', 'Godot', 'project.godot'],
-      ['unity', 'Unity', 'Editor/VirtualWorldImporter.cs'],
-    ]) {
+    for (const [target, label, required, notificationLabel] of process.argv.includes('--host-only')
+      ? []
+      : [
+          ['godot', 'Godot', 'project.godot', 'Godot'],
+          ['unity', 'Unity', 'Editor/VirtualWorldImporter.cs', 'Unity'],
+          ['unreal', 'Unreal', 'VirtualWorld.uproject', 'Unreal Engine'],
+        ]) {
       await page.getByLabel('导出目标', { exact: true }).selectOption(target);
       const [download, response] = await Promise.all([
         page.waitForEvent('download'),
@@ -185,7 +201,9 @@ try {
       assert.ok(files['compatibility.json']);
       assert.equal(JSON.parse(strFromU8(files['engine-manifest.json'])).target, target);
       await page
-        .getByText(`${label} 已导出，请先阅读 compatibility.json 兼容性报告`, { exact: true })
+        .getByText(`${notificationLabel} 已导出，请先阅读 compatibility.json 兼容性报告`, {
+          exact: true,
+        })
         .waitFor();
       checks.push(
         `${label} selection sends native target and downloads a valid archive with compatibility report`,
@@ -195,6 +213,105 @@ try {
     await page.getByRole('button', { name: '导出网页', exact: true }).waitFor();
     assert.deepEqual(errors, []);
     await page.screenshot({ path: join(output, 'target-selector.png') });
+    await page.goto(`${origin}/?project=${scene.id}`);
+    await page.waitForFunction(
+      () =>
+        window.virtualworld?.spec.id === 'native-browser' &&
+        !window.virtualworld.getDiagnostics().loading,
+    );
+    assert.equal(await page.getByLabel('渲染引擎', { exact: true }).inputValue(), 'web');
+    for (const [target, title] of [
+      ['unity', 'Unity'],
+      ['unreal', 'Unreal Engine'],
+    ]) {
+      await page.getByLabel('渲染引擎', { exact: true }).selectOption(target);
+      await page
+        .frameLocator(`iframe[title="${title} 世界运行画面"]`)
+        .locator('#fixture')
+        .waitFor();
+      assert.equal(await page.locator('[data-testid="viewport"]').count(), 0);
+      assert.equal(await page.evaluate(() => window.virtualworld === undefined), true);
+      assert.equal(await page.locator('iframe').count(), 1);
+      checks.push(
+        `${title} host mounts only the configured frame and disposes the Three runtime (transport fixture; not native rendering)`,
+      );
+    }
+    await page.getByLabel('渲染引擎', { exact: true }).selectOption('web');
+    await page.waitForFunction(
+      () =>
+        window.virtualworld?.spec.id === 'native-browser' &&
+        !window.virtualworld.getDiagnostics().loading,
+    );
+    assert.equal(await page.locator('iframe').count(), 0);
+    checks.push('Switching back to web removes the native frame and recreates the browser runtime');
+    // Capabilities loaded before a save must never authorize an older build afterward.
+    const revised = { ...scene, revision: 1, name: 'Saved newer scene' };
+    assert.equal(
+      (
+        await fetch(`${origin}/api/projects/${scene.id}`, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ scene: revised, baseRevision: 0 }),
+        })
+      ).status,
+      200,
+    );
+    await page.getByLabel('渲染引擎', { exact: true }).selectOption('unity');
+    await page.getByRole('heading', { name: '这个世界需要重新构建' }).waitFor({ timeout: 10000 });
+    assert.equal(await page.locator('iframe').count(), 0);
+    checks.push('Native entry rechecks saved scene revision and refuses a cached stale build');
+
+    // Resume a real later campaign chapter; engine binding and export must follow that chapter.
+    const desert = await (await fetch(`${origin}/api/projects/little-prince-desert`)).json();
+    await page.evaluate((source) => {
+      const content = JSON.stringify({
+        tasks: source.tasks,
+        interactions: source.nodes.filter((n) => n.interaction).map((n) => [n.id, n.interaction]),
+      });
+      let hash = 2166136261;
+      for (let i = 0; i < content.length; i++)
+        hash = Math.imul(hash ^ content.charCodeAt(i), 16777619);
+      localStorage.setItem(
+        'virtualworld:progress:v1:' + source.id,
+        JSON.stringify({
+          version: 1,
+          fingerprint: (hash >>> 0).toString(16),
+          state: {
+            flags: source.nodes.map((n) => n.interaction?.gives).filter(Boolean),
+            message: '',
+            completed: true,
+          },
+        }),
+      );
+      localStorage.setItem('virtualworld:campaign:v1:' + source.campaign.id, 'little-prince-b612');
+    }, desert);
+    await page.goto(`${origin}/?project=little-prince-desert&engine=web`);
+    await page.waitForFunction(() => window.virtualworld?.spec.id === 'little-prince-b612');
+    const currentBinding = page.waitForResponse(
+      (response) => response.url() === `${origin}/api/projects/little-prince-b612/engines`,
+    );
+    await page.getByLabel('渲染引擎', { exact: true }).selectOption('unity');
+    assert.equal((await currentBinding).status(), 200);
+    assert.equal(new URL(page.url()).searchParams.get('project'), 'little-prince-b612');
+    await page.getByRole('heading', { name: '原生引擎尚未连接' }).waitFor();
+    if (!process.argv.includes('--host-only')) {
+      const [download, response] = await Promise.all([
+        page.waitForEvent('download'),
+        page.waitForResponse((response) => response.url() === `${origin}/api/export`),
+        page.getByRole('button', { name: '下载 Unity 包', exact: true }).click(),
+      ]);
+      assert.equal(response.request().postDataJSON().scene.id, 'little-prince-b612');
+      assert.equal(download.suggestedFilename(), 'little-prince-b612-unity.zip');
+      checks.push('Native download exports the currently displayed chapter as its entry scene');
+    }
+    checks.push('Native entry identity follows the resumed current campaign chapter');
+    await page.goto(`${origin}/?project=little-prince-desert&engine=unreal`);
+    await page.getByRole('heading', { name: '原生引擎尚未连接' }).waitFor();
+    assert.equal(await page.locator('canvas').count(), 0);
+    assert.equal(await page.locator('iframe').count(), 0);
+    checks.push('Missing native deployment reports unavailability without silent Three fallback');
+    await page.screenshot({ path: join(output, 'native-unconfigured.png') });
+    assert.deepEqual(errors, []);
     await writeFile(
       join(output, 'report.json'),
       JSON.stringify({ browser: await browser.version(), checks, errors }, null, 2),

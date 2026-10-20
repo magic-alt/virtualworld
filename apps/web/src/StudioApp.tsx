@@ -130,7 +130,7 @@ export default function StudioApp({
     [rightTab, setRightTab] = useState<'properties' | 'ai'>('properties'),
     [search, setSearch] = useState(''),
     [collapsed, setCollapsed] = useState(new Set<string>());
-  const [exportTarget, setExportTarget] = useState<'web' | 'unity' | 'godot'>('web');
+  const [exportTarget, setExportTarget] = useState<'web' | 'unity' | 'godot' | 'unreal'>('web');
   const [playing, setPlaying] = useState(false),
     [explosion, setExplosion] = useState(0),
     [moving, setMoving] = useState(false),
@@ -468,7 +468,9 @@ export default function StudioApp({
     }
   }
   async function exportPage() {
-    const label = exportTarget === 'web' ? '网页' : exportTarget === 'unity' ? 'Unity' : 'Godot';
+    const label = { web: '网页', unity: 'Unity', godot: 'Godot', unreal: 'Unreal Engine' }[
+      exportTarget
+    ];
     setBusy(`验证并打包${label}…`);
     try {
       if (metrics?.loading) throw new Error('资源仍在加载，请稍后重试');
@@ -695,20 +697,23 @@ export default function StudioApp({
           aria-label="导出目标"
           className="export-target"
           value={exportTarget}
-          onChange={(event) => setExportTarget(event.target.value as 'web' | 'unity' | 'godot')}
+          onChange={(event) =>
+            setExportTarget(event.target.value as 'web' | 'unity' | 'godot' | 'unreal')
+          }
           disabled={!!busy}
         >
           <option value="web">网页</option>
           <option value="unity">Unity 6</option>
+          <option value="unreal">Unreal Engine 5</option>
           <option value="godot">Godot 4</option>
         </select>
         <button className="export-button" onClick={() => void exportPage()} disabled={!!busy}>
           <Upload size={15} />
-          {exportTarget === 'web'
-            ? '导出网页'
-            : exportTarget === 'unity'
-              ? '导出 Unity'
-              : '导出 Godot'}
+          {
+            { web: '导出网页', unity: '导出 Unity', godot: '导出 Godot', unreal: '导出 Unreal' }[
+              exportTarget
+            ]
+          }
           <ArrowUpRight size={14} />
         </button>
         <div className="avatar" title="本地工作空间">

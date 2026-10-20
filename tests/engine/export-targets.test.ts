@@ -27,7 +27,7 @@ async function setup() {
   await mkdir(join(options.publicRoot, 'fixtures'), { recursive: true });
   return { root, options };
 }
-it.each(['godot', 'unity'] as const)(
+it.each(['godot', 'unity', 'unreal'] as const)(
   'exports %s without accessing a player build and preserves source and licenses',
   async (target) => {
     const { options } = await setup();
@@ -36,7 +36,11 @@ it.each(['godot', 'unity'] as const)(
     const files = unzipSync(await createExport(scene, { ...options, target }));
     expect(files).not.toHaveProperty('index.html');
     expect(files).toHaveProperty(
-      target === 'godot' ? 'project.godot' : 'Editor/VirtualWorldImporter.cs',
+      target === 'godot'
+        ? 'project.godot'
+        : target === 'unity'
+          ? 'Editor/VirtualWorldImporter.cs'
+          : 'VirtualWorld.uproject',
     );
     expect(files).toHaveProperty('LICENSES.txt');
     expect(files).toHaveProperty('THIRD_PARTY_NOTICES.md');
@@ -134,9 +138,9 @@ it('validates the HTTP target enum before export and supports native requests wi
       payload: { scene: emptyScene(), ...(target === undefined ? {} : { target }) },
     });
   try {
-    for (const target of ['unreal', '', null, 42])
+    for (const target of ['unknown-engine', '', null, 42])
       expect((await request(target)).statusCode).toBe(400);
-    for (const target of ['godot', 'unity']) {
+    for (const target of ['godot', 'unity', 'unreal']) {
       const response = await request(target);
       expect(response.statusCode).toBe(200);
       expect(response.headers['content-type']).toBe('application/zip');

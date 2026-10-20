@@ -18,6 +18,11 @@ import { acquireServiceLease } from './service-lease';
 import { validateGlb } from '@virtualworld/scene-builder/pipeline';
 import { resolveAssetFile, resolveUploadFile } from './asset-files';
 import { parseRequest } from './request-validation';
+import {
+  EngineRuntimeRegistry,
+  engineCapabilities,
+  type EngineRuntimeBinding,
+} from '../shared/engine-runtime';
 const LIMIT = 100 * 1024 * 1024;
 // Classify semantic errors at the request boundary only. An invalid saved file
 // or a programming error still reaches the sanitized 500 handler.
@@ -67,6 +72,7 @@ export async function createApp(
     accessPolicy?: AccessPolicy;
     limits?: Partial<ServiceLimits>;
     generatedRoot?: string;
+    engineRuntimes?: EngineRuntimeBinding[];
   } = {},
 ) {
   const accessPolicy = AccessPolicySchema.parse(
@@ -76,6 +82,7 @@ export async function createApp(
     },
   );
   const limits = serviceLimits(options.limits);
+  const engineRuntimes = EngineRuntimeRegistry.parse(options.engineRuntimes ?? []);
   const root = resolve(options.dataRoot || 'data'),
     assetRoot = join(root, 'assets'),
     publicRoot = resolve(options.publicRoot || 'public');
@@ -195,6 +202,9 @@ export async function createApp(
     aiConfigured: !!(config.baseUrl && config.key && config.model),
   }));
   app.get<{ Params: { id: string } }>('/api/projects/:id', async (req) => store.get(req.params.id));
+  app.get<{ Params: { id: string } }>('/api/projects/:id/engines', async (req) =>
+    engineCapabilities(await store.get(req.params.id), engineRuntimes),
+  );
   app.get('/api/campaigns', async () => ({ campaigns: await store.campaigns() }));
   app.get<{ Params: { id: string } }>('/api/campaigns/:id', async (req) =>
     store.campaign(req.params.id),
@@ -304,7 +314,10 @@ export async function createApp(
     try {
       checkConnected();
       const { scene, target } = parseRequest(
-        z.object({ scene: SceneSchema, target: z.enum(['web', 'unity', 'godot']).optional() }),
+        z.object({
+          scene: SceneSchema,
+          target: z.enum(['web', 'unity', 'godot', 'unreal']).optional(),
+        }),
         req.body,
       );
       assertInputScene(scene);
