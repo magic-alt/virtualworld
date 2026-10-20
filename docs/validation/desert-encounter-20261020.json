@@ -1,0 +1,1459 @@
+{
+  "schemaVersion": 1,
+  "recordType": "completed-validation-evidence",
+  "status": "passed",
+  "collectedAt": "2026-10-20T04:01:23.178921+00:00",
+  "sourceCommit": "f3e00ae0b8934ed1b524cd0d746ed0e81700478a",
+  "fixCommits": ["200f9c4", "a3e9549", "031fc32"],
+  "unitAndIntegration": {
+    "sourceCommit": "9de6c9f3f5dfe7ca5a0ac888aaca8987c5dd9264",
+    "command": "npm test -- --maxWorkers=2",
+    "filesPassed": 57,
+    "testsPassed": 341,
+    "durationSeconds": 116.07,
+    "exitCode": 0,
+    "exitCodeProvenance": "The primary agent observed tool completion with exit_code 0; this is not inferred from log text."
+  },
+  "staticChecks": {
+    "sourceCommit": "9de6c9f3f5dfe7ca5a0ac888aaca8987c5dd9264",
+    "typecheck": "passed",
+    "wholeRepositoryFormatting": "passed",
+    "changedCodeFormatting": "passed",
+    "provenance": "Successful tool completions were observed by the primary agent; log hashes are retained below."
+  },
+  "productionBuild": {
+    "status": "passed",
+    "sourceLog": "stage2-build.log",
+    "webDurationSeconds": 17.73,
+    "playerDurationSeconds": 23.4,
+    "scope": "Earlier stage-2 web/player production build; production application code did not change afterward. This is not a new build execution.",
+    "warnings": ["Large output chunks remain."]
+  },
+  "terrain": {
+    "sha256": "d375c9d8377e2256a1e8613ae9c96903d4c4cd28343df616ad14b4afcc442477",
+    "bytes": 3754492,
+    "triangles": 106536,
+    "meshes": 7,
+    "terrain": {
+      "width": 220,
+      "depth": 220,
+      "authoredCenterWidth": 22,
+      "walkableBounds": {
+        "min": [-100, -100],
+        "max": [100, 100]
+      }
+    },
+    "validator": {
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "browserValidation": {
+    "execution": "preserved passed application phase at DPR 0.5 plus a complete third standalone attempt at DPR 0.25",
+    "applicationCheckerStartedAt": "2026-10-20T02:07:02.626Z",
+    "resumedSupervisorStartedAt": "2026-10-20T02:37:43.663Z",
+    "offlineRetrySupervisorStartedAt": "2026-10-20T03:39:04.647Z",
+    "finishedAt": "2026-10-20T04:01:04.291Z",
+    "originalSupervisor": {
+      "status": "interrupted",
+      "observation": "Original supervisor is absent; its detached application checker and app server continue.",
+      "originalCommandExitCode": null,
+      "applicationExitWaitStatus": null,
+      "preservedOriginalReport": true,
+      "originalReportSha256": "df7511f9fafface7000972ebf1dab4845b53f7550b779629612c1200738766cd"
+    },
+    "originalReportStatus": "running",
+    "uninterruptedNpmRunSuccess": false,
+    "originalSupervisorChecks": [
+      "Production app uses temporary data and PORT=3145",
+      "Real export contains all three campaign scenes and standalone runtime"
+    ],
+    "coordinationChecks": [
+      "Both failed player attempts and all prior runner/application reports match their preserved archives",
+      "Original API is unavailable before the standalone-only retry",
+      "Retry uses the identical preserved three-chapter ZIP from the failed attempt",
+      "Standalone retry completed all ten encounters with checker exit code 0"
+    ],
+    "reportedRetryCheckCount": 16,
+    "phases": [
+      {
+        "phase": "application",
+        "status": "passed",
+        "browser": "141.0.7390.37",
+        "renderSettings": [
+          {
+            "label": "desktop",
+            "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "software": true,
+            "configuration": "Low quality selected through playback settings; requested DPR 0.5",
+            "quality": "low",
+            "pixelRatio": 0.5,
+            "viewport": [1280, 720],
+            "canvas": [640, 360],
+            "shadowMaps": [[512, 512]]
+          },
+          {
+            "label": "mobile",
+            "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "software": true,
+            "configuration": "Low quality selected through playback settings; requested DPR 0.5",
+            "quality": "low",
+            "pixelRatio": 0.5,
+            "viewport": [390, 844],
+            "canvas": [195, 422],
+            "shadowMaps": [[512, 512]]
+          }
+        ],
+        "checks": [
+          "desktop: keyboard release: position settles on ground and Idle persists for 12 rendered frames",
+          "desktop: the visible Little Prince articulates arms and legs while walking beyond the original terrain without falling",
+          "desktop: east boundary holds the grounded Prince for 24 rendered frames",
+          "desktop: west boundary holds the grounded Prince for 24 rendered frames",
+          "desktop: south boundary holds the grounded Prince for 24 rendered frames",
+          "desktop: north boundary holds the grounded Prince for 24 rendered frames",
+          "desktop: all four desert boundaries keep the Prince on the rendered terrain",
+          "desktop: active-input exit/re-entry has no movement latch: position settles on ground and Idle persists for 12 rendered frames",
+          "desktop: fresh keyboard input works after re-entry and releases: position settles on ground and Idle persists for 12 rendered frames",
+          "desktop: repeated view/explore restores one Prince and one pilot without SceneSpec edits",
+          "desktop: visible desert encounters and completed dialogue replay work",
+          "desktop: all chapters completed through visible hotspots; correct next/end actions",
+          "desktop: repeated editor play/stop never duplicates the Prince or hides the authored preview",
+          "mobile: joystick release: position settles on ground and Idle persists for 12 rendered frames",
+          "mobile: the visible Little Prince articulates arms and legs while walking beyond the original terrain without falling",
+          "mobile: east boundary holds the grounded Prince for 24 rendered frames",
+          "mobile: west boundary holds the grounded Prince for 24 rendered frames",
+          "mobile: south boundary holds the grounded Prince for 24 rendered frames",
+          "mobile: north boundary holds the grounded Prince for 24 rendered frames",
+          "mobile: all four desert boundaries keep the Prince on the rendered terrain",
+          "mobile: active-input exit/re-entry has no movement latch: position settles on ground and Idle persists for 12 rendered frames",
+          "mobile: fresh joystick input works after re-entry and releases: position settles on ground and Idle persists for 12 rendered frames",
+          "mobile: repeated view/explore restores one Prince and one pilot without SceneSpec edits",
+          "mobile: visible desert encounters and completed dialogue replay work",
+          "mobile: all chapters completed through visible hotspots; correct next/end actions"
+        ],
+        "encounters": [
+          {
+            "id": "meeting",
+            "touch": false,
+            "scene": "little-prince-desert",
+            "flags": ["sheep"],
+            "player": [-0.30501413345336914, -0.059899973869323775, 1.1634775400161743]
+          },
+          {
+            "id": "plane",
+            "touch": false,
+            "scene": "little-prince-desert",
+            "flags": ["sheep", "depart"],
+            "player": [-1.3233025074005127, -0.059899973869323775, 0.4204678535461426]
+          },
+          {
+            "id": "rose",
+            "touch": false,
+            "scene": "little-prince-b612",
+            "flags": ["rose"],
+            "player": [0.7683343766241728, 5.858623464105801, 1.1523039505056305]
+          },
+          {
+            "id": "volcano",
+            "touch": false,
+            "scene": "little-prince-b612",
+            "flags": ["rose", "volcano"],
+            "player": [0.5151867681432735, 5.8864688149273805, 1.1513822809328813]
+          },
+          {
+            "id": "sapling",
+            "touch": false,
+            "scene": "little-prince-b612",
+            "flags": ["rose", "volcano", "sapling"],
+            "player": [-0.42509595177598425, 5.9845074436938654, 0.4953374841150181]
+          },
+          {
+            "id": "sunset",
+            "touch": false,
+            "scene": "little-prince-b612",
+            "flags": ["rose", "volcano", "sapling", "sunset"],
+            "player": [-0.17627068936061613, 5.987933704078106, -0.594966329243217]
+          },
+          {
+            "id": "garden",
+            "touch": false,
+            "scene": "little-prince-earth",
+            "flags": ["garden"],
+            "player": [-0.5688664317131042, 0.331285548210144, 0.9686861038208008]
+          },
+          {
+            "id": "friend",
+            "touch": false,
+            "scene": "little-prince-earth",
+            "flags": ["garden", "friend"],
+            "player": [0.32899731397628784, 0.01237488985061641, 0.318490207195282]
+          },
+          {
+            "id": "wheat",
+            "touch": false,
+            "scene": "little-prince-earth",
+            "flags": ["garden", "friend", "wheat"],
+            "player": [1.3618637323379517, 0.1821749925613403, -0.4869716167449951]
+          },
+          {
+            "id": "reflection",
+            "touch": false,
+            "scene": "little-prince-earth",
+            "flags": ["garden", "friend", "wheat", "reflection"],
+            "player": [0.5111083388328552, 0.050019693374633745, -0.5441382527351379]
+          },
+          {
+            "id": "meeting",
+            "touch": true,
+            "scene": "little-prince-desert",
+            "flags": ["sheep"],
+            "player": [-0.17386436462402344, -0.05989717245101933, 1.0617249011993408]
+          },
+          {
+            "id": "plane",
+            "touch": true,
+            "scene": "little-prince-desert",
+            "flags": ["sheep", "depart"],
+            "player": [-1.220847249031067, -0.059892463684082076, 0.2979317307472229]
+          },
+          {
+            "id": "rose",
+            "touch": true,
+            "scene": "little-prince-b612",
+            "flags": ["rose"],
+            "player": [0.7683343766241728, 5.858623464105801, 1.1523039505056305]
+          },
+          {
+            "id": "volcano",
+            "touch": true,
+            "scene": "little-prince-b612",
+            "flags": ["rose", "volcano"],
+            "player": [0.39203848448203416, 5.904829834746471, 1.1049417178838326]
+          },
+          {
+            "id": "sapling",
+            "touch": true,
+            "scene": "little-prince-b612",
+            "flags": ["rose", "volcano", "sapling"],
+            "player": [-0.5011125427599905, 5.9861751097072595, 0.39369255298837946]
+          },
+          {
+            "id": "sunset",
+            "touch": true,
+            "scene": "little-prince-b612",
+            "flags": ["rose", "volcano", "sapling", "sunset"],
+            "player": [0.4049344824782085, 5.989705114887306, 0.4484029749098211]
+          },
+          {
+            "id": "garden",
+            "touch": true,
+            "scene": "little-prince-earth",
+            "flags": ["garden"],
+            "player": [-0.5786832571029663, 0.33223242759704585, 0.9449563026428223]
+          },
+          {
+            "id": "friend",
+            "touch": true,
+            "scene": "little-prince-earth",
+            "flags": ["garden", "friend"],
+            "player": [0.440000981092453, -0.006328570842742964, 0.19334983825683594]
+          },
+          {
+            "id": "wheat",
+            "touch": true,
+            "scene": "little-prince-earth",
+            "flags": ["garden", "friend", "wheat"],
+            "player": [1.5554211139678955, 0.13451392650604244, -0.7495313882827759]
+          },
+          {
+            "id": "reflection",
+            "touch": true,
+            "scene": "little-prince-earth",
+            "flags": ["garden", "friend", "wheat", "reflection"],
+            "player": [0.3790379762649536, 0.12276769876480098, -0.7058945894241333]
+          }
+        ],
+        "desertNavigation": [
+          {
+            "label": "desktop",
+            "method": "real input from spawn past the old +11 m edge",
+            "start": [0, -0.10078166723251347, 2.0005202293395996],
+            "player": [14.004254341125488, 0.1417943954467773, 3.663543224334717],
+            "frames": 100,
+            "edgeFrames": 0,
+            "minHeight": -0.676473791897297,
+            "maxStep": 0.3926283539058959,
+            "walkClip": true,
+            "animation": {
+              "walkTimeAdvance": 4.949999999999991,
+              "poseSamples": 94,
+              "boneMotion": [
+                {
+                  "name": "LeftArm",
+                  "maxAngle": 0.5754494083574732
+                },
+                {
+                  "name": "LeftLeg",
+                  "maxAngle": 0.8248104141161454
+                },
+                {
+                  "name": "RightArm",
+                  "maxAngle": 0.5754493049120982
+                },
+                {
+                  "name": "RightLeg",
+                  "maxAngle": 0.8248104141161454
+                }
+              ]
+            }
+          },
+          {
+            "label": "desktop",
+            "edge": "east",
+            "method": "labeled near-edge setup, then real input",
+            "start": [98.728, 1, 0],
+            "player": [99.70800018310547, 0.3230314970016479, -0.005079986993223429],
+            "frames": 29,
+            "edgeFrames": 24,
+            "minHeight": 0.3229317188262939,
+            "maxStep": 0.2879912116801411,
+            "walkClip": true
+          },
+          {
+            "label": "desktop",
+            "edge": "west",
+            "method": "labeled near-edge setup, then real input",
+            "start": [-98.728, 1, 0],
+            "player": [-99.70800018310547, -0.9763480752706528, -7.362910309893778e-6],
+            "frames": 31,
+            "edgeFrames": 24,
+            "minHeight": -0.9764971315860749,
+            "maxStep": 0.28799121099406416,
+            "walkClip": true
+          },
+          {
+            "label": "desktop",
+            "edge": "south",
+            "method": "labeled near-edge setup, then real input",
+            "start": [0, 1, 98.728],
+            "player": [0.010743572376668453, 0.23230988979339595, 99.70800018310547],
+            "frames": 29,
+            "edgeFrames": 24,
+            "minHeight": 0.23221201896667476,
+            "maxStep": 0.2879912109443879,
+            "walkClip": true
+          },
+          {
+            "label": "desktop",
+            "edge": "north",
+            "method": "labeled near-edge setup, then real input",
+            "start": [0, 1, -98.728],
+            "player": [0.012485385872423649, -0.1281394243240357, -99.70796203613281],
+            "frames": 29,
+            "edgeFrames": 24,
+            "minHeight": -0.13706349134445195,
+            "maxStep": 0.28799121102036107,
+            "walkClip": true
+          },
+          {
+            "label": "mobile",
+            "method": "real input from spawn past the old +11 m edge",
+            "start": [0, -0.10068647861480717, 2.0005509853363037],
+            "player": [14.057843208312988, -0.13258837461471562, 2.075092077255249],
+            "frames": 100,
+            "edgeFrames": 0,
+            "minHeight": -0.7447023198008538,
+            "maxStep": 0.41577523466426436,
+            "walkClip": true,
+            "animation": {
+              "walkTimeAdvance": 4.949999999999991,
+              "poseSamples": 94,
+              "boneMotion": [
+                {
+                  "name": "LeftArm",
+                  "maxAngle": 0.5754494083574732
+                },
+                {
+                  "name": "LeftLeg",
+                  "maxAngle": 0.8248104141161454
+                },
+                {
+                  "name": "RightArm",
+                  "maxAngle": 0.5754493049120982
+                },
+                {
+                  "name": "RightLeg",
+                  "maxAngle": 0.8248104141161454
+                }
+              ]
+            }
+          },
+          {
+            "label": "mobile",
+            "edge": "east",
+            "method": "labeled near-edge setup, then real input",
+            "start": [98.728, 1, 0],
+            "player": [99.70800018310547, 0.3226660013198852, -0.01137334480881691],
+            "frames": 28,
+            "edgeFrames": 24,
+            "minHeight": 0.3225662231445312,
+            "maxStep": 0.43118932089480316,
+            "walkClip": true
+          },
+          {
+            "label": "mobile",
+            "edge": "west",
+            "method": "labeled near-edge setup, then real input",
+            "start": [-98.728, 1, 0],
+            "player": [-99.70800018310547, -0.9763966381549836, -0.00022393335530068725],
+            "frames": 28,
+            "edgeFrames": 24,
+            "minHeight": -0.9764859110116959,
+            "maxStep": 0.4340636031470758,
+            "walkClip": true
+          },
+          {
+            "label": "mobile",
+            "edge": "south",
+            "method": "labeled near-edge setup, then real input",
+            "start": [0, 1, 98.728],
+            "player": [0.012403120286762714, 0.2321888923645019, 99.70800018310547],
+            "frames": 28,
+            "edgeFrames": 24,
+            "minHeight": 0.23209316730499263,
+            "maxStep": 0.43331084602862896,
+            "walkClip": true
+          },
+          {
+            "label": "mobile",
+            "edge": "north",
+            "method": "labeled near-edge setup, then real input",
+            "start": [0, 1, -98.728],
+            "player": [0.013842745684087276, -0.12804816961288457, -99.70796966552734],
+            "frames": 28,
+            "edgeFrames": 24,
+            "minHeight": -0.16975002288818364,
+            "maxStep": 0.42380863628554377,
+            "walkClip": true
+          }
+        ],
+        "desertInput": [
+          {
+            "label": "desktop: keyboard release",
+            "frames": 12,
+            "stableFrames": 12,
+            "maxDrift": 0.00022912918573571168,
+            "player": [14.117679595947266, 0.12477899789810176, 3.572798252105713],
+            "actorClip": "Idle"
+          },
+          {
+            "label": "desktop: active-input exit/re-entry has no movement latch",
+            "frames": 12,
+            "stableFrames": 12,
+            "maxDrift": 0.00033664703369140625,
+            "player": [0, -0.10097204446792607, 2.0004587173461914],
+            "actorClip": "Idle"
+          },
+          {
+            "label": "desktop: fresh keyboard input works after re-entry and releases",
+            "frames": 12,
+            "stableFrames": 12,
+            "maxDrift": 8.880141946673804e-6,
+            "player": [0.22542044520378113, -0.05987452268600468, 1.8454822301864624],
+            "actorClip": "Idle"
+          },
+          {
+            "label": "mobile: joystick release",
+            "frames": 12,
+            "stableFrames": 12,
+            "maxDrift": 0.00011705186789742887,
+            "player": [14.057818412780762, -0.13251231908798222, 2.074956178665161],
+            "actorClip": "Idle"
+          },
+          {
+            "label": "mobile: active-input exit/re-entry has no movement latch",
+            "frames": 12,
+            "stableFrames": 12,
+            "maxDrift": 0.00033664703369140625,
+            "player": [0, -0.10097204446792607, 2.0004587173461914],
+            "actorClip": "Idle"
+          },
+          {
+            "label": "mobile: fresh joystick input works after re-entry and releases",
+            "frames": 12,
+            "stableFrames": 12,
+            "maxDrift": 5.364500813375253e-6,
+            "player": [0.33912593126296997, -0.059899973869323775, 1.7569575309753418],
+            "actorClip": "Idle"
+          }
+        ],
+        "sourceCommit": "9de6c9f3f5dfe7ca5a0ac888aaca8987c5dd9264",
+        "checkCount": 25,
+        "encounterCount": 20,
+        "completedAt": "2026-10-20T02:51:45.486Z",
+        "actorSnapshots": [
+          {
+            "label": "desktop: initial explore",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "desktop: beyond original terrain",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "desktop: view cycle 1",
+            "playing": false,
+            "rigCounts": {
+              "PrinceRig": 1,
+              "PilotRig": 1
+            },
+            "previewVisible": true,
+            "authoredVisible": true
+          },
+          {
+            "label": "desktop: explore cycle 1",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "desktop: view cycle 2",
+            "playing": false,
+            "rigCounts": {
+              "PrinceRig": 1,
+              "PilotRig": 1
+            },
+            "previewVisible": true,
+            "authoredVisible": true
+          },
+          {
+            "label": "desktop: explore cycle 2",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "desktop: authored editor preview",
+            "playing": false,
+            "rigCounts": {
+              "PrinceRig": 1,
+              "PilotRig": 1
+            },
+            "previewVisible": true,
+            "authoredVisible": true
+          },
+          {
+            "label": "desktop: editor play cycle 1",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "desktop: editor stop cycle 1",
+            "playing": false,
+            "rigCounts": {
+              "PrinceRig": 1,
+              "PilotRig": 1
+            },
+            "previewVisible": true,
+            "authoredVisible": true
+          },
+          {
+            "label": "desktop: editor play cycle 2",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "desktop: editor stop cycle 2",
+            "playing": false,
+            "rigCounts": {
+              "PrinceRig": 1,
+              "PilotRig": 1
+            },
+            "previewVisible": true,
+            "authoredVisible": true
+          },
+          {
+            "label": "desktop: editor play cycle 3",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "desktop: editor stop cycle 3",
+            "playing": false,
+            "rigCounts": {
+              "PrinceRig": 1,
+              "PilotRig": 1
+            },
+            "previewVisible": true,
+            "authoredVisible": true
+          },
+          {
+            "label": "mobile: initial explore",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "mobile: beyond original terrain",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "mobile: view cycle 1",
+            "playing": false,
+            "rigCounts": {
+              "PrinceRig": 1,
+              "PilotRig": 1
+            },
+            "previewVisible": true,
+            "authoredVisible": true
+          },
+          {
+            "label": "mobile: explore cycle 1",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "mobile: view cycle 2",
+            "playing": false,
+            "rigCounts": {
+              "PrinceRig": 1,
+              "PilotRig": 1
+            },
+            "previewVisible": true,
+            "authoredVisible": true
+          },
+          {
+            "label": "mobile: explore cycle 2",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          }
+        ]
+      },
+      {
+        "phase": "player",
+        "status": "passed",
+        "browser": "141.0.7390.37",
+        "renderSettings": [
+          {
+            "label": "offline-player",
+            "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "software": true,
+            "configuration": "Low quality selected through playback settings; requested DPR 0.25",
+            "quality": "low",
+            "pixelRatio": 0.25,
+            "viewport": [1280, 720],
+            "canvas": [320, 180],
+            "shadowMaps": [[512, 512]]
+          }
+        ],
+        "checks": [
+          "offline-player: keyboard release: position settles on ground and Idle persists for 12 rendered frames",
+          "offline-player: the visible Little Prince articulates arms and legs while walking beyond the original terrain without falling",
+          "offline-player: east boundary holds the grounded Prince for 24 rendered frames",
+          "offline-player: west boundary holds the grounded Prince for 24 rendered frames",
+          "offline-player: south boundary holds the grounded Prince for 24 rendered frames",
+          "offline-player: north boundary holds the grounded Prince for 24 rendered frames",
+          "offline-player: all four desert boundaries keep the Prince on the rendered terrain",
+          "offline-player: active-input exit/re-entry has no movement latch: position settles on ground and Idle persists for 12 rendered frames",
+          "offline-player: fresh keyboard input works after re-entry and releases: position settles on ground and Idle persists for 12 rendered frames",
+          "offline-player: repeated view/explore restores one Prince and one pilot without SceneSpec edits",
+          "offline-player: visible desert encounters and completed dialogue replay work",
+          "offline-player: all chapters completed through visible hotspots; correct next/end actions"
+        ],
+        "encounters": [
+          {
+            "id": "meeting",
+            "touch": false,
+            "scene": "little-prince-desert",
+            "flags": ["sheep"],
+            "player": [-0.30501413345336914, -0.059899973869323775, 1.1634775400161743]
+          },
+          {
+            "id": "plane",
+            "touch": false,
+            "scene": "little-prince-desert",
+            "flags": ["sheep", "depart"],
+            "player": [-1.3233025074005127, -0.059899973869323775, 0.4204678535461426]
+          },
+          {
+            "id": "rose",
+            "touch": false,
+            "scene": "little-prince-b612",
+            "flags": ["rose"],
+            "player": [0.7683343766241728, 5.858623464105801, 1.1523039505056305]
+          },
+          {
+            "id": "volcano",
+            "touch": false,
+            "scene": "little-prince-b612",
+            "flags": ["rose", "volcano"],
+            "player": [0.5155059652711463, 5.886428761119421, 1.1514410889807052]
+          },
+          {
+            "id": "sapling",
+            "touch": false,
+            "scene": "little-prince-b612",
+            "flags": ["rose", "volcano", "sapling"],
+            "player": [-0.42533138414055083, 5.981464846043867, 0.4950578987727841]
+          },
+          {
+            "id": "sunset",
+            "touch": false,
+            "scene": "little-prince-b612",
+            "flags": ["rose", "volcano", "sapling", "sunset"],
+            "player": [0.05504957712957734, 5.964911752749595, -0.811418889702509]
+          },
+          {
+            "id": "garden",
+            "touch": false,
+            "scene": "little-prince-earth",
+            "flags": ["garden"],
+            "player": [-0.5688657164573669, 0.33128495216369624, 0.968693733215332]
+          },
+          {
+            "id": "friend",
+            "touch": false,
+            "scene": "little-prince-earth",
+            "flags": ["garden", "friend"],
+            "player": [0.32497861981391907, 0.013923597335815385, 0.31490185856819153]
+          },
+          {
+            "id": "wheat",
+            "touch": false,
+            "scene": "little-prince-earth",
+            "flags": ["garden", "friend", "wheat"],
+            "player": [1.3536609411239624, 0.18943537473678584, -0.4899112284183502]
+          },
+          {
+            "id": "reflection",
+            "touch": false,
+            "scene": "little-prince-earth",
+            "flags": ["garden", "friend", "wheat", "reflection"],
+            "player": [0.4907973110675812, 0.06698246002197261, -0.5551152229309082]
+          }
+        ],
+        "desertNavigation": [
+          {
+            "label": "offline-player",
+            "method": "real input from spawn past the old +11 m edge",
+            "start": [0, -0.10059128999710087, 2.000581741333008],
+            "player": [14.002066612243652, 0.14217574596405025, 3.6656060218811035],
+            "frames": 100,
+            "edgeFrames": 0,
+            "minHeight": -0.6761489093303681,
+            "maxStep": 0.3921946753145842,
+            "walkClip": true,
+            "animation": {
+              "walkTimeAdvance": 4.949999999999991,
+              "poseSamples": 94,
+              "boneMotion": [
+                {
+                  "name": "LeftArm",
+                  "maxAngle": 0.5754494083574732
+                },
+                {
+                  "name": "LeftLeg",
+                  "maxAngle": 0.8248104141161454
+                },
+                {
+                  "name": "RightArm",
+                  "maxAngle": 0.5754493049120982
+                },
+                {
+                  "name": "RightLeg",
+                  "maxAngle": 0.8248104141161454
+                }
+              ]
+            }
+          },
+          {
+            "label": "offline-player",
+            "edge": "east",
+            "method": "labeled near-edge setup, then real input",
+            "start": [98.728, 1, 0],
+            "player": [99.70800018310547, 0.3230247020721435, -0.005197524558752775],
+            "frames": 29,
+            "edgeFrames": 24,
+            "minHeight": 0.32292528152465816,
+            "maxStep": 0.287991211679258,
+            "walkClip": true
+          },
+          {
+            "label": "offline-player",
+            "edge": "west",
+            "method": "labeled near-edge setup, then real input",
+            "start": [-98.728, 1, 0],
+            "player": [-99.70800018310547, -0.9763585507869721, -1.2713878277281765e-5],
+            "frames": 31,
+            "edgeFrames": 24,
+            "minHeight": -0.9764971166849137,
+            "maxStep": 0.28799121099650493,
+            "walkClip": true
+          },
+          {
+            "label": "offline-player",
+            "edge": "south",
+            "method": "labeled near-edge setup, then real input",
+            "start": [0, 1, 98.728],
+            "player": [0.01075955480337143, 0.23237068653106685, 99.70800018310547],
+            "frames": 29,
+            "edgeFrames": 24,
+            "minHeight": 0.2322116613388061,
+            "maxStep": 0.2879912109440885,
+            "walkClip": true
+          },
+          {
+            "label": "offline-player",
+            "edge": "north",
+            "method": "labeled near-edge setup, then real input",
+            "start": [0, 1, -98.728],
+            "player": [0.012378319166600704, -0.12798349857330327, -99.70796203613281],
+            "frames": 29,
+            "edgeFrames": 24,
+            "minHeight": -0.13717197179794316,
+            "maxStep": 0.28799121102335723,
+            "walkClip": true
+          }
+        ],
+        "desertInput": [
+          {
+            "label": "offline-player: keyboard release",
+            "frames": 12,
+            "stableFrames": 12,
+            "maxDrift": 0.00022912918573571168,
+            "player": [14.115483283996582, 0.12513948678970332, 3.574796438217163],
+            "actorClip": "Idle"
+          },
+          {
+            "label": "offline-player: active-input exit/re-entry has no movement latch",
+            "frames": 12,
+            "stableFrames": 12,
+            "maxDrift": 0.00033664703369140625,
+            "player": [0, -0.10097204446792607, 2.0004587173461914],
+            "actorClip": "Idle"
+          },
+          {
+            "label": "offline-player: fresh keyboard input works after re-entry and releases",
+            "frames": 12,
+            "stableFrames": 12,
+            "maxDrift": 8.880141946673804e-6,
+            "player": [0.22542044520378113, -0.05987452268600468, 1.8454822301864624],
+            "actorClip": "Idle"
+          }
+        ],
+        "sourceCommit": "f3e00ae0b8934ed1b524cd0d746ed0e81700478a",
+        "checkCount": 12,
+        "encounterCount": 10,
+        "completedAt": "2026-10-20T04:01:04.022Z",
+        "actorSnapshots": [
+          {
+            "label": "offline-player: initial explore",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "offline-player: beyond original terrain",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "offline-player: view cycle 1",
+            "playing": false,
+            "rigCounts": {
+              "PrinceRig": 1,
+              "PilotRig": 1
+            },
+            "previewVisible": true,
+            "authoredVisible": true
+          },
+          {
+            "label": "offline-player: explore cycle 1",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          },
+          {
+            "label": "offline-player: view cycle 2",
+            "playing": false,
+            "rigCounts": {
+              "PrinceRig": 1,
+              "PilotRig": 1
+            },
+            "previewVisible": true,
+            "authoredVisible": true
+          },
+          {
+            "label": "offline-player: explore cycle 2",
+            "playing": true,
+            "rigCounts": {
+              "PilotRig": 1,
+              "PrinceRig": 1
+            },
+            "previewVisible": false,
+            "authoredVisible": true
+          }
+        ]
+      }
+    ],
+    "retryTestCode": {
+      "headCommit": "f3e00ae0b8934ed1b524cd0d746ed0e81700478a",
+      "checkerPath": "tests/e2e/prince-affordances-check.mjs",
+      "checkerGitBlob": "ed297644d0fac73d3c367732f4ca5d8acbdaf68f",
+      "checkerSha256": "8bb2512f38be213dc11cce180198e019ec0a96e1e9a0265039adb7c91de58991",
+      "checkerWorkingTreeStatus": ""
+    },
+    "retryPhase": {
+      "phase": "player",
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "checkCount": 12,
+      "encounters": 10,
+      "timeoutMs": 1800000,
+      "checkpointTimeoutMs": 270000
+    },
+    "retryRenderConfiguration": {
+      "requestedDpr": 0.25,
+      "quality": "low"
+    },
+    "changedParameter": {
+      "name": "deviceScaleFactor",
+      "previous": 0.5,
+      "current": 0.25
+    },
+    "standaloneCheckerExitCode": 0,
+    "ownedCleanupCompleted": true,
+    "cleanup": {
+      "status": "passed",
+      "completed": [
+        "checker_stopped",
+        "browser_stopped",
+        "static_server_closed",
+        "original_api_unavailable",
+        "prior_evidence_unchanged"
+      ],
+      "errors": []
+    },
+    "cleanupEvidence": "The retry supervisor sets passed only after owned checker/browser/server cleanup, another original-API reachability check, and verification of the preserved reports.",
+    "finalSupervisorProgress": {
+      "stage": "Player DPR 0.25 retry passed, prior evidence preserved and all owned cleanup completed",
+      "at": "2026-10-20T04:01:04.291Z"
+    },
+    "standaloneNetwork": {
+      "requestCount": 20,
+      "blockedCount": 0,
+      "outsideOriginCount": 0,
+      "apiRequestCount": 0,
+      "servedPath": "/prince/"
+    },
+    "export": {
+      "bytes": 7549082,
+      "sha256": "f2379322f919224a50570324fe382528c760aa3fa4d8cdc4d8704943cdb8ea82",
+      "chapters": 3,
+      "regenerated": false,
+      "identicalToFailedAttempt": true,
+      "desertAssetSha256": "d375c9d8377e2256a1e8613ae9c96903d4c4cd28343df616ad14b4afcc442477"
+    }
+  },
+  "priorFailedOfflineAttempts": [
+    {
+      "attempt": 1,
+      "status": "failed",
+      "sourceCommit": "9de6c9f3f5dfe7ca5a0ac888aaca8987c5dd9264",
+      "resumedSupervisorStartedAt": "2026-10-20T02:37:43.663Z",
+      "finishedAt": "2026-10-20T03:17:24.156Z",
+      "supervisor": {
+        "status": "failed",
+        "errors": [
+          "Error: Player made no progress for 270000 ms: Approaching garden through keyboard input"
+        ],
+        "failure": "Error: Player made no progress for 270000 ms: Approaching garden through keyboard input",
+        "progress": {
+          "stage": "Resumption failed",
+          "at": "2026-10-20T03:17:24.156Z"
+        },
+        "checks": [
+          "desktop: keyboard release: position settles on ground and Idle persists for 12 rendered frames",
+          "desktop: the visible Little Prince articulates arms and legs while walking beyond the original terrain without falling",
+          "desktop: east boundary holds the grounded Prince for 24 rendered frames",
+          "desktop: west boundary holds the grounded Prince for 24 rendered frames",
+          "desktop: south boundary holds the grounded Prince for 24 rendered frames",
+          "desktop: north boundary holds the grounded Prince for 24 rendered frames",
+          "desktop: all four desert boundaries keep the Prince on the rendered terrain",
+          "desktop: active-input exit/re-entry has no movement latch: position settles on ground and Idle persists for 12 rendered frames",
+          "desktop: fresh keyboard input works after re-entry and releases: position settles on ground and Idle persists for 12 rendered frames",
+          "desktop: repeated view/explore restores one Prince and one pilot without SceneSpec edits",
+          "desktop: visible desert encounters and completed dialogue replay work",
+          "desktop: all chapters completed through visible hotspots; correct next/end actions",
+          "desktop: repeated editor play/stop never duplicates the Prince or hides the authored preview",
+          "mobile: joystick release: position settles on ground and Idle persists for 12 rendered frames",
+          "mobile: the visible Little Prince articulates arms and legs while walking beyond the original terrain without falling",
+          "mobile: east boundary holds the grounded Prince for 24 rendered frames",
+          "mobile: west boundary holds the grounded Prince for 24 rendered frames",
+          "mobile: south boundary holds the grounded Prince for 24 rendered frames",
+          "mobile: north boundary holds the grounded Prince for 24 rendered frames",
+          "mobile: all four desert boundaries keep the Prince on the rendered terrain",
+          "mobile: active-input exit/re-entry has no movement latch: position settles on ground and Idle persists for 12 rendered frames",
+          "mobile: fresh joystick input works after re-entry and releases: position settles on ground and Idle persists for 12 rendered frames",
+          "mobile: repeated view/explore restores one Prince and one pilot without SceneSpec edits",
+          "mobile: visible desert encounters and completed dialogue replay work",
+          "mobile: all chapters completed through visible hotspots; correct next/end actions",
+          "Original application checker completed desktop and mobile campaigns without rerunning them",
+          "Original API stopped before standalone player checks",
+          "Preserved original three-chapter export ZIP is used for the standalone phase"
+        ]
+      },
+      "player": {
+        "status": "failed",
+        "errors": [
+          "Error: locator.click: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for locator('.experience-hotspot[data-node-id=\"garden\"]')\u001b[22m\n\u001b[2m    - locator resolved to <button title=\"可互动\" type=\"button\" data-node-id=\"garden\" aria-label=\"初见玫瑰花园，可互动\" data-status=\"available\" class=\"experience-hotspot\">初见玫瑰花园 · 可互动</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n"
+        ],
+        "failure": "Error: locator.click: Target page, context or browser has been closed\nCall log:\n\u001b[2m  - waiting for locator('.experience-hotspot[data-node-id=\"garden\"]')\u001b[22m\n\u001b[2m    - locator resolved to <button title=\"可互动\" type=\"button\" data-node-id=\"garden\" aria-label=\"初见玫瑰花园，可互动\" data-status=\"available\" class=\"experience-hotspot\">初见玫瑰花园 · 可互动</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n",
+        "progress": {
+          "stage": "Phase failed",
+          "at": "2026-10-20T03:17:23.452Z"
+        },
+        "checks": [
+          "offline-player: keyboard release: position settles on ground and Idle persists for 12 rendered frames",
+          "offline-player: the visible Little Prince articulates arms and legs while walking beyond the original terrain without falling",
+          "offline-player: east boundary holds the grounded Prince for 24 rendered frames",
+          "offline-player: west boundary holds the grounded Prince for 24 rendered frames",
+          "offline-player: south boundary holds the grounded Prince for 24 rendered frames",
+          "offline-player: north boundary holds the grounded Prince for 24 rendered frames",
+          "offline-player: all four desert boundaries keep the Prince on the rendered terrain",
+          "offline-player: active-input exit/re-entry has no movement latch: position settles on ground and Idle persists for 12 rendered frames",
+          "offline-player: fresh keyboard input works after re-entry and releases: position settles on ground and Idle persists for 12 rendered frames",
+          "offline-player: repeated view/explore restores one Prince and one pilot without SceneSpec edits",
+          "offline-player: visible desert encounters and completed dialogue replay work"
+        ],
+        "encounters": [
+          {
+            "id": "meeting",
+            "touch": false,
+            "scene": "little-prince-desert",
+            "flags": ["sheep"],
+            "player": [-0.30501413345336914, -0.059899973869323775, 1.1634775400161743]
+          },
+          {
+            "id": "plane",
+            "touch": false,
+            "scene": "little-prince-desert",
+            "flags": ["sheep", "depart"],
+            "player": [-1.3233025074005127, -0.059899973869323775, 0.4204678535461426]
+          },
+          {
+            "id": "rose",
+            "touch": false,
+            "scene": "little-prince-b612",
+            "flags": ["rose"],
+            "player": [0.7683343766241728, 5.858623464105801, 1.1523039505056305]
+          },
+          {
+            "id": "volcano",
+            "touch": false,
+            "scene": "little-prince-b612",
+            "flags": ["rose", "volcano"],
+            "player": [0.5151867681432735, 5.8864688149273805, 1.1513822809328813]
+          },
+          {
+            "id": "sapling",
+            "touch": false,
+            "scene": "little-prince-b612",
+            "flags": ["rose", "volcano", "sapling"],
+            "player": [-0.42499197614573186, 5.984611719800657, 0.495383908270576]
+          },
+          {
+            "id": "sunset",
+            "touch": false,
+            "scene": "little-prince-b612",
+            "flags": ["rose", "volcano", "sapling", "sunset"],
+            "player": [0.053627551138671486, 5.964963767702878, -0.8103943671184405]
+          }
+        ],
+        "browser": "141.0.7390.37",
+        "renderSettings": [
+          {
+            "label": "offline-player",
+            "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "software": true,
+            "configuration": "Low quality selected through playback settings; requested DPR 0.5",
+            "quality": "low",
+            "pixelRatio": 0.5,
+            "viewport": [1280, 720],
+            "canvas": [640, 360],
+            "shadowMaps": [[512, 512]]
+          }
+        ],
+        "checkCount": 11,
+        "encounterCount": 6
+      },
+      "checkpointTimeoutMs": 270000,
+      "preservedReports": [
+        {
+          "name": "runner-report.json",
+          "sha256": "df7511f9fafface7000972ebf1dab4845b53f7550b779629612c1200738766cd",
+          "status": "running",
+          "fixedArchive": "output/validation/desert-offline-checkpoint-failure-20261020/runner-report.json",
+          "retryBackup": "output/playwright/prince-affordances/before-player-checkpoint-retry-xZCZ94/runner-report.json",
+          "currentPathMustRemainUnchanged": true
+        },
+        {
+          "name": "report-application.json",
+          "sha256": "14b12b242bd0142ee18bb4c0ad3fc4dac2bd81aac5e19964ff58061c9460e363",
+          "status": "passed",
+          "fixedArchive": "output/validation/desert-offline-checkpoint-failure-20261020/report-application.json",
+          "retryBackup": "output/playwright/prince-affordances/before-player-checkpoint-retry-xZCZ94/report-application.json",
+          "currentPathMustRemainUnchanged": true
+        },
+        {
+          "name": "report-player.json",
+          "sha256": "e0a855194c286c8d69456a778d6a4d28aee43f303c13672fe64ce3c28b4f5846",
+          "status": "failed",
+          "fixedArchive": "output/validation/desert-offline-checkpoint-failure-20261020/report-player.json",
+          "retryBackup": "output/playwright/prince-affordances/before-player-checkpoint-retry-xZCZ94/report-player.json",
+          "currentPathMustRemainUnchanged": false
+        },
+        {
+          "name": "resume-report.json",
+          "sha256": "5047eedc6e348c885cbdfbc52d3fedd305ece7f118eb62a4c51899dc277b6480",
+          "status": "failed",
+          "fixedArchive": "output/validation/desert-offline-checkpoint-failure-20261020/resume-report.json",
+          "retryBackup": "output/playwright/prince-affordances/before-player-checkpoint-retry-xZCZ94/resume-report.json",
+          "currentPathMustRemainUnchanged": true
+        }
+      ],
+      "correction": {
+        "commit": "f3e00ae0b8934ed1b524cd0d746ed0e81700478a",
+        "scope": "Only progress checkpoints after completed serial UI steps were added to the E2E checker. Production code, UI actions, assertions, thresholds and timeouts were unchanged.",
+        "provenance": "The primary agent reviewed the checkpoint-only source change before the full standalone retry."
+      }
+    },
+    {
+      "attempt": 2,
+      "status": "failed",
+      "sourceCommit": "f3e00ae0b8934ed1b524cd0d746ed0e81700478a",
+      "retrySupervisorStartedAt": "2026-10-20T03:24:34.333Z",
+      "finishedAt": "2026-10-20T03:32:13.769Z",
+      "supervisor": {
+        "status": "failed",
+        "errors": [
+          "AssertionError [ERR_ASSERTION]: Retry player checker failed (signal=null)\n\n1 !== 0\n"
+        ],
+        "failure": "AssertionError [ERR_ASSERTION]: Retry player checker failed (signal=null)\n\n1 !== 0\n",
+        "progress": {
+          "stage": "Player retry failed",
+          "at": "2026-10-20T03:32:13.769Z"
+        },
+        "checks": [
+          "Prior runner, application, failed player and resume reports backed up byte-for-byte",
+          "Original API is unavailable before the standalone-only retry",
+          "Retry uses the identical preserved three-chapter ZIP from the failed attempt"
+        ]
+      },
+      "checkerExitCode": 1,
+      "player": {
+        "status": "failed",
+        "errors": [
+          "Error: page.evaluate: Error: Desert movement timed out: {\"options\":{\"start\":[0,-0.10059128999710087,2.000581741333008],\"sampleAnimation\":true},\"previous\":[9.39531421661377,-0.259951400756836,3.2183265686035156],\"frames\":66}\n    at finish (eval at evaluate (:290:30), <anonymous>:35:29)\n    at eval (eval at evaluate (:290:30), <anonymous>:27:13)"
+        ],
+        "failure": "Error: page.evaluate: Error: Desert movement timed out: {\"options\":{\"start\":[0,-0.10059128999710087,2.000581741333008],\"sampleAnimation\":true},\"previous\":[9.39531421661377,-0.259951400756836,3.2183265686035156],\"frames\":66}\n    at finish (eval at evaluate (:290:30), <anonymous>:35:29)\n    at eval (eval at evaluate (:290:30), <anonymous>:27:13)",
+        "progress": {
+          "stage": "Phase failed",
+          "at": "2026-10-20T03:32:11.119Z"
+        },
+        "checks": [],
+        "encounters": [],
+        "browser": "141.0.7390.37",
+        "renderSettings": [
+          {
+            "label": "offline-player",
+            "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+            "software": true,
+            "configuration": "Low quality selected through playback settings; requested DPR 0.5",
+            "quality": "low",
+            "pixelRatio": 0.5,
+            "viewport": [1280, 720],
+            "canvas": [640, 360],
+            "shadowMaps": [[512, 512]]
+          }
+        ],
+        "checkCount": 0,
+        "encounterCount": 0
+      },
+      "longWalkTimeout": {
+        "configuredTimeoutMs": 180000,
+        "requiredEndX": 14,
+        "options": {
+          "start": [0, -0.10059128999710087, 2.000581741333008],
+          "sampleAnimation": true
+        },
+        "previous": [9.39531421661377, -0.259951400756836, 3.2183265686035156],
+        "frames": 66
+      },
+      "preservedReports": [
+        {
+          "name": "runner-report.json",
+          "sha256": "df7511f9fafface7000972ebf1dab4845b53f7550b779629612c1200738766cd",
+          "status": "running",
+          "fixedArchive": "output/validation/desert-offline-software-timeout-20261020/runner-report.json",
+          "retryBackup": "output/validation/desert-offline-software-timeout-20261020/runner-report.json",
+          "currentPathMustRemainUnchanged": true
+        },
+        {
+          "name": "report-application.json",
+          "sha256": "14b12b242bd0142ee18bb4c0ad3fc4dac2bd81aac5e19964ff58061c9460e363",
+          "status": "passed",
+          "fixedArchive": "output/validation/desert-offline-software-timeout-20261020/report-application.json",
+          "retryBackup": "output/validation/desert-offline-software-timeout-20261020/report-application.json",
+          "currentPathMustRemainUnchanged": true
+        },
+        {
+          "name": "resume-report.json",
+          "sha256": "5047eedc6e348c885cbdfbc52d3fedd305ece7f118eb62a4c51899dc277b6480",
+          "status": "failed",
+          "fixedArchive": "output/validation/desert-offline-software-timeout-20261020/resume-report.json",
+          "retryBackup": "output/validation/desert-offline-software-timeout-20261020/resume-report.json",
+          "currentPathMustRemainUnchanged": true
+        },
+        {
+          "name": "retry-report.json",
+          "sha256": "1542b3cfc51a762a17f921070c0ba9d94c1696b7be67bdb19d8bae6bb402389b",
+          "status": "failed",
+          "fixedArchive": "output/validation/desert-offline-software-timeout-20261020/retry-report.json",
+          "retryBackup": "output/validation/desert-offline-software-timeout-20261020/retry-report.json",
+          "currentPathMustRemainUnchanged": true
+        },
+        {
+          "name": "report-player.json",
+          "sha256": "ec392eeacb0366ea615b2b68c5373c58e93f1157289c6fc82a6ed0f9d6a4d766",
+          "status": "failed",
+          "fixedArchive": "output/validation/desert-offline-software-timeout-20261020/report-player.json",
+          "retryBackup": "output/validation/desert-offline-software-timeout-20261020/report-player.json",
+          "currentPathMustRemainUnchanged": false
+        }
+      ],
+      "retryConfigurationChange": {
+        "requestedDprBefore": 0.5,
+        "requestedDprAfter": 0.25,
+        "scope": "The third attempt uses the checker's existing DPR configuration to reduce software rasterization load. Checker code, production code, actions, assertions, thresholds, timeouts and export ZIP are unchanged."
+      }
+    }
+  ],
+  "limitations": [
+    "The original npm runner supervisor was interrupted; its command exit code remains unknown and its report is preserved. An uninterrupted npm run test:prince success is not claimed.",
+    "The first standalone attempt failed when the 270-second no-checkpoint watchdog closed its browser during the Earth garden interaction. Its failed reports remain intact.",
+    "The second standalone attempt timed out during its initial 180-second long walk after 66 rendered frames and x=9.39531421661377, before any check or encounter completed. The successful player result belongs to a separate third attempt at lower DPR.",
+    "Chromium uses SwiftShader and UI-selected low quality: DPR 0.5 for the passed desktop/mobile application phase and DPR 0.25 for the passed standalone retry. These are not hardware GPU frame-rate results.",
+    "Mobile validation uses a 390 by 844 mobile layout and pointer dragging on the visible joystick, not a real device or native multi-touch.",
+    "Browser edge checks use labeled near-edge setup followed by real input; continuous spawn-to-boundary traversal is covered by real-GLB automated tests.",
+    "No Windows Edge, hardware mobile GPU, long-duration stress test or full Blender rebuild was performed.",
+    "The original supervisor's in-memory server log could not be recovered after interruption."
+  ],
+  "sourceArtifacts": [
+    {
+      "name": "retry-dpr025-report.json",
+      "sha256": "70821bd07e3cb24d0cc6566cc48c13904f4a489df838c557ef72d7e16e84266c"
+    },
+    {
+      "name": "report-application.json",
+      "sha256": "14b12b242bd0142ee18bb4c0ad3fc4dac2bd81aac5e19964ff58061c9460e363"
+    },
+    {
+      "name": "report-player.json",
+      "sha256": "c2019bcf5f8210f5abcad937a65c10b839593968f66bd1dea4372dc04ec15c95"
+    },
+    {
+      "name": "resume-report.json",
+      "sha256": "5047eedc6e348c885cbdfbc52d3fedd305ece7f118eb62a4c51899dc277b6480"
+    },
+    {
+      "name": "retry-report.json",
+      "sha256": "1542b3cfc51a762a17f921070c0ba9d94c1696b7be67bdb19d8bae6bb402389b"
+    },
+    {
+      "name": "output/validation/desert-offline-checkpoint-failure-20261020/archive.json",
+      "sha256": "2827bac02230c8cf711fc24ad13fb967e72bc44fa357e1abaab10770d5c7ff6e"
+    },
+    {
+      "name": "output/validation/desert-offline-checkpoint-failure-20261020/runner-report.json",
+      "sha256": "df7511f9fafface7000972ebf1dab4845b53f7550b779629612c1200738766cd"
+    },
+    {
+      "name": "output/playwright/prince-affordances/before-player-checkpoint-retry-xZCZ94/runner-report.json",
+      "sha256": "df7511f9fafface7000972ebf1dab4845b53f7550b779629612c1200738766cd"
+    },
+    {
+      "name": "output/validation/desert-offline-checkpoint-failure-20261020/report-application.json",
+      "sha256": "14b12b242bd0142ee18bb4c0ad3fc4dac2bd81aac5e19964ff58061c9460e363"
+    },
+    {
+      "name": "output/playwright/prince-affordances/before-player-checkpoint-retry-xZCZ94/report-application.json",
+      "sha256": "14b12b242bd0142ee18bb4c0ad3fc4dac2bd81aac5e19964ff58061c9460e363"
+    },
+    {
+      "name": "output/validation/desert-offline-checkpoint-failure-20261020/report-player.json",
+      "sha256": "e0a855194c286c8d69456a778d6a4d28aee43f303c13672fe64ce3c28b4f5846"
+    },
+    {
+      "name": "output/playwright/prince-affordances/before-player-checkpoint-retry-xZCZ94/report-player.json",
+      "sha256": "e0a855194c286c8d69456a778d6a4d28aee43f303c13672fe64ce3c28b4f5846"
+    },
+    {
+      "name": "output/validation/desert-offline-checkpoint-failure-20261020/resume-report.json",
+      "sha256": "5047eedc6e348c885cbdfbc52d3fedd305ece7f118eb62a4c51899dc277b6480"
+    },
+    {
+      "name": "output/playwright/prince-affordances/before-player-checkpoint-retry-xZCZ94/resume-report.json",
+      "sha256": "5047eedc6e348c885cbdfbc52d3fedd305ece7f118eb62a4c51899dc277b6480"
+    },
+    {
+      "name": "output/validation/desert-offline-software-timeout-20261020/archive.json",
+      "sha256": "a23f9a257651249fd347f5c949f945f3872428027329eab20c401b060facc8ef"
+    },
+    {
+      "name": "output/validation/desert-offline-software-timeout-20261020/runner-report.json",
+      "sha256": "df7511f9fafface7000972ebf1dab4845b53f7550b779629612c1200738766cd"
+    },
+    {
+      "name": "output/validation/desert-offline-software-timeout-20261020/runner-report.json",
+      "sha256": "df7511f9fafface7000972ebf1dab4845b53f7550b779629612c1200738766cd"
+    },
+    {
+      "name": "output/validation/desert-offline-software-timeout-20261020/report-application.json",
+      "sha256": "14b12b242bd0142ee18bb4c0ad3fc4dac2bd81aac5e19964ff58061c9460e363"
+    },
+    {
+      "name": "output/validation/desert-offline-software-timeout-20261020/report-application.json",
+      "sha256": "14b12b242bd0142ee18bb4c0ad3fc4dac2bd81aac5e19964ff58061c9460e363"
+    },
+    {
+      "name": "output/validation/desert-offline-software-timeout-20261020/resume-report.json",
+      "sha256": "5047eedc6e348c885cbdfbc52d3fedd305ece7f118eb62a4c51899dc277b6480"
+    },
+    {
+      "name": "output/validation/desert-offline-software-timeout-20261020/resume-report.json",
+      "sha256": "5047eedc6e348c885cbdfbc52d3fedd305ece7f118eb62a4c51899dc277b6480"
+    },
+    {
+      "name": "output/validation/desert-offline-software-timeout-20261020/retry-report.json",
+      "sha256": "1542b3cfc51a762a17f921070c0ba9d94c1696b7be67bdb19d8bae6bb402389b"
+    },
+    {
+      "name": "output/validation/desert-offline-software-timeout-20261020/retry-report.json",
+      "sha256": "1542b3cfc51a762a17f921070c0ba9d94c1696b7be67bdb19d8bae6bb402389b"
+    },
+    {
+      "name": "output/validation/desert-offline-software-timeout-20261020/report-player.json",
+      "sha256": "ec392eeacb0366ea615b2b68c5373c58e93f1157289c6fc82a6ed0f9d6a4d766"
+    },
+    {
+      "name": "output/validation/desert-offline-software-timeout-20261020/report-player.json",
+      "sha256": "ec392eeacb0366ea615b2b68c5373c58e93f1157289c6fc82a6ed0f9d6a4d766"
+    },
+    {
+      "name": "runner-report.json",
+      "sha256": "df7511f9fafface7000972ebf1dab4845b53f7550b779629612c1200738766cd"
+    },
+    {
+      "name": "assets/manifests/showcase/prince-desert.json",
+      "sha256": "c7c69ffeec94887d94006a996a348442b523e123d2c6515326d7126964ac8b5a"
+    },
+    {
+      "name": "assets/optimized/showcase/prince-desert.glb",
+      "sha256": "d375c9d8377e2256a1e8613ae9c96903d4c4cd28343df616ad14b4afcc442477"
+    },
+    {
+      "name": "little-prince.zip",
+      "sha256": "f2379322f919224a50570324fe382528c760aa3fa4d8cdc4d8704943cdb8ea82"
+    },
+    {
+      "name": "stage3-final-test.log",
+      "sha256": "793582e7679251a34e96fc73291803e018e138052fdd79bf09e0256c4321e63c"
+    },
+    {
+      "name": "stage3-final-check.log",
+      "sha256": "bff37a6671e9c2b628de2f7b7419d0808ffcd21fedb97426d4f41741f0c0083a"
+    },
+    {
+      "name": "stage3-final-format.log",
+      "sha256": "98619bb9d5d032ffb34ae79e221db9584f43870bde2eda47c3d6ecb6b87c9efc"
+    },
+    {
+      "name": "stage3-final-code-format.log",
+      "sha256": "5bf5bf82219fcfa49043e9d2d1d1460f203bdff6d7d1fe0f377dbbd647a692dd"
+    },
+    {
+      "name": "stage2-build.log",
+      "sha256": "408f9823ec47bc662a7ca6f922b38ac2200747494ddf6936450b8b4bd2b227d3"
+    }
+  ]
+}
