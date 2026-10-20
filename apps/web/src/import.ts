@@ -7,6 +7,7 @@ import type { SceneAsset, SceneNode, Vector3Tuple } from '@virtualworld/scene-sc
 import type { SceneCommand } from '@virtualworld/scene-schema';
 import { cadToGroup, type CadResult } from '@virtualworld/asset-runtime';
 import { assertSelfContainedGlb } from '@virtualworld/asset-runtime';
+import { api } from './api';
 async function requestUpload(
   file: Blob,
   name: string,
@@ -14,15 +15,12 @@ async function requestUpload(
   sourceAssetId?: string,
 ): Promise<unknown> {
   const query = new URLSearchParams({ name, ...(sourceAssetId ? { sourceAssetId } : {}) });
-  const response = await fetch(`/api/assets?${query}`, {
+  return api(`/api/assets?${query}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/octet-stream' },
     body: file,
     signal,
   });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error);
-  return body;
 }
 export async function upload(
   file: Blob,
