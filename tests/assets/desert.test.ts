@@ -44,6 +44,8 @@ describe('desert encounter authored scene', () => {
       expect(bounds.max.x).toBeCloseTo(110);
       expect(bounds.min.z).toBeCloseTo(-110);
       expect(bounds.max.z).toBeCloseTo(110);
+      const horizon = root.getObjectByName('Desert_horizon') as THREE.Mesh;
+      expect(horizon.geometry.index!.count / 3).toBeLessThanOrEqual(40000);
       const plane = root.getObjectByName('Tapered_vintage_fuselage')!;
       expect(plane).toBeDefined();
       const size = new THREE.Box3().setFromObject(plane).getSize(new THREE.Vector3());

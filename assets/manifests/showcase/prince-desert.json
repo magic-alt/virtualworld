@@ -4,10 +4,10 @@
   "seed": 612,
   "generator": "Blender 5.2 fixed offline recipe + deterministic sand horizon",
   "source": "generators/blender/prince/build.py",
-  "sha256": "51b8a924a87f8e40191318868bf5953f4a38243461cdfee514369f37d3665ac8",
-  "bytes": 6040060,
+  "sha256": "d375c9d8377e2256a1e8613ae9c96903d4c4cd28343df616ad14b4afcc442477",
+  "bytes": 3754492,
   "meshes": 7,
-  "triangles": 170024,
+  "triangles": 106536,
   "warnings": [
     {
       "code": "UNUSED_OBJECT",

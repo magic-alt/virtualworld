@@ -11,6 +11,7 @@ const validator = createRequire(import.meta.url)('gltf-validator') as {
 };
 
 const extensionName = 'Desert horizon';
+const extensionVersion = 2;
 const innerRadius = 11;
 const outerRadius = 110;
 const sideSegments = 128;
@@ -39,8 +40,9 @@ export function extendDesert(input: Uint8Array): Uint8Array {
   const bytes = Buffer.from(input);
   const jsonLength = bytes.readUInt32LE(12);
   const doc = JSON.parse(bytes.subarray(20, 20 + jsonLength).toString());
-  if (doc.asset.extras?.desertHorizon?.version === 1) return input;
-  if (doc.nodes.some((node: { name?: string }) => node.name === extensionName))
+  const existingHorizon = doc.asset.extras?.desertHorizon;
+  if (existingHorizon?.version === extensionVersion) return input;
+  if (existingHorizon || doc.nodes.some((node: { name?: string }) => node.name === extensionName))
     throw new Error('Rebuild the original desert before replacing its horizon');
   const sand = doc.materials.findIndex(
     (material: { name?: string }) => material.name === 'Ochre sand',
@@ -79,7 +81,12 @@ export function extendDesert(input: Uint8Array): Uint8Array {
   if (perimeter.size !== 4 * sideSegments) throw new Error('Unexpected authored desert perimeter');
 
   // Matching all 512 original boundary vertices avoids T-junctions and cracks.
-  const radii = [11, 11.5, ...Array.from({ length: outerRadius - 11 }, (_, i) => i + 12)];
+  // Keep the dense blend through 27 m; the broad outer dunes need fewer rings.
+  const transitionRadius = innerRadius + 16;
+  const radii = [innerRadius, innerRadius + 0.5];
+  for (let radius = innerRadius + 1; radius <= transitionRadius; radius++) radii.push(radius);
+  for (let radius = transitionRadius + 4; radius < outerRadius; radius += 4) radii.push(radius);
+  radii.push(outerRadius);
   const ringSize = 4 * sideSegments;
   const positions: number[] = [],
     normals: number[] = [],
@@ -205,7 +212,7 @@ export function extendDesert(input: Uint8Array): Uint8Array {
   doc.asset.extras = {
     ...doc.asset.extras,
     desertHorizon: {
-      version: 1,
+      version: extensionVersion,
       innerRadius,
       outerRadius,
       source: 'generators/blender/prince/extend-desert.ts',
