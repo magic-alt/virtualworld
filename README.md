@@ -22,6 +22,7 @@ virtualworldAI 是一个基于浏览器的三维世界创作与交付项目。�
 - **高级场景编辑**：场景树、属性调整、节点增删、撤销/重做、资产导入、保存与导出。SceneSpec 是持久化的统一场景数据；交互进度与机构播放状态独立保存。
 - **多类型资产**：自包含 GLB、STEP/STP、SPZ、Gaussian PLY；STEP 经浏览器端 OCCT 转换，点云由 Spark 按需加载。导入兼容性和工程准确性仍需校验。
 - **WebGL 2 渲染恢复**：图形初始化失败或上下文丢失时提供持续可见的错误说明、暂停和重试；无法代替浏览器或驱动恢复。
+- **Unity / Unreal 原生运行源码**：为小王子章节、角色移动与剧情，以及 H-100 机构提供 C# / C++ 运行代码和本地工程生成命令。网页可连接已部署的 Unity Web 或 Unreal Pixel Streaming；原生编译与实机验收状态见[验收记录](docs/validation-native-engines.md)。
 
 ### 内置体验
 
@@ -69,25 +70,35 @@ npm run world:validate -- --world worlds/my-first-world
 
 ## 导出与引擎互操作
 
-高级编辑中的「导出目标」提供三个交付选项：
+高级编辑中的「导出目标」提供四个交付选项：
 
 | 目标 | 当前交付内容 | 使用方式 |
 | --- | --- | --- |
 | **网页（默认）** | 自包含资源、场景数据与独立 Web 播放器 ZIP | 解压后通过 HTTP 服务打开 `index.html`；不依赖创作后端或模型 API，不能直接使用 `file://` |
 | **Godot 4** | `project.godot`、`main.tscn`、原生导入脚本、规范化 GLB 和兼容性报告 | 解压并使用 Godot 打开工程，检查导入后场景 |
-| **Unity 6** | GLB、元数据、编辑器导入工具与兼容性报告 | 在现有 Unity 工程安装 glTFast **6.14.1** 后按 `README-Unity.md` 导入 |
+| **Unity 6** | GLB、C# 原生运行时、场景/预制体导入工具与兼容性报告 | 在现有 Unity 工程安装 glTFast **6.14.1** 后按 `README-Unity.md` 导入；CLI 可准备完整新工程目录 |
+| **Unreal Engine 5.8** | `.uproject`、C++ 原生运行时、固定版本插件安装器和完整资源 | 按 `README-Unreal.md` 准备 glTFRuntime 与 C++ 工具链后构建 |
 
-**原生引擎导出目前是资产、节点、变换和部分碰撞数据的单向适配，不是完整游戏工程移植。** 网页端剧情、角色控制、球面移动、谐波运动与点云渲染等交互不会自动变为 Unity/Godot 可执行逻辑。Godot 有指定版本的真实引擎校验记录；Unity 导入结构有自动化检查，但**尚未完成真实 Unity Editor 验收**。详见 [引擎互操作说明](docs/engine-interoperability.md)。
+为内置场景生成原生源工程：
+
+```bash
+npm run native:export -- --target unity --scene little-prince-desert --out output/native/prince-unity
+npm run native:export -- --target unreal --scene demo-harmonic-joint --out output/native/joint-unreal
+```
+
+两种引擎都可选择小王子或 H-100；小王子工程包含三章及完整角色资源。目标目录必须不存在。**原生运行源码已接入导出流程，但本次环境没有 Unity / Unreal Editor，尚未完成真实原生编译、画面和操控验收。** Godot 保留现有场景互操作范围与历史验证记录。通用关节、点云、动态形变碰撞和材质逐像素一致性仍有边界。
+
+要让当前体验由游戏引擎渲染，先构建并部署 Unity Web 或 Unreal Pixel Streaming，再按场景及修订号配置 `VW_ENGINE_RUNTIMES`。选择原生引擎时会卸载 Three.js 体验；未配置或版本过期时显示说明。新代码不会自动启动本地引擎或创建云 GPU 服务。完整步骤见 [Unity / Unreal 运行指南](docs/native-engine-runtimes.md)，数据协议见 [引擎互操作说明](docs/engine-interoperability.md)。
 
 ## 技术架构
 
 | 层次 | 主要技术 / 职责 |
 | --- | --- |
 | Web 应用 | React 19、TypeScript、Vite、Fastify |
-| 3D 运行时 | Three.js / WebGL 2、Rapier 物理、Spark Gaussian Splat |
+| 3D 运行时 | 网页 Three.js / Rapier / Spark；Unity C# 与 Unreal C++ 原生适配源码 |
 | 场景协议 | SceneSpec、Zod 校验、原子 SceneCommands、撤销与版本控制 |
 | 生成与资产 | LLM 规划、可选 Tripo、Blender 固定批处理、glTF Transform、Khronos Validator、OCCT WASM |
-| 交付 | 独立网页播放器、Unity 6 / Godot 4 单向导出 |
+| 交付 | 独立网页播放器、Unity 6 / Unreal 5.8 原生源工程、Godot 4 场景导出 |
 
 ```text
 apps/web/                   首页、体验、高级编辑、Fastify 服务与播放器
@@ -121,10 +132,11 @@ npm run format:check
 
 ## 当前边界与文档
 
-目前提供本地创作与**私有单工作区**部署能力，不包含公开多租户服务、实时协同编辑或多人联机。Blender MCP、AI 直接操作外部三维软件、完整 Unity/Godot 运行时迁移均**尚未实现**；真实付费模型的输出质量不能由本地测试夹具证明。
+目前提供本地创作与**私有单工作区**部署能力，不包含公开多租户服务、实时协同编辑或多人联机。Blender MCP、AI 直接操作外部三维软件、跨引擎双向编辑和存档同步尚未实现。Unity / Unreal 源工程仍需原生实机验收；真实付费模型的输出质量不能由本地测试夹具证明。
 
 - [部署与团队访问](docs/deployment.md)
 - [引擎互操作与兼容性](docs/engine-interoperability.md)
+- [Unity / Unreal 原生运行与网页接入](docs/native-engine-runtimes.md)
 - [场景案例与模型验证](docs/blender-showcases.md)
 - [WebGL 故障恢复](docs/webgl-recovery.md)
 - [平台底座与资产校验](docs/platform-foundation-audit.md)
