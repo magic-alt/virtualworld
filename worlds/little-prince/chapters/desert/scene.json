@@ -2,7 +2,7 @@
   "version": 1,
   "id": "little-prince-desert",
   "name": "沙海中的相遇",
-  "description": "沙漠中，一位迫降的飞行员遇见金发的小旅人。走到机翼旁，听听那只箱子里的羊。",
+  "description": "扮演小王子，在沙丘间自由行走，去飞机旁找飞行员，请他画一只羊，再陪他修理飞机。WASD / 方向键或移动摇杆控制小王子。",
   "mode": "world",
   "revision": 0,
   "nodes": [
@@ -25,12 +25,29 @@
     },
     {
       "id": "prince",
-      "name": "金发的小旅人",
+      "name": "小王子（你控制的角色）",
       "kind": "mesh",
       "shape": "glb",
       "assetId": "prince-character",
-      "position": [0.3, -0.08, -1.4],
+      "position": [0, -0.08, 2],
       "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "size": [1, 1, 1],
+      "color": "#ffffff",
+      "visible": true,
+      "animation": {
+        "clip": "Idle",
+        "loop": true
+      }
+    },
+    {
+      "id": "pilot",
+      "name": "飞机旁的飞行员",
+      "kind": "mesh",
+      "shape": "glb",
+      "assetId": "prince-pilot",
+      "position": [-1.4, -0.08, -0.6],
+      "rotation": [0, 0.5, 0],
       "scale": [1, 1, 1],
       "size": [1, 1, 1],
       "color": "#ffffff",
@@ -44,7 +61,7 @@
       "id": "meeting",
       "name": "请画一只羊",
       "kind": "group",
-      "position": [0.3, 0.8, -1.4],
+      "position": [-1.4, 0.8, -0.6],
       "rotation": [0, 0, 0],
       "scale": [1, 1, 1],
       "size": [1, 1, 1],
@@ -53,7 +70,7 @@
     },
     {
       "id": "plane",
-      "name": "修理飞机",
+      "name": "陪飞行员修理飞机",
       "kind": "group",
       "position": [-3, 0.8, -1],
       "rotation": [0, 0, 0],
@@ -73,12 +90,13 @@
     "position": [6, 5, 8],
     "target": [0, 0.7, 0]
   },
-  "spawn": [0, 0.1, 2],
+  "spawn": [0, -0.08, 2],
   "navigation": {
     "kind": "plane"
   },
   "actor": {
-    "assetId": "prince-pilot",
+    "assetId": "prince-character",
+    "nodeId": "prince",
     "height": 1.6,
     "clips": {
       "idle": "Idle",

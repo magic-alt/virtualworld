@@ -131,6 +131,7 @@ export const SceneSchema = z
     actor: z
       .object({
         assetId: identifier,
+        nodeId: identifier.optional(),
         height: z.number().finite().min(0.1).max(5),
         clips: z.object({ idle: z.string(), walk: z.string(), interact: z.string() }).strict(),
       })
@@ -229,6 +230,22 @@ export function validateScene(input: unknown): string[] {
   if (assets.size !== scene.assets.length) errors.push('资源 ID 重复');
   if (scene.actor && assets.get(scene.actor.assetId)?.type !== 'glb')
     errors.push('角色必须引用存在的 GLB 资源');
+  if (scene.actor?.nodeId) {
+    const preview = nodes.get(scene.actor.nodeId);
+    if (
+      !preview ||
+      preview.kind !== 'mesh' ||
+      preview.shape !== 'glb' ||
+      preview.assetId !== scene.actor.assetId ||
+      preview.assetNode !== undefined ||
+      !preview.visible ||
+      preview.parentId ||
+      preview.collider ||
+      preview.interaction ||
+      scene.nodes.some((node) => node.parentId === preview.id)
+    )
+      errors.push('角色预览必须引用同一 GLB 的可见独立网格，不能带子节点、碰撞或交互');
+  }
   if (scene.campaign && scene.campaign.chapterId !== scene.id) errors.push('章节 ID 与场景不一致');
   if (scene.mechanism) {
     const m = scene.mechanism;
