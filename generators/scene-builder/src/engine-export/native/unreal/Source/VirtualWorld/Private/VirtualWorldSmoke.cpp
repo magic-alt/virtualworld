@@ -93,11 +93,18 @@ void AVirtualWorldRuntime::RunSmokeStep()
         const auto& Exposure=Camera->GetCameraComponent()->PostProcessSettings;
         Require(Exposure.bOverride_AutoExposureMethod&&Exposure.AutoExposureMethod==AEM_Manual,
             TEXT("Inspection lighting must lock exposure to prevent brightness pumping."));
+        Require(Exposure.bOverride_BloomIntensity&&Exposure.BloomIntensity==0,
+            TEXT("Inspection must preserve machined edges without bloom glare."));
         bool bReflections=false,bViewFill=false;
         for(AActor* Actor:SpawnedActors)
         {
             if(ASkyLight* Sky=Cast<ASkyLight>(Actor))
-                bReflections|=Sky->GetLightComponent()->SourceType==SLS_SpecifiedCubemap&&Sky->GetLightComponent()->Cubemap!=nullptr;
+            {
+                const USkyLightComponent* Component=Sky->GetLightComponent();
+                bReflections|=Component->SourceType==SLS_SpecifiedCubemap&&Component->Cubemap!=nullptr;
+                Require(!Component->IsRealTimeCaptureEnabled()&&(!Component->bLowerHemisphereIsBlack||Component->LowerHemisphereColor.GetLuminance()>.1f),
+                    TEXT("Down-facing metal requires a persistent illuminated lower reflection hemisphere."));
+            }
             if(ADirectionalLight* Light=Cast<ADirectionalLight>(Actor))
             {
                 Require(Light->GetLightComponent()->Mobility==EComponentMobility::Movable,

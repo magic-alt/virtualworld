@@ -16,7 +16,10 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
     if(Mechanism)
     {
         const VW::Harmonic State=VW::Transmission(InputAngle,VW::Number(Mechanism,TEXT("flexTeeth")),VW::Number(Mechanism,TEXT("ringTeeth")));
-        Lines.Add(FString::Printf(TEXT("Input %.1f rpm | Output %.3f rpm | Ratio %.4f"),Rpm,Rpm*State.Ratio,State.Ratio));
+        const double ActualRpm=bRunning&&!bPaused&&!(bBrakeInstalled&&!bBrakePowered)?Rpm:0.;
+        const double OutputRpm=ActualRpm==0?0:ActualRpm*State.Ratio;
+        Lines.Add(FString::Printf(TEXT("Input %.1f rpm | Output %.3f rpm | Ratio %.4f"),ActualRpm,OutputRpm,State.Ratio));
+        Lines.Add(FString::Printf(TEXT("Setpoint %.1f rpm | Prescribed motion (no load solver)"),Rpm));
         Lines.Add(FString::Printf(TEXT("Angle %.2f rad | Output %.3f rad"),InputAngle,State.Output));
         Lines.Add(FString::Printf(TEXT("WaveCos %+.3f | WaveSin %+.3f | Explode %.0f%%"),State.Cos,State.Sin,Explosion*100));
         Lines.Add(bBrakeInstalled?(bBrakePowered?TEXT("Brake installed / powered / released"):TEXT("Brake installed / power off / LOCKED")):TEXT("Brake not installed"));

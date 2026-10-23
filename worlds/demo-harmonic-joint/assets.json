@@ -7,7 +7,7 @@
       "name": "H-100 original parametric assembly",
       "type": "glb",
       "url": "/assets/optimized/showcase/harmonic-joint.glb",
-      "bytes": 6725596,
+      "bytes": 7497660,
       "source": "generators/blender/harmonic/recipe.json"
     }
   ]

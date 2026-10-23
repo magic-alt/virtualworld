@@ -55,6 +55,8 @@ public:
 private:
     friend class AVirtualWorldHUD;
     friend class FVirtualWorldProgressTest;
+    friend class FVirtualWorldMechanismTimingTest;
+    friend class FVirtualWorldInspectionTest;
     bool Fail(const FString& Message);
     bool ReadCatalog();
     void ClearScene();

@@ -403,3 +403,87 @@ it('retains a dielectric floor under both power contact cavities instead of floa
     expect(floors.some((v) => v > 0.0835 && v < 0.0845)).toBe(true);
   }
 });
+
+it('keeps machined output flange planes flat-shaded instead of bending normals into the bolt bores', () => {
+  const { accessor, primitive } = assetData();
+  const p = primitive('output-flange');
+  const positions = accessor(p.attributes.POSITION),
+    normals = accessor(p.attributes.NORMAL);
+  const indices = accessor(p.indices).map((v) => v[0]);
+  let planes = 0;
+  for (let i = 0; i < indices.length; i += 3) {
+    const ids = indices.slice(i, i + 3),
+      [a, b, c] = ids.map((id) => positions[id]);
+    if (Math.max(a[1], b[1], c[1]) - Math.min(a[1], b[1], c[1]) > 1e-8) continue;
+    const crossY = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
+    if (Math.abs(crossY) < 1e-10) continue;
+    planes++;
+    for (const id of ids)
+      expect(normals[id][1] * Math.sign(crossY), `flange plane vertex ${id}`).toBeGreaterThan(
+        0.999,
+      );
+  }
+  expect(planes).toBeGreaterThan(100);
+});
+
+it('aligns the serialized flex mouth ellipse with the actual cam through forward and reverse turns', () => {
+  const { d, accessor, primitive } = assetData();
+  const flex = primitive('flex-cup');
+  const basis = accessor(flex.attributes.POSITION);
+  const names: string[] = d.meshes.find((m: { name: string }) => m.name === 'flex-cup').extras
+    .targetNames;
+  const cos = accessor(flex.targets[names.indexOf('WaveCos')].POSITION);
+  const sin = accessor(flex.targets[names.indexOf('WaveSin')].POSITION);
+  const mouth = Math.max(...basis.map((p) => p[1]));
+  const indices = [
+    ...new Map(
+      basis.flatMap((p, i) =>
+        Math.abs(p[1] - mouth) < 1e-7 && Math.hypot(p[0], p[2]) > 0.0264
+          ? [[p.join(','), i] as const]
+          : [],
+      ),
+    ).values(),
+  ];
+  const cam = [
+    ...new Map(
+      accessor(primitive('elliptical-wave-cam').attributes.POSITION)
+        .filter((p) => Math.hypot(p[0], p[2]) > 0.02)
+        .map((p) => [p.join(','), p]),
+    ).values(),
+  ];
+  expect(indices.length).toBeGreaterThanOrEqual(200);
+  expect(cam.length).toBeGreaterThanOrEqual(100);
+  const rotate = (p: number[], a: number) => [
+    Math.cos(a) * p[0] + Math.sin(a) * p[2],
+    p[1],
+    -Math.sin(a) * p[0] + Math.cos(a) * p[2],
+  ];
+  const axis = (points: number[][]) => {
+    const x = points.reduce((s, p) => s + p[0], 0) / points.length;
+    const z = points.reduce((s, p) => s + p[2], 0) / points.length;
+    let xx = 0,
+      zz = 0,
+      xz = 0;
+    for (const p of points) {
+      xx += (p[0] - x) ** 2;
+      zz += (p[2] - z) ** 2;
+      xz += (p[0] - x) * (p[2] - z);
+    }
+    expect(Math.hypot(xx - zz, 2 * xz)).toBeGreaterThan(1e-10);
+    return Math.atan2(2 * xz, xx - zz) / 2;
+  };
+  const difference = (a: number, b: number) =>
+    Math.atan2(Math.sin(2 * (a - b)), Math.cos(2 * (a - b))) / 2;
+  for (const input of [0, 0.5, 1.5, 3.2, 2 * Math.PI, -0.5, -3.2]) {
+    const state = harmonicState(input, 6, 200, 202);
+    const deformed = indices.map((i) =>
+      rotate(
+        basis[i].map((v, j) => v + state.cos * cos[i][j] + state.sin * sin[i][j]),
+        state.outputAngle,
+      ),
+    );
+    const camAxis = axis(cam.map((p) => rotate(p, input)));
+    expect(Math.abs(difference(camAxis, axis(cam) - input))).toBeLessThan(1e-5);
+    expect(Math.abs(difference(axis(deformed), camAxis)), `input ${input}`).toBeLessThan(1e-5);
+  }
+});

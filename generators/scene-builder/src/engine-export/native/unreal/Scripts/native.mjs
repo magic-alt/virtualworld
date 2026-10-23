@@ -79,6 +79,8 @@ export function nativeCommand(argv, projectRoot = project) {
         `Unreal Editor executable is absent: ${editor}. Install Unreal Engine and its native C++ toolchain first.`,
       );
     const projectFile = join(projectRoot, 'VirtualWorld.uproject');
+    // macOS fullscreen startup can wait indefinitely in FMacWindow before loading the scene.
+    const windowArgs = process.platform === 'darwin' ? ['-windowed'] : [];
     if (command === 'check') return { ...data, plugin: 'verified', engine: editor };
     else if (command === 'build') {
       const build = join(
@@ -129,6 +131,7 @@ export function nativeCommand(argv, projectRoot = project) {
           projectFile,
           '/Engine/Maps/Entry',
           '-game',
+          ...windowArgs,
           '-log',
           `-VirtualWorldScene=${data.sceneId}`,
           ...(option(args, '--import')
@@ -147,6 +150,7 @@ export function nativeCommand(argv, projectRoot = project) {
           projectFile,
           '/Engine/Maps/Entry',
           '-game',
+          ...windowArgs,
           '-unattended',
           '-nosound',
           '-log',

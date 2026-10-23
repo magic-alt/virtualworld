@@ -967,7 +967,10 @@ export class StudioRuntime {
   private frame = (now: number) => this.renderFrame(now);
   private renderFrame(now: number) {
     if (this.activityBlocked || this.renderer.getContext().isContextLost()) return;
-    const dt = this.paused ? 0 : this.last ? Math.min((now - this.last) / 1000, 0.05) : 1 / 60;
+    const elapsed = this.last ? (now - this.last) / 1000 : 1 / 60;
+    const mechanismDt = this.paused || !Number.isFinite(elapsed) ? 0 : Math.max(0, elapsed);
+    // Prescribed shaft motion follows elapsed time; character integration stays bounded.
+    const dt = Math.min(mechanismDt, 0.05);
     this.last = now;
     this.metricFrames++;
     if (this.char && !this.paused) {
@@ -996,7 +999,7 @@ export class StudioRuntime {
     }
     this.mixers.forEach((m) => m.update(dt));
     this.actorMixer?.update(dt);
-    this.mechanismController?.tick(dt, this.paused);
+    this.mechanismController?.tick(mechanismDt, this.paused);
     if (this.moving && !this.spec.mechanism && !this.paused)
       for (const node of this.spec.nodes)
         if (node.joint) {

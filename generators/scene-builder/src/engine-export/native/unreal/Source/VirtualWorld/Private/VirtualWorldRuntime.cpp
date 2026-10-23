@@ -302,7 +302,12 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
         Exposure.bOverride_AutoExposureApplyPhysicalCameraExposure=true;Exposure.AutoExposureApplyPhysicalCameraExposure=false;
         Exposure.bOverride_AutoExposureBias=true;Exposure.AutoExposureBias=0;
         Exposure.bOverride_AutoExposureBiasCurve=true;Exposure.AutoExposureBiasCurve=nullptr;
-        AddLight(FRotator(-45,-35,0),Direct*6.f,true,10);
+        Exposure.bOverride_BloomIntensity=true;Exposure.BloomIntensity=0;
+        ADirectionalLight* Key=AddLight(FRotator(-45,-35,0),Direct*6.f,true,10);
+        UDirectionalLightComponent* KeyComponent=CastChecked<UDirectionalLightComponent>(Key->GetLightComponent());
+        // CSM defaults span hundreds of metres; inspection geometry is only centimetres.
+        KeyComponent->SetDynamicShadowDistanceMovableLight(FMath::Max(50.f,static_cast<float>(CameraOffset.Size()*3)));
+        KeyComponent->SetLightSourceAngle(2.f);
         AddLight(FRotator(-20,130,0),Ambient*6.f,false,0);
         AddLight(FRotator(45,45,0),Ambient*4.f,false,0);
         // A weak, shadow-free inspection fill keeps cut faces readable at every orbit angle.
@@ -329,6 +334,9 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
         SkyComponent->SourceType=SLS_SpecifiedCubemap;
         SkyComponent->SetRealTimeCapture(false);
         SkyComponent->SetCubemap(StudioEnvironment);
+        // Down-facing metal must reflect a lit studio floor, rather than the default black hemisphere.
+        SkyComponent->bLowerHemisphereIsBlack=true;
+        SkyComponent->SetLowerHemisphereColor(FLinearColor(.30f,.32f,.35f));
         SkyComponent->SetCastShadows(false);
     }
     SkyComponent->RecaptureSky();
@@ -340,12 +348,14 @@ void AVirtualWorldRuntime::Tick(float DeltaSeconds)
     TickCadImport();
     if(bSmokeRequested) { RunSmokeStep();return; }
     if(!FatalError.IsEmpty()) return;
-    const float Delta=FMath::Clamp(DeltaSeconds,0.f,0.05f);
+    const float Elapsed=FMath::IsFinite(DeltaSeconds)?FMath::Max(0.f,DeltaSeconds):0.f;
+    const float Delta=FMath::Min(Elapsed,0.05f);
     HandleInput(Delta);
     if(!bPaused)
     {
         StepPlayer(Delta);
-        StepMechanism(Delta);
+        // Prescribed kinematics use full elapsed time, independent of render frame rate.
+        StepMechanism(Elapsed);
     }
     UpdateCamera();
 }
