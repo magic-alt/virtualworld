@@ -9,7 +9,8 @@
     "./generate": "./src/generate.ts",
     "./pipeline": "./src/pipeline.ts",
     "./asset-library": "./src/asset-library.ts",
-    "./engine-export": "./src/engine-export/index.ts"
+    "./engine-export": "./src/engine-export/index.ts",
+    "./native-cad": "./src/native-cad-import.ts"
   },
   "dependencies": {
     "@gltf-transform/core": "4.5.1",
@@ -22,6 +23,7 @@
     "@virtualworld/tripo": "*",
     "gltf-validator": "2.0.0-dev.3.10",
     "three": "0.180.0",
-    "zod": "3.25.76"
+    "zod": "3.25.76",
+    "occt-import-js": "0.0.23"
   }
 }

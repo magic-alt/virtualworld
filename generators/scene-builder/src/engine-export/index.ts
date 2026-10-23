@@ -30,6 +30,8 @@ export interface EngineExportOptions {
   primitiveFactory: (node: SceneNode) => Object3D;
   emit: (path: string, bytes: Uint8Array) => void;
   signal?: AbortSignal;
+  /** Emit only canonical data when extending a local native inspection catalog. */
+  dataOnly?: boolean;
 }
 export async function writeEngineExport(options: EngineExportOptions): Promise<void> {
   const { target, signal } = options;
@@ -187,6 +189,7 @@ export async function writeEngineExport(options: EngineExportOptions): Promise<v
     'compatibility.json',
     JSON.stringify({ version: 1, target, findings: compatibility }, null, 2) + '\n',
   );
+  if (options.dataOnly) return;
   const adapterFiles =
     target === 'unity' ? unityFiles() : target === 'unreal' ? unrealFiles() : godotFiles();
   for (const [path, content] of Object.entries(adapterFiles)) text(path, content);

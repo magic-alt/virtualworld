@@ -1,0 +1,9 @@
+# UE5 local STEP/STP import
+
+User approved local offline conversion on 2026-10-23: select a STEP/STP inside the running UE5 application, retain the original, convert locally, load and frame the geometry, and show actionable failures.
+
+Use the existing pinned OCCT WASM converter in a separate Node.js 24 process. Bundle its helper and dependencies into native exports; no Studio service, external network, paid provider or generated code execution is involved. Native file selection uses DesktopPlatform in editor-based game runs; packaged builds have a Slate path entry fallback. The native launcher supplies its Node executable. Missing Node produces an actionable error rather than downloading software.
+
+Each import owns a fresh Saved directory and request identity. Retain source, optimized GLB, validator warnings and manifests separately. Build the new SceneSpec through validated atomic SceneCommands, in metres/Y-up/radians. Re-read the serialized GLB for bounds/hierarchy validation. Publish a new canonical catalog only after success; preserve all existing scenes and permit returning to H-100. Cancel, failure, timeout, project change and process shutdown must never install stale results or destroy the current scene. CAD is a static inspection model; do not infer motion or human-confirmed engineering parameters.
+
+Alternatives: a complete native CAD kernel would increase binary/toolchain costs; a server conversion would require Studio/network. The approved local helper reuses the existing converter and keeps the UE player independent of Studio. Static inspection uses fixed exposure/environment reflection and existing orbit/zoom controls. The Node prerequisite and packaged dialog fallback must be documented. Validate real cube and multipart assembly geometry, Unicode/space paths, invalid files, cancellation and packaged helper execution outside the repository.
