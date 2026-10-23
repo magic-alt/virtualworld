@@ -1,6 +1,6 @@
 {
   "FileVersion": 3,
-  "EngineAssociation": "5.8",
+  "EngineAssociation": "",
   "Category": "VirtualWorld",
   "Description": "Native VirtualWorld runtime; compile and validate in Unreal Engine before distribution.",
   "Modules": [{ "Name": "VirtualWorld", "Type": "Runtime", "LoadingPhase": "Default" }],

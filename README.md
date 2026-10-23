@@ -4,14 +4,14 @@
 
 virtualworldAI 是一个基于浏览器的三维世界创作与交付项目。你可以用文字描述世界、在配置视觉模型后使用参考图，也可以直接打开内置场景；通过共享的 SceneSpec 场景协议，在沉浸式体验、高级编辑和独立导出之间衔接。项目默认在本地运行。
 
-[快速开始](#快速开始) · [场景预览](#场景预览) · [能力介绍](#当前能力) · [工程导出](#导出与引擎互操作) · [技术架构](#技术架构)
+[快速开始](#快速开始) · [场景预览](#场景预览) · [Unreal 本机验收](docs/unreal-local-acceptance.md) · [工程导出](#导出与引擎互操作) · [技术架构](#技术架构)
 
 ## 场景预览
 
-| 小王子 · 沙漠相遇 | H-100 · 谐波关节 |
-| :---: | :---: |
+|                                小王子 · 沙漠相遇                                |                                      H-100 · 谐波关节                                       |
+| :-----------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------: |
 | ![沙漠相遇：沙丘、飞机与小王子的三维场景预览](public/world-previews/desert.jpg) | ![H-100 谐波关节：包含金属壳体和输出法兰的模型预览](apps/web/src/assets/harmonic-cover.jpg) |
-| 可行走的叙事场景，包含角色、互动与章节进度 | 可旋转观察的机构演示，支持剖视、爆炸和传动控制 |
+|                   可行走的叙事场景，包含角色、互动与章节进度                    |                       可旋转观察的机构演示，支持剖视、爆炸和传动控制                        |
 
 > 以上为仓库中**真实内置场景的预览图**，并非整个网页界面的截图。实际运行时可以改变镜头、进入场景并操作；画面取决于视角、浏览器和显卡。更多场景细节见[小王子与机构案例](docs/blender-showcases.md)。
 
@@ -26,10 +26,10 @@ virtualworldAI 是一个基于浏览器的三维世界创作与交付项目。�
 
 ### 内置体验
 
-| 体验 | 内容 | 入口 |
-| --- | --- | --- |
-| **小王子 · 三章旅程** | 沙漠相遇 → B-612 星球 → 地球玫瑰园与狐狸；互动解锁、继续与重置 | 首页「探索世界」或 `?project=little-prince-desert` |
-| **H-100 谐波关节** | 自绘紧凑关节、200/202 齿传动示意、旋转观察、部件聚焦/隔离、剖视和爆炸 | 首页「探索世界」或 `?project=demo-harmonic-joint` |
+| 体验                  | 内容                                                                  | 入口                                               |
+| --------------------- | --------------------------------------------------------------------- | -------------------------------------------------- |
+| **小王子 · 三章旅程** | 沙漠相遇 → B-612 星球 → 地球玫瑰园与狐狸；互动解锁、继续与重置        | 首页「探索世界」或 `?project=little-prince-desert` |
+| **H-100 谐波关节**    | 自绘紧凑关节、200/202 齿传动示意、旋转观察、部件聚焦/隔离、剖视和爆炸 | 首页「探索世界」或 `?project=demo-harmonic-joint`  |
 
 H-100 的主体名义外形约为 **Ø100 × 84.3 mm**，通孔 Ø18 mm，属于参照公开资料的原创教学模型，**不是可直接制造的厂商 CAD**；其内部结构、齿廓与受力均有演示简化。参见 [H-100 结构与验证](docs/h100-joint-module.md)。
 
@@ -72,12 +72,12 @@ npm run world:validate -- --world worlds/my-first-world
 
 高级编辑中的「导出目标」提供四个交付选项：
 
-| 目标 | 当前交付内容 | 使用方式 |
-| --- | --- | --- |
-| **网页（默认）** | 自包含资源、场景数据与独立 Web 播放器 ZIP | 解压后通过 HTTP 服务打开 `index.html`；不依赖创作后端或模型 API，不能直接使用 `file://` |
-| **Godot 4** | `project.godot`、`main.tscn`、原生导入脚本、规范化 GLB 和兼容性报告 | 解压并使用 Godot 打开工程，检查导入后场景 |
-| **Unity 6** | GLB、C# 原生运行时、场景/预制体导入工具与兼容性报告 | 在现有 Unity 工程安装 glTFast **6.14.1** 后按 `README-Unity.md` 导入；CLI 可准备完整新工程目录 |
-| **Unreal Engine 5.8** | `.uproject`、C++ 原生运行时、固定版本插件安装器和完整资源 | 按 `README-Unreal.md` 准备 glTFRuntime 与 C++ 工具链后构建 |
+| 目标                  | 当前交付内容                                                        | 使用方式                                                                                       |
+| --------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **网页（默认）**      | 自包含资源、场景数据与独立 Web 播放器 ZIP                           | 解压后通过 HTTP 服务打开 `index.html`；不依赖创作后端或模型 API，不能直接使用 `file://`        |
+| **Godot 4**           | `project.godot`、`main.tscn`、原生导入脚本、规范化 GLB 和兼容性报告 | 解压并使用 Godot 打开工程，检查导入后场景                                                      |
+| **Unity 6**           | GLB、C# 原生运行时、场景/预制体导入工具与兼容性报告                 | 在现有 Unity 工程安装 glTFast **6.14.1** 后按 `README-Unity.md` 导入；CLI 可准备完整新工程目录 |
+| **Unreal Engine 5.x** | `.uproject`、C++ 原生运行时、固定版本插件/字体、环境诊断与验收脚本  | 自动查找本机 UE；源码基线 5.4+，实际小版本兼容性以本机编译为准                                 |
 
 为内置场景生成原生源工程：
 
@@ -88,17 +88,29 @@ npm run native:export -- --target unreal --scene demo-harmonic-joint --out outpu
 
 两种引擎都可选择小王子或 H-100；小王子工程包含三章及完整角色资源。目标目录必须不存在。**原生运行源码已接入导出流程，但本次环境没有 Unity / Unreal Editor，尚未完成真实原生编译、画面和操控验收。** Godot 保留现有场景互操作范围与历史验证记录。通用关节、点云、动态形变碰撞和材质逐像素一致性仍有边界。
 
+### 已安装 Unreal 5：生成本机验收目录
+
+```powershell
+npm run unreal:prepare -- --out output/unreal-review
+```
+
+双击生成目录中的 **Review.cmd**：先检查环境，再选择小王子沙漠/B612/地球或关节模组。
+启动项会准备固定插件与中文字体、编译并运行实际 Unreal；可单独打开 Editor、运行原生 smoke，
+并收集日志和人工验收表。首次需下载依赖，C++ 工具链仍须本机安装。
+引擎路径可通过 `node review.mjs menu --engine "D:/Epic Games/UE_5.7"` 指定，请改成真实路径。
+完整操作、真实验收项目与故障处理见 **[Unreal 本地验收指南](docs/unreal-local-acceptance.md)**。
+
 要让当前体验由游戏引擎渲染，先构建并部署 Unity Web 或 Unreal Pixel Streaming，再按场景及修订号配置 `VW_ENGINE_RUNTIMES`。选择原生引擎时会卸载 Three.js 体验；未配置或版本过期时显示说明。新代码不会自动启动本地引擎或创建云 GPU 服务。完整步骤见 [Unity / Unreal 运行指南](docs/native-engine-runtimes.md)，数据协议见 [引擎互操作说明](docs/engine-interoperability.md)。
 
 ## 技术架构
 
-| 层次 | 主要技术 / 职责 |
-| --- | --- |
-| Web 应用 | React 19、TypeScript、Vite、Fastify |
-| 3D 运行时 | 网页 Three.js / Rapier / Spark；Unity C# 与 Unreal C++ 原生适配源码 |
-| 场景协议 | SceneSpec、Zod 校验、原子 SceneCommands、撤销与版本控制 |
+| 层次       | 主要技术 / 职责                                                                        |
+| ---------- | -------------------------------------------------------------------------------------- |
+| Web 应用   | React 19、TypeScript、Vite、Fastify                                                    |
+| 3D 运行时  | 网页 Three.js / Rapier / Spark；Unity C# 与 Unreal C++ 原生适配源码                    |
+| 场景协议   | SceneSpec、Zod 校验、原子 SceneCommands、撤销与版本控制                                |
 | 生成与资产 | LLM 规划、可选 Tripo、Blender 固定批处理、glTF Transform、Khronos Validator、OCCT WASM |
-| 交付 | 独立网页播放器、Unity 6 / Unreal 5.8 原生源工程、Godot 4 场景导出 |
+| 交付       | 独立网页播放器、Unity 6 / Unreal 5.x 原生源工程与本机验收目录、Godot 4 场景导出        |
 
 ```text
 apps/web/                   首页、体验、高级编辑、Fastify 服务与播放器
@@ -137,6 +149,7 @@ npm run format:check
 - [部署与团队访问](docs/deployment.md)
 - [引擎互操作与兼容性](docs/engine-interoperability.md)
 - [Unity / Unreal 原生运行与网页接入](docs/native-engine-runtimes.md)
+- [Unreal 5 本地验收：小王子与关节模组](docs/unreal-local-acceptance.md)
 - [场景案例与模型验证](docs/blender-showcases.md)
 - [WebGL 故障恢复](docs/webgl-recovery.md)
 - [平台底座与资产校验](docs/platform-foundation-audit.md)

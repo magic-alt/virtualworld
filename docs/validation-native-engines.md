@@ -3,6 +3,11 @@
 日期：2026-10-21（Asia/Shanghai）。基线：
 `e5ed66325eb049d5a7bbd4141a002aaf926ac739`。
 
+这是 2026-10-21 的历史验收记录；当时的跳跃、字体及版本限制保留在此供追溯。
+后续 Unreal 本地验收改进及本轮执行结果见
+[2026-10-23 验收记录](validation-unreal-local-acceptance.md)，当前操作见
+[Unreal 本地验收指南](unreal-local-acceptance.md)。
+
 ## 结论与范围
 
 本次交付是原生运行源码、可复现的工程生成流程，以及已有原生部署的网页入口。
