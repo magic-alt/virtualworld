@@ -3,8 +3,8 @@
 ## 当前交付与验收边界
 
 本次增加 Unity C#、Unreal C++ 运行时代码、完整项目生成命令，以及网页体验的
-“渲染引擎”选择。Unity 继续使用固定版本 glTFast 6.14.1；Unreal 项目以 UE 5.8
-为目标，并固定 glTFRuntime 提交
+“渲染引擎”选择。Unity 继续使用固定版本 glTFast 6.14.1；Unreal 项目发现本机
+UE 5.x（源码基线 5.4+），并固定 glTFRuntime 提交
 `0b22180d5d5d48b13457b683f4405113b6afd87b`。
 
 **源代码与导出包不等于已经构建的游戏。** 本次执行环境没有 Unity Editor 或
@@ -23,7 +23,7 @@ SceneSpec 仍是唯一的创作数据源。原始 GLB、稳定节点 ID、米制
 | -------- | ------------------------------------ | ------------------------------------------------------- |
 | 网页     | 现有 Three.js、Rapier 与浏览器运行时 | 现有体验/编辑/离线播放器                                |
 | Unity    | Unity 6 原生运行时                   | 发布 Unity Web 构建，再配置其 URL                       |
-| Unreal   | UE 5.8 原生运行时                    | 运行 Unreal 游戏与 Pixel Streaming 服务，再配置前端 URL |
+| Unreal   | 本机 UE 5.x 原生运行时               | 运行 Unreal 游戏与 Pixel Streaming 服务，再配置前端 URL |
 | Godot    | 原有场景互操作适配器                 | 仍为导入/场景查看，不新增剧情运行时                     |
 
 原生体验选择会卸载网页体验实例，释放其 GPU/物理/输入资源。切回网页会卸载原生
@@ -87,20 +87,27 @@ Unity 模型由 glTFast 做 X 轴反射；SceneSpec 包装节点匹配此转换�
 负缩放。柔轮的命名形变需保留负权重，且 Unity 的 BlendShape 权重使用对应的
 百分比单位。机构展示应使用与 100 mm 模型相称的相机近裁剪面。
 
-## Unreal Engine 5.8
+## Unreal Engine 5 本地验收
 
-安装 UE 5.8 与其要求的 C++ 工具链。在生成工程目录执行：
+已有 Unreal 5 时，推荐在仓库执行 `npm run unreal:prepare -- --out output/unreal-review`，
+然后双击生成的 `Review.cmd`。它把三章小王子与 H-100 的本机启动和验收放在同一入口。
+完整步骤、操作表与结果收集见 **[Unreal 本地验收指南](unreal-local-acceptance.md)**。
+
+原有单工程导出继续可用。安装与本机 UE 对应的 C++ 工具链后，在生成工程目录执行：
 
 ```sh
-node Scripts/prepare-plugin.mjs
-node Scripts/native.mjs check --engine "C:/Program Files/Epic Games/UE_5.8"
-node Scripts/native.mjs build --engine "C:/Program Files/Epic Games/UE_5.8"
-node Scripts/native.mjs run --engine "C:/Program Files/Epic Games/UE_5.8" --scene little-prince-desert
-node Scripts/native.mjs smoke --engine "C:/Program Files/Epic Games/UE_5.8"
-node Scripts/native.mjs package --engine "C:/Program Files/Epic Games/UE_5.8"
+node Scripts/native.mjs doctor
+node Scripts/native.mjs prepare
+node Scripts/native.mjs build
+node Scripts/native.mjs run --scene little-prince-desert
+node Scripts/native.mjs smoke
+node Scripts/native.mjs package
 ```
 
-`check` 同样需要 `--engine` 或环境变量 `UE_ROOT`；若只检查导出数据、不检查引擎，
+引擎路径按 `--engine`、`UE_ROOT`、安装记录/常见目录的顺序确定；读取真实 Build.version，
+不再要求安装目录名或工程关联为 5.8。自动选择检测到的最高有效版本，并显示选择结果；
+有多个版本或需指定源码编译版时，用 `--engine` 锁定本次验收的真实路径。
+若只检查导出数据、不检查引擎，
 使用 `node Scripts/native.mjs check --data-only`。数据检查通过只证明清单和模型
 完整，不代表 C++ 编译或引擎运行通过。
 
@@ -144,24 +151,24 @@ Unity Web 的 `?sceneId=` 从工程目录选择入口。Unreal 的 URL 对应已
 
 ## 必须执行的原生验收
 
-| 案例 | 验收内容                                                                            |
-| ---- | ----------------------------------------------------------------------------------- |
-| 沙漠 | 一位可控小王子；飞行员动画；行走/碰撞；边界不掉落；完成两步交互；Unity 跳跃另行验收 |
-| B612 | 球面前后两侧行走；角色与相机的径向朝向；遮挡/交互距离；四步剧情                     |
-| 地球 | 玩家动画、狐狸 Idle、玫瑰/狐狸交互与最终完成                                        |
-| 章节 | 前置条件、当前章节入口、保存/重启/重置、错误存档处理                                |
-| 关节 | 200/202 齿数对应 -0.01 比例；正反转；正负形变权重；断电制动/重新启动                |
-| 展示 | 全角度旋转；切面/全壳；爆炸图；子系统隐藏/隔离；小尺度裁剪                          |
-| 交付 | 独立构建脱离 Studio 运行；完整资源/许可证；真实 GPU 画面与性能记录                  |
+| 案例 | 验收内容                                                                         |
+| ---- | -------------------------------------------------------------------------------- |
+| 沙漠 | 一位可控小王子；飞行员动画；行走/碰撞；边界不掉落；完成两步交互；两引擎跳跃/落地 |
+| B612 | 球面前后两侧行走；角色与相机的径向朝向；遮挡/交互距离；四步剧情                  |
+| 地球 | 玩家动画、狐狸 Idle、玫瑰/狐狸交互与最终完成                                     |
+| 章节 | 前置条件、当前章节入口、保存/重启/重置、错误存档处理                             |
+| 关节 | 200/202 齿数对应 -0.01 比例；正反转；正负形变权重；断电制动/重新启动             |
+| 展示 | 全角度旋转；切面/全壳；爆炸图；子系统隐藏/隔离；小尺度裁剪                       |
+| 交付 | 独立构建脱离 Studio 运行；完整资源/许可证；真实 GPU 画面与性能记录               |
 
 资产尺寸、渲染与碰撞映射可验证，物理效果不承诺与 Rapier 逐帧一致。Gaussian Splat、
 通用关节编辑、所选单网格的原始动画重定向、动态形变碰撞和材质的逐像素一致性不在
 本次通用适配承诺内。请以每个包的 `compatibility.json` 和引擎 README 为准。
 
-**Unreal 当前角色控制器只实现贴地行走，尚未实现小王子的跳跃及腾空重力。**
-对应的 `CHARACTER_JUMP_UNMAPPED` 会出现在含角色场景的兼容性报告中；不能把
-Unreal 的角色功能表述为已与网页完整等价。Unity 包含跳跃源码，但仍需实机验收。
-Unreal 还需检查目标打包环境的中文字体覆盖，并在必要时添加有许可的 CJK 字体。
+Unreal 已补充平面/球面跳跃、重力与落地源码，以及同一移动函数的原生 smoke 检查。
+`NATIVE_RUNTIME_REQUIRES_VALIDATION` 继续要求真实编译、键盘操控与画面验收，
+没有宣称与网页完整等价。Unity 跳跃同样仍需实机验收。Unreal HUD 使用固定版本的
+Noto Sans CJK SC，`prepare` 会准备字体与 OFL 许可证，独立打包也须检查文字显示。
 
 ## 官方与上游依据
 

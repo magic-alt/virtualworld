@@ -11,6 +11,7 @@ class ACameraActor;
 class UglTFRuntimeAsset;
 class USkeletalMeshComponent;
 class UPrimitiveComponent;
+class UFont;
 
 struct FVirtualWorldNode
 {
@@ -62,6 +63,9 @@ private:
     bool BindMechanism();
     void BuildCameraAndLight();
     void StepPlayer(float DeltaSeconds);
+    void StepPlayerMovement(const FVector& Direction, bool bJumpPressed, float DeltaSeconds);
+    bool ProbePlayerGround(FHitResult& Hit, float Distance) const;
+    void ResetCamera();
     void UpdateCamera();
     void HandleInput(float DeltaSeconds);
     void PlayPlayerClip(const FString& State);
@@ -95,6 +99,7 @@ private:
     FString IsolatedSubsystem;
     FString DataDirectory;
     FString ProgressPath;
+    FString ManifestSha256;
     FString FatalError;
     FString Notice;
     FString Dialogue;
@@ -113,6 +118,8 @@ private:
     float PlayerHeight = 160;
     float PlayerRadius = 23;
     float InteractionRemaining = 0;
+    double PlayerVerticalSpeed = 0;
+    double PlayerRecoveryFloor = -1200;
     bool bRunning = false;
     bool bPaused = false;
     bool bSection = false;
@@ -121,7 +128,9 @@ private:
     bool bBrakePowered = true;
     bool bSmokeRequested = false;
     bool bSmokeFinished = false;
+    bool bPlayerGrounded = false;
     FVector PlayerFeet = FVector::ZeroVector;
+    FVector LastGroundedFeet = FVector::ZeroVector;
     FVector PlayerUp = FVector::UpVector;
     FVector PlayerForward = FVector::ForwardVector;
     FVector CameraTarget = FVector::ZeroVector;
@@ -154,6 +163,10 @@ public:
     virtual void NotifyHitBoxClick(FName BoxName) override;
 private:
     AVirtualWorldRuntime* Runtime() const;
+    void InitializeFont();
+    UPROPERTY() TObjectPtr<UFont> RuntimeFont;
+    bool bFontInitialized = false;
+    FString FontError;
     float PanelScroll = 0;
     float ContentHeight = 0;
     int32 LastScene = INDEX_NONE;

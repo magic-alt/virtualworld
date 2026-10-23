@@ -71,8 +71,12 @@ void AVirtualWorldRuntime::BeginPlay()
 
 bool AVirtualWorldRuntime::ReadCatalog()
 {
-    FString Text;
-    if (!FFileHelper::LoadFileToString(Text, *(DataDirectory / TEXT("engine-manifest.json"))) || !VW::Parse(Text, Manifest))
+    FString Text;TArray<uint8> ManifestBytes;
+    if (!FFileHelper::LoadFileToArray(ManifestBytes, *(DataDirectory / TEXT("engine-manifest.json"))))
+        return Fail(TEXT("Missing or invalid Content/VirtualWorldData/engine-manifest.json"));
+    ManifestSha256=VW::Digest(ManifestBytes);
+    FFileHelper::BufferToString(Text,ManifestBytes.GetData(),ManifestBytes.Num());
+    if (!VW::Parse(Text, Manifest))
         return Fail(TEXT("Missing or invalid Content/VirtualWorldData/engine-manifest.json"));
     if (VW::Number(Manifest, TEXT("version")) != 1 || VW::String(Manifest, TEXT("target")) != TEXT("unreal"))
         return Fail(TEXT("Expected Unreal manifest version 1."));
@@ -122,7 +126,8 @@ void AVirtualWorldRuntime::ClearScene()
     AssetCache.Reset();Nodes.Reset();MorphComponents.Reset();
     PlayerModel=nullptr;PlayerRoot=nullptr;Camera=nullptr;
     SelectedInteraction.Empty();Dialogue.Empty();PlayerClip.Empty();
-    ColliderCount=0;InteractionRemaining=0;
+    ColliderCount=0;InteractionRemaining=0;PlayerVerticalSpeed=0;bPlayerGrounded=false;
+    LastGroundedFeet=FVector::ZeroVector;
     HiddenSubsystems.Reset();IsolatedNodes.Reset();IsolatedSubsystem.Empty();
     InputAngle=0;Rpm=6;Explosion=0;bRunning=false;bPaused=false;bSection=false;
 }
@@ -255,11 +260,7 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
 {
     Camera=GetWorld()->SpawnActor<ACameraActor>();SpawnedActors.Add(Camera);
     Camera->GetCameraComponent()->FieldOfView=50.f;
-    const VW::Json SourceCamera=VW::Object(Scene,TEXT("camera"));
-    CameraTarget=VW::Position(VW::Vector(SourceCamera,TEXT("target")));
-    CameraOffset=VW::Position(VW::Vector(SourceCamera,TEXT("position")))-CameraTarget;
-    CameraUp=PlayerModel?PlayerUp:FVector::UpVector;
-    if(CameraOffset.IsNearlyZero()) CameraOffset=FVector(300,300,200);
+    ResetCamera();
     if(APlayerController* PC=GetWorld()->GetFirstPlayerController()) PC->SetViewTarget(Camera);
     const VW::Json Environment=VW::Object(Scene,TEXT("environment"));
     ADirectionalLight* Sun=GetWorld()->SpawnActor<ADirectionalLight>();SpawnedActors.Add(Sun);

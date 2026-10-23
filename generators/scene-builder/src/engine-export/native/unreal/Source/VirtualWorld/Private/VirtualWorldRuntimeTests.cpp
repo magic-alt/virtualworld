@@ -59,4 +59,52 @@ bool FVirtualWorldEntryTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Completing the explicit entry unlocks its next chapter"),VW::ChapterUnlocked(Campaign,TEXT("earth"),Completed,TEXT("b612")));
     return true;
 }
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldJumpTest,"VirtualWorld.Player.JumpAndAirborneGravity",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldJumpTest::RunTest(const FString& Parameters)
+{
+    const auto Jump=VW::StepVerticalMotion(0,true,true,.02);
+    TestTrue(TEXT("A grounded jump starts with 5.2 metres per second and gravity acts immediately"),FMath::Abs(Jump.Speed-492.)<.000001&&FMath::Abs(Jump.Distance-10.12)<.000001);
+    const auto Airborne=VW::StepVerticalMotion(Jump.Speed,false,true,.02);
+    TestTrue(TEXT("A second jump press while airborne cannot replenish upward speed"),Airborne.Speed<Jump.Speed&&FMath::Abs(Airborne.Speed-464.)<.000001);
+    const auto Landed=VW::StepVerticalMotion(-800,true,true,.02);
+    TestTrue(TEXT("Landing permits a new jump independent of the previous fall speed"),FMath::Abs(Landed.Speed-Jump.Speed)<.000001);
+    double Height=0,Speed=0;
+    for(int32 I=0;I<10;++I)
+    {
+        const auto Step=VW::StepVerticalMotion(Speed,I==0,I==0,.02);
+        Height+=Step.Distance;Speed=Step.Speed;
+    }
+    TestTrue(TEXT("Ballistic integration matches a 0.2 second jump under 14 metres per second squared"),FMath::Abs(Height-76.)<.000001&&FMath::Abs(Speed-240.)<.000001);
+    const auto Stopped=VW::StepVerticalMotion(Speed,false,false,0);
+    TestTrue(TEXT("A zero-duration step preserves motion"),Stopped.Distance==0&&Stopped.Speed==Speed);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldPlayerBoundsTest,"VirtualWorld.Player.BoundsPreserveAltitude",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldPlayerBoundsTest::RunTest(const FString& Parameters)
+{
+    VW::Json Bounds;VW::Parse(TEXT(R"({"min":[-2,-3],"max":[2,3]})"),Bounds);
+    const FVector Clamped=VW::SourcePosition(VW::ConstrainPlanePosition(VW::Position(FVector(8,1.25,-9)),Bounds,25.));
+    TestTrue(TEXT("Capsule clearance constrains both horizontal bounds"),FMath::Abs(Clamped.X-1.75)<.000001&&FMath::Abs(Clamped.Z+2.75)<.000001);
+    TestTrue(TEXT("Bounds do not cancel a jump or falling altitude"),FMath::Abs(Clamped.Y-1.25)<.000001);
+    VW::Parse(TEXT(R"({"min":[-.1,-.1],"max":[.1,.1]})"),Bounds);
+    const FVector Narrow=VW::SourcePosition(VW::ConstrainPlanePosition(VW::Position(FVector(8,-2,-9)),Bounds,25.));
+    TestTrue(TEXT("An interval narrower than the capsule resolves to its centre"),FMath::Abs(Narrow.X)<.000001&&FMath::Abs(Narrow.Z)<.000001&&FMath::Abs(Narrow.Y+2)<.000001);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldRadialMotionTest,"VirtualWorld.Player.SphericalMotionPreservesAltitude",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldRadialMotionTest::RunTest(const FString& Parameters)
+{
+    const FVector Centre(130,-280,70),Feet=Centre+FVector::UpVector*640.;
+    const FVector Next=VW::SphericalPlayerStep(Feet,Centre,FVector::ForwardVector*12.,10.);
+    TestTrue(TEXT("Tangent movement preserves existing airborne height and adds radial jump displacement"),FMath::Abs(FVector::Dist(Next,Centre)-650.)<.000001);
+    const FVector Up=(Next-Centre).GetSafeNormal();
+    TestTrue(TEXT("The radial frame moves with the player"),Up.X>0&&FMath::Abs(Up.SizeSquared()-1)<.000001);
+    const FVector Side=Centre+FVector::ForwardVector*600.;
+    const FVector SideJump=VW::SphericalPlayerStep(Side,Centre,FVector::UpVector*12.,10.);
+    TestTrue(TEXT("Jump displacement uses local radial up away from the north pole"),FMath::Abs(FVector::Dist(SideJump,Centre)-610.)<.000001&&SideJump.Z>Centre.Z);
+    return true;
+}
 #endif

@@ -4,6 +4,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
+#include "UnrealClient.h"
 
 bool AVirtualWorldRuntime::IsUnlocked(const FString& Id) const
 {
@@ -126,6 +127,13 @@ void AVirtualWorldRuntime::SaveProgress()
 void AVirtualWorldRuntime::Command(const FString& Action)
 {
     if(!FatalError.IsEmpty()||!Metadata) return;
+    if(Action==TEXT("screenshot"))
+    {
+        FScreenshotRequest::RequestScreenshot(true);
+        Notice=TEXT("Screenshot requested; see Saved/Screenshots.");
+        return;
+    }
+    if(Action==TEXT("camera-reset")) {ResetCamera();return;}
     if(Action==TEXT("interact")) {Interact(NearbyInteraction());return;}
     if(Action.StartsWith(TEXT("talk:"))) {Interact(Action.Mid(5));return;}
     if(Action.StartsWith(TEXT("choice:")))

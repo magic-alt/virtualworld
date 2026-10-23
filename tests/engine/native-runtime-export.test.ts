@@ -333,7 +333,14 @@ describe('native runtime export contract', () => {
         manifest.compatibility.some(
           (finding: { code: string }) => finding.code === 'CHARACTER_JUMP_UNMAPPED',
         ),
-      ).toBe(target === 'unreal');
+      ).toBe(false);
+      if (target === 'unreal')
+        expect(manifest.compatibility).toContainEqual(
+          expect.objectContaining({
+            code: 'NATIVE_RUNTIME_REQUIRES_VALIDATION',
+            feature: 'actor jump',
+          }),
+        );
       expect(manifest.compatibility).toEqual(
         expect.arrayContaining([
           expect.objectContaining({

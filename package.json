@@ -34,7 +34,8 @@
     "world:cli": "tsx generators/scene-builder/src/cli.ts",
     "demos:build": "tsx scripts/demos.ts build",
     "demos:validate": "tsx scripts/demos.ts validate",
-    "native:export": "node --import tsx scripts/native-project.ts"
+    "native:export": "node --import tsx scripts/native-project.ts",
+    "unreal:prepare": "node --import tsx scripts/unreal-acceptance.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.3",

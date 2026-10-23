@@ -91,6 +91,38 @@ inline FVector SourcePosition(const FVector& Native)
     const auto Config = LoaderConfig();
     return FVector(Config.GetMatrix().Inverse().TransformPosition(Native / Config.SceneScale));
 }
+struct VerticalMotion
+{
+    double Speed;
+    double Distance;
+};
+inline VerticalMotion StepVerticalMotion(double Speed, bool bGrounded, bool bJumpPressed, double DeltaSeconds)
+{
+    if(DeltaSeconds<=0) return {Speed,0};
+    if(bGrounded) Speed=bJumpPressed?520.:0.;
+    // Match the shared player's 5.2 m/s jump and 14 m/s^2 gravity, in native centimetres.
+    return {Speed-1400.*DeltaSeconds,Speed*DeltaSeconds-700.*DeltaSeconds*DeltaSeconds};
+}
+inline FVector ConstrainPlanePosition(const FVector& Native, const Json& Bounds, double Clearance)
+{
+    const auto Min=Array(Bounds,TEXT("min")),Max=Array(Bounds,TEXT("max"));
+    if(Min.Num()!=2||Max.Num()!=2) return Native;
+    FVector Source=SourcePosition(Native);
+    const double Pad=Clearance/100.;
+    const double MinX=Min[0]->AsNumber()+Pad,MaxX=Max[0]->AsNumber()-Pad;
+    const double MinZ=Min[1]->AsNumber()+Pad,MaxZ=Max[1]->AsNumber()-Pad;
+    Source.X=MinX<=MaxX?FMath::Clamp(Source.X,MinX,MaxX):(MinX+MaxX)/2;
+    Source.Z=MinZ<=MaxZ?FMath::Clamp(Source.Z,MinZ,MaxZ):(MinZ+MaxZ)/2;
+    return Position(Source);
+}
+inline FVector SphericalPlayerStep(const FVector& Feet, const FVector& Centre, const FVector& TangentDelta, double RadialDelta)
+{
+    const FVector Radial=Feet-Centre;
+    const FVector Up=Radial.GetSafeNormal(SMALL_NUMBER,FVector::UpVector);
+    const FVector NextUp=(Radial+FVector::VectorPlaneProject(TangentDelta,Up)).GetSafeNormal(SMALL_NUMBER,Up);
+    // Preserve the current airborne radius; the navigation surface is only a lower bound.
+    return Centre+NextUp*(Radial.Size()+RadialDelta);
+}
 inline FQuat CharacterFacing()
 {
     // Authored Prince actors face source +Z. Convert that frame once to local native +X/+Z.
