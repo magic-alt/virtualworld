@@ -38,6 +38,7 @@ function batch(program, argv, cwd) {
 }
 
 export function nativeCommand(argv, projectRoot = project) {
+  process.env.VW_NODE_EXECUTABLE ??= process.execPath;
   const args = [...argv];
   const command = args.shift();
   if (!['check', 'build', 'run', 'smoke', 'package'].includes(command))
@@ -124,7 +125,16 @@ export function nativeCommand(argv, projectRoot = project) {
     } else if (command === 'run') {
       run(
         editor,
-        [projectFile, '/Engine/Maps/Entry', '-game', '-log', `-VirtualWorldScene=${data.sceneId}`],
+        [
+          projectFile,
+          '/Engine/Maps/Entry',
+          '-game',
+          '-log',
+          `-VirtualWorldScene=${data.sceneId}`,
+          ...(option(args, '--import')
+            ? [`-VirtualWorldImport=${resolve(option(args, '--import'))}`]
+            : []),
+        ],
         undefined,
         projectRoot,
       );

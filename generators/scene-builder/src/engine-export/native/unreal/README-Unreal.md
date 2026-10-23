@@ -49,6 +49,43 @@ The equivalent native argument is `-VirtualWorldScene=little-prince-b612`.
 An explicit startup chapter is playable on a fresh save. Later menu transitions
 still enforce chapter prerequisites. Reset returns to that launch chapter.
 
+## Local STEP / STP import
+
+Projects created by the repository's `npm run native:export` command include an
+approximately 10 MiB offline CAD helper under `Content/VirtualWorldTools/Cad`.
+Run with Node.js 24 or later:
+
+```sh
+node Scripts/native.mjs run --engine /absolute/path/to/UE_5.8
+# Optional initial file, also useful for repeatable native acceptance:
+node Scripts/native.mjs run --engine /absolute/path/to/UE_5.8 --import /absolute/path/to/model.stp
+```
+
+Click **Import STEP / STP** or press **O**. Editor-based game runs use the native
+file selector. Packaged game builds use a path-entry window because they cannot
+depend on the editor's DesktopPlatform module. The launcher supplies
+`VW_NODE_EXECUTABLE`; a direct packaged launch must supply that environment
+variable with the installed Node executable's absolute path. Nothing downloads
+Node, contacts Studio or calls a paid provider. Plain source archives exported
+through the generic download API do not contain the CAD helper; create a native
+project through the CLI above to enable this optional feature.
+
+The converter runs separately while the current scene remains visible. The
+Cancel button, scene changes, shutdown and a 180-second limit stop an import.
+Failed conversion keeps the current scene. Successful imports extend the scene
+menu, so H-100 and previous imports remain selectable during this run. Imports
+are retained under `Saved/VirtualWorld/Imports/<request-id>/converted`: `source/`
+holds original STEP bytes, `optimized/` holds the generated GLB, `scene.json` is
+the validated SceneSpec, and `manifests/import.json` retains hashes, dimensions,
+parser version and glTF validator messages. Imported models are static inspection
+assets with their available hierarchy and colors; no motion constraints or
+engineering parameters are inferred. **R** frames the imported model again.
+
+A fresh native diagnostic receipt is written to
+`Saved/VirtualWorld/import-report.json`. It records the installed scene, actual
+native static mesh count and bounds in centimetres. The source/manifest remains
+in metres; the engine loader performs the single centimetre conversion.
+
 ## Native controls
 
 The left HUD contains clickable actions, chapter choices, tasks and dialogue.

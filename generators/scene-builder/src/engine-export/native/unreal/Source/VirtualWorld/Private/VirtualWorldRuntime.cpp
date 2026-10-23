@@ -59,6 +59,8 @@ void AVirtualWorldRuntime::BeginPlay()
     LaunchSceneId=Requested;
     if (!bSmokeRequested) ReadProgress();
     LoadScene(bSmokeRequested ? 0 : Index, bSmokeRequested);
+    FString ImportPath;
+    if(!bSmokeRequested && FParse::Value(FCommandLine::Get(),TEXT("VirtualWorldImport="),ImportPath)) BeginCadImport(ImportPath);
     if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
     {
         PC->bShowMouseCursor = true;
@@ -130,6 +132,8 @@ void AVirtualWorldRuntime::ClearScene()
 
 bool AVirtualWorldRuntime::LoadScene(int32 Index, bool bSmoke)
 {
+    if(CadProcess.IsValid()) CancelCadImport(TEXT("Import cancelled: scene changed."));
+    ++SceneGeneration;
     if(!Scenes.IsValidIndex(Index)) return Fail(TEXT("Scene index is outside the catalog."));
     if(!bSmoke && !IsUnlocked(SceneOrder[Index])) { Notice=TEXT("Complete the prerequisite chapters first."); return false; }
     ClearScene();FatalError.Empty();SceneIndex=Index;Scene=Scenes[Index];Metadata=Metadatas[Index];Mechanism=VW::Object(Metadata,TEXT("mechanism"));
@@ -261,6 +265,19 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
     CameraOffset=VW::Position(VW::Vector(SourceCamera,TEXT("position")))-CameraTarget;
     CameraUp=PlayerModel?PlayerUp:FVector::UpVector;
     if(CameraOffset.IsNearlyZero()) CameraOffset=FVector(300,300,200);
+    if(VW::String(Metadata,TEXT("mode"))==TEXT("industrial"))
+    {
+        Camera->GetCameraComponent()->SetConstraintAspectRatio(false);
+        int32 Width=0,Height=0;
+        if(APlayerController* PC=GetWorld()->GetFirstPlayerController()) PC->GetViewportSize(Width,Height);
+        if(!Mechanism && Width>0 && Height>0)
+        {
+            const double Panel=FMath::Min(450.,Width*.48);
+            CameraOffset*=FMath::Max(static_cast<double>(Width)/Height,Width/(Width-Panel));
+        }
+    }
+    InspectionZoomMin=FMath::Max(.02f,static_cast<float>(CameraOffset.Size()*.015));
+    InspectionZoomMax=FMath::Max(InspectionZoomMin*2,static_cast<float>(CameraOffset.Size()*50));
     if(APlayerController* PC=GetWorld()->GetFirstPlayerController()) PC->SetViewTarget(Camera);
     const VW::Json Environment=VW::Object(Scene,TEXT("environment"));
     // Set mobility BEFORE the transform: registered static lights reject runtime rotation.
@@ -276,7 +293,8 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
     };
     const float Direct=FMath::Max(0.f,static_cast<float>(VW::Number(Environment,TEXT("lightIntensity"),1)));
     const float Ambient=FMath::Max(0.f,static_cast<float>(VW::Number(Environment,TEXT("ambientIntensity"),.5)));
-    if(IsMechanism())
+    const bool bInspection=VW::String(Metadata,TEXT("mode"))==TEXT("industrial");
+    if(bInspection)
     {
         // Fixed exposure and persistent neutral studio lights; no adaptation, time-of-day or recapture loop.
         FPostProcessSettings& Exposure=Camera->GetCameraComponent()->PostProcessSettings;
@@ -303,8 +321,8 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
     ASkyLight* Sky=GetWorld()->SpawnActor<ASkyLight>();SpawnedActors.Add(Sky);
     USkyLightComponent* SkyComponent=Sky->GetLightComponent();
     SkyComponent->SetMobility(EComponentMobility::Movable);
-    SkyComponent->SetIntensity(IsMechanism()?Ambient*2.f:Ambient);
-    if(IsMechanism())
+    SkyComponent->SetIntensity(bInspection?Ambient*2.f:Ambient);
+    if(bInspection)
     {
         UTextureCube* StudioEnvironment=LoadObject<UTextureCube>(nullptr,TEXT("/Engine/MapTemplates/Sky/DaylightAmbientCubemap.DaylightAmbientCubemap"));
         if(!StudioEnvironment) {Fail(TEXT("Inspection environment cubemap is missing."));return;}
@@ -319,6 +337,7 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
 void AVirtualWorldRuntime::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    TickCadImport();
     if(bSmokeRequested) { RunSmokeStep();return; }
     if(!FatalError.IsEmpty()) return;
     const float Delta=FMath::Clamp(DeltaSeconds,0.f,0.05f);

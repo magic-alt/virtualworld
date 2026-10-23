@@ -1,5 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
+#include "HAL/PlatformProcess.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/HUD.h"
@@ -42,6 +43,7 @@ public:
     AVirtualWorldRuntime();
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
+    virtual void EndPlay(const EEndPlayReason::Type Reason) override;
     bool LoadScene(int32 Index, bool bSmoke = false);
     void Command(const FString& Action);
     TArray<FString> StatusLines() const;
@@ -61,6 +63,21 @@ private:
     bool BuildPlayer();
     bool BindMechanism();
     void BuildCameraAndLight();
+    void ChooseCadFile();
+    void BeginCadImport(const FString& Path);
+    void TickCadImport();
+    void CancelCadImport(const FString& Message);
+    bool InstallCadCatalog(const FString& Directory, const FString& SceneId);
+    void WriteCadReport(bool bSuccess, const FString& Message);
+    FProcHandle CadProcess;
+    void* CadReadPipe = nullptr;
+    void* CadWritePipe = nullptr;
+    FString CadDirectory;
+    FString CadRequestId;
+    FString CadLog;
+    double CadStartedAt = 0;
+    uint64 SceneGeneration = 0;
+    uint64 CadGeneration = 0;
     void StepPlayer(float DeltaSeconds);
     void UpdateCamera();
     void HandleInput(float DeltaSeconds);
@@ -127,6 +144,8 @@ private:
     FVector CameraTarget = FVector::ZeroVector;
     FVector CameraOffset = FVector(400,400,300);
     FVector CameraUp = FVector::UpVector;
+    float InspectionZoomMin = .02f;
+    float InspectionZoomMax = 5000.f;
     UPROPERTY() TArray<TObjectPtr<AActor>> SpawnedActors;
     UPROPERTY() TArray<TObjectPtr<USceneComponent>> SceneComponents;
     UPROPERTY() TMap<FString, TObjectPtr<UglTFRuntimeAsset>> AssetCache;

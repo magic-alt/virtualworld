@@ -143,13 +143,26 @@ void AVirtualWorldRuntime::UpdateCamera()
 {
     if(!Camera) return;
     if(PlayerRoot) CameraTarget=PlayerFeet+PlayerUp*(PlayerHeight*.65);
-    Camera->SetActorLocationAndRotation(CameraTarget+CameraOffset,FRotationMatrix::MakeFromXZ(-CameraOffset,CameraUp).ToQuat());
+    const FQuat Rotation=FRotationMatrix::MakeFromXZ(-CameraOffset,CameraUp).ToQuat();
+    FVector ViewTarget=CameraTarget;
+    if(VW::String(Metadata,TEXT("mode"))==TEXT("industrial"))
+    {
+        int32 Width=0,Height=0;
+        if(APlayerController* PC=GetWorld()->GetFirstPlayerController()) PC->GetViewportSize(Width,Height);
+        if(Width>0)
+        {
+            const double Panel=FMath::Min(450.,Width*.48);
+            ViewTarget-=Rotation.GetRightVector()*CameraOffset.Size()*FMath::Tan(FMath::DegreesToRadians(25.))*Panel/Width;
+        }
+    }
+    Camera->SetActorLocationAndRotation(ViewTarget+CameraOffset,Rotation);
 }
 
 void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
 {
     APlayerController* PC=GetWorld()->GetFirstPlayerController();if(!PC)return;
     const auto Pressed=[PC](const FKey& Key){return PC->WasInputKeyJustPressed(Key);};
+    if(Pressed(EKeys::O)) ChooseCadFile();
     if(Pressed(EKeys::E)) Command(TEXT("interact"));
     if(Pressed(EKeys::Escape)) {Dialogue.Empty();SelectedInteraction.Empty();}
     if(Pressed(EKeys::Tab)) Command(TEXT("next"));
@@ -185,6 +198,6 @@ void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
     if(MouseX>460.f)
     {
         const int Zoom=(Pressed(EKeys::MouseScrollUp)?-1:0)+(Pressed(EKeys::MouseScrollDown)?1:0);
-        if(Zoom) CameraOffset=CameraOffset.GetSafeNormal()*FMath::Clamp(CameraOffset.Size()*FMath::Pow(1.15,Zoom),Mechanism?0.5:100.,Mechanism?1000.:5000.);
+        if(Zoom) CameraOffset=CameraOffset.GetSafeNormal()*FMath::Clamp(CameraOffset.Size()*FMath::Pow(1.15,Zoom),PlayerRoot?100.:InspectionZoomMin,PlayerRoot?5000.:InspectionZoomMax);
     }
 }

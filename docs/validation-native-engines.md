@@ -115,3 +115,17 @@ Unity 原生验证偏重导入绑定与确定性规则；Unreal smoke 的故事�
 安装和真实引擎验收命令见 [原生运行指南](native-engine-runtimes.md) 及每个导出包的
 `README-Unity.md` / `README-Unreal.md`。只有完成原生构建、实机验收及真实部署，
 再配置对应场景和修订号的 `VW_ENGINE_RUNTIMES`，当前体验才实际由游戏引擎提供画面。
+
+## 2026-10-24：macOS UE5 关节照明与本地 CAD 导入
+
+此节补充实际引擎验收，以上 2026-10-21 的环境与限制为历史记录，不重写为当时已运行。
+本机使用 UE 5.8.4、Xcode 27.1、Node 24.15.0，固定 glTFRuntime 提交不变。
+
+- 真实 UE C++ Development Editor 目标编译通过。H-100 smoke 的稳定照明、带符号形变和机构操作检查通过；固定曝光／环境反射检查在旧代码上先失败、修复后通过。
+- 真实多零件 `assembly.step` 经程序内同一后台流程加载，在 UE 图形窗口看到装配和颜色。转换回执记录 160 个网格、约 0.20 × 0.15 × 0.084 m、glTF 校验 0 错误／0 警告。
+- `tests/engine/native-cad-check.mjs` 启动真实 UE：中文及空格路径的 `.STP` 立方体测得 1 × 1 × 1 cm（来源 10 mm）；无效 STEP 保留 H-100；关闭程序取消尚未完成的本地转换。回执在忽略目录 `output/playwright/native-cad/report.json`。
+- 离线工具包复制到仓库之外后，通过 Node 独立运行，不需要 npm 安装或 Studio。单元测试覆盖引号路径、装配名称、连续导入、源文件保留、旧目录拒绝覆盖及缓存哈希损坏拒绝。
+- `npm test`：64 文件、389 项通过；`npm run check`、`npm run build`、`npm run format:check` 通过。构建仍提示大 JS chunk。
+- `npm audit` 实际联网执行，现有 Vitest 4.1.11／@vitest/mocker 依赖报告 2 项 moderate；本次未升级该测试工具。
+
+原生文件选择器已接入并通过编译；桌面自动化绑定到另一个 OnePiece 编辑器进程，未操作那个工程，也未据此宣称文件对话框的端到端点击通过。真实引擎文件验收通过 `--import` 调用相同的 `BeginCadImport` 路径。完整打包程序、打包后的路径输入窗口、Windows／Linux 和长时间稳定性未执行；仍保留 requires-engine 与视觉／键盘等价性未验收标志。

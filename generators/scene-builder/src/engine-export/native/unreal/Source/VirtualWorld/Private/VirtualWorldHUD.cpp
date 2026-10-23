@@ -60,9 +60,11 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
 TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
 {
     TArray<FVirtualWorldAction> Result;
+    Result.Add({TEXT("import-cad"),TEXT("Import STEP / STP [O]"),!CadProcess.IsValid()});
+    if(CadProcess.IsValid()) Result.Add({TEXT("cancel-import"),TEXT("Cancel import"),true});
     if(!FatalError.IsEmpty()||!Metadata) return Result;
     Result.Add({TEXT("pause"),bPaused?TEXT("Resume [P]"):TEXT("Pause [P]"),true});
-    Result.Add({TEXT("reset"),Mechanism?TEXT("Zero input [R]"):TEXT("Reset campaign [R]"),true});
+    Result.Add({TEXT("reset"),Mechanism?TEXT("Zero input [R]"):(PlayerRoot?TEXT("Reset campaign [R]"):TEXT("Frame model [R]")),true});
     if(Mechanism)
     {
         const bool Locked=bBrakeInstalled&&!bBrakePowered;

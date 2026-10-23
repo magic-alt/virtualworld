@@ -40,7 +40,7 @@ async function setup() {
 }
 it('converts a real millimetre STEP from a Unicode path to validated metre geometry and retains source/catalog', async () => {
   const { root, catalog } = await setup();
-  const input = join(root, '外部 模型.STEP');
+  const input = join(root, '外部 "模型".STEP');
   await cp('public/fixtures/cube-mm.step', input);
   const before = await readFile(join(catalog, 'engine-manifest.json'));
   const output = join(root, 'import');
@@ -123,3 +123,34 @@ it('runs the bundled converter outside the repository without npm or a service',
   });
   expect(JSON.parse(await readFile(join(root, 'result.json'), 'utf8')).success).toBe(true);
 }, 60000);
+
+it('extends a previously imported catalog and rejects changed retained model bytes', async () => {
+  const { root, catalog } = await setup();
+  const first = await importNativeCad({
+    input: 'public/fixtures/cube-mm.step',
+    output: join(root, 'first'),
+    catalog,
+  });
+  const second = await importNativeCad({
+    input: 'public/fixtures/assembly.step',
+    output: join(root, 'second'),
+    catalog: first.dataDirectory,
+  });
+  const combined = JSON.parse(
+    await readFile(join(second.dataDirectory, 'engine-manifest.json'), 'utf8'),
+  );
+  expect(combined.scenes.map((s: { id: string }) => s.id)).toEqual([
+    'original',
+    first.sceneId,
+    second.sceneId,
+  ]);
+  await writeFile(join(first.dataDirectory, 'models', `${first.modelId}.glb`), 'changed');
+  await expect(
+    importNativeCad({
+      input: 'public/fixtures/cube-mm.step',
+      output: join(root, 'third'),
+      catalog: first.dataDirectory,
+    }),
+  ).rejects.toThrow(/hash/);
+  await expect(readdir(join(root, 'third'))).rejects.toThrow();
+});

@@ -125,6 +125,8 @@ void AVirtualWorldRuntime::SaveProgress()
 
 void AVirtualWorldRuntime::Command(const FString& Action)
 {
+    if(Action==TEXT("import-cad")) {ChooseCadFile();return;}
+    if(Action==TEXT("cancel-import")) {CancelCadImport(TEXT("Import cancelled; current scene retained."));return;}
     if(!FatalError.IsEmpty()||!Metadata) return;
     if(Action==TEXT("interact")) {Interact(NearbyInteraction());return;}
     if(Action.StartsWith(TEXT("talk:"))) {Interact(Action.Mid(5));return;}
@@ -149,6 +151,7 @@ void AVirtualWorldRuntime::Command(const FString& Action)
     if(Action==TEXT("reset"))
     {
         if(Mechanism) {InputAngle=0;bRunning=false;ApplyMechanism();}
+        else if(!PlayerRoot) {LoadScene(SceneIndex);Notice=TEXT("Model view reset.");}
         else {for(auto& Pair:Progress) Pair.Value=FVirtualWorldProgress();SaveProgress();LoadScene(SceneOrder.IndexOfByKey(LaunchSceneId));Notice=TEXT("Campaign progress reset.");}
         return;
     }

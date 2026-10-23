@@ -9,5 +9,6 @@ public class VirtualWorld : ModuleRules
             "Core", "CoreUObject", "Engine", "InputCore", "Json", "JsonUtilities", "glTFRuntime"
         });
         PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
+        if (Target.bBuildEditor) PrivateDependencyModuleNames.Add("DesktopPlatform");
     }
 }
