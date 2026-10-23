@@ -17,8 +17,9 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
     if(!FatalError.IsEmpty()) {Lines.Add(TEXT("Cannot load this native scene"));Lines.Add(FatalError);Lines.Add(TEXT("See Saved/Logs/VirtualWorld.log and README-Unreal.md."));return Lines;}
     if(!Metadata) {Lines.Add(TEXT("Loading canonical scene assets..."));return Lines;}
     Lines.Add(VW::String(Metadata,TEXT("name")));
-    Lines.Add(IsMechanism()?TEXT("Left/right drag: orbit. Middle drag: pan. Wheel: zoom. Home: reset view. F9: screenshot."):TEXT("Right drag / arrows: orbit. Wheel: zoom. Home: reset view. F9: screenshot."));
-    Lines.Add(IsMechanism()?TEXT("\u5de6/\u53f3\u952e\u62d6\u52a8\u65cb\u8f6c | \u4e2d\u952e\u62d6\u52a8\u5e73\u79fb | \u6eda\u8f6e\u7f29\u653e | Home \u590d\u4f4d | F9 \u622a\u56fe"):TEXT("\u53f3\u952e\u62d6\u52a8/\u65b9\u5411\u952e\u65cb\u8f6c | \u6eda\u8f6e\u7f29\u653e | Home \u89c6\u89d2\u590d\u4f4d | F9 \u622a\u56fe"));
+    Lines.Add(IsModuleViewer()?TEXT("Left/right drag: orbit. Middle drag: pan. Wheel: zoom. Home: reset view. F9: screenshot."):TEXT("Right drag / arrows: orbit. Wheel: zoom. Home: reset view. F9: screenshot."));
+    Lines.Add(IsModuleViewer()?TEXT("\u5de6/\u53f3\u952e\u62d6\u52a8\u65cb\u8f6c | \u4e2d\u952e\u62d6\u52a8\u5e73\u79fb | \u6eda\u8f6e\u7f29\u653e | Home \u590d\u4f4d | F9 \u622a\u56fe"):TEXT("\u53f3\u952e\u62d6\u52a8/\u65b9\u5411\u952e\u65cb\u8f6c | \u6eda\u8f6e\u7f29\u653e | Home \u89c6\u89d2\u590d\u4f4d | F9 \u622a\u56fe"));
+    if(bImportedModule) Lines.Add(TEXT("Static STEP assembly | \u9759\u6001\u6a21\u7ec4 | \u6bcf\u6b21\u4ec5\u663e\u793a\u4e00\u4e2a\u6a21\u7ec4"));
     if(Mechanism)
     {
         const VW::Harmonic State=VW::Transmission(InputAngle,VW::Number(Mechanism,TEXT("flexTeeth")),VW::Number(Mechanism,TEXT("ringTeeth")));
@@ -68,8 +69,17 @@ TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
 {
     TArray<FVirtualWorldAction> Result;
     if(!FatalError.IsEmpty()||!Metadata) return Result;
-    Result.Add({TEXT("pause"),bPaused?TEXT("Resume [P]"):TEXT("Pause [P]"),true});
-    Result.Add({TEXT("reset"),Mechanism?TEXT("Zero input [R]"):TEXT("Reset campaign [R]"),true});
+    if(IsModuleViewer())
+    {
+        Result.Add({TEXT("import-step"),TEXT("\u5bfc\u5165 STEP / STP"),!ImportGeneration.bBusy});
+        Result.Add({TEXT("restore-module"),TEXT("\u6062\u590d H-100"),true});
+        if(ImportGeneration.bBusy) Result.Add({TEXT("cancel-import"),TEXT("\u53d6\u6d88\u5bfc\u5165"),true});
+    }
+    if(!bImportedModule)
+    {
+        Result.Add({TEXT("pause"),bPaused?TEXT("Resume [P]"):TEXT("Pause [P]"),true});
+        Result.Add({TEXT("reset"),Mechanism?TEXT("Zero input [R]"):TEXT("Reset campaign [R]"),true});
+    }
     Result.Add({TEXT("camera-reset"),TEXT("Reset view [Home]"),true});
     Result.Add({TEXT("screenshot"),TEXT("Screenshot [F9]"),true});
     if(Mechanism)
@@ -104,7 +114,7 @@ TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
         }
     }
     for(int32 I=0;I<SceneOrder.Num();++I)
-        Result.Add({TEXT("scene:")+SceneOrder[I],(I==SceneIndex?TEXT("> "):TEXT(""))+VW::String(Scenes[I],TEXT("name")),IsUnlocked(SceneOrder[I])});
+        Result.Add({TEXT("scene:")+SceneOrder[I],(I==SceneIndex&&!bImportedModule?TEXT("> "):TEXT(""))+VW::String(Scenes[I],TEXT("name")),IsUnlocked(SceneOrder[I])});
     return Result;
 }
 
@@ -143,7 +153,8 @@ void AVirtualWorldHUD::DrawHUD()
     AVirtualWorldRuntime* Player=Runtime();if(!Player||!Canvas||!GEngine)return;
     InitializeFont();
     UFont* Font=RuntimeFont?RuntimeFont.Get():GEngine->GetMediumFont();
-    if(LastScene!=Player->SceneIndex) {LastScene=Player->SceneIndex;PanelScroll=0;}
+    const FString ContentId=VW::String(Player->Metadata,TEXT("id"));
+    if(LastScene!=Player->SceneIndex||LastContentId!=ContentId) {LastScene=Player->SceneIndex;LastContentId=ContentId;PanelScroll=0;}
     float TextWidth=0,TextHeight=0,FooterHeight=0;
     GetTextSize(TEXT("Ag\u56fd"),TextWidth,TextHeight,Font,.8f);
     GetTextSize(TEXT("Ag\u56fd"),TextWidth,FooterHeight,Font,.7f);

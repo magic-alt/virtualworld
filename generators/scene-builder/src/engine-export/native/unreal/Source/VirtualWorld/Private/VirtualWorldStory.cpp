@@ -127,6 +127,9 @@ void AVirtualWorldRuntime::SaveProgress()
 void AVirtualWorldRuntime::Command(const FString& Action)
 {
     if(!FatalError.IsEmpty()||!Metadata) return;
+    if(Action==TEXT("import-step")) {BeginStepImport();return;}
+    if(Action==TEXT("cancel-import")) {CancelStepImport();Notice=TEXT("Import cancelled; current module retained.");return;}
+    if(Action==TEXT("restore-module")&&IsModuleViewer()) {CancelStepImport();LoadScene(SceneIndex);Notice=TEXT("H-100 restored.");return;}
     if(Action==TEXT("screenshot"))
     {
         FScreenshotRequest::RequestScreenshot(true);
@@ -134,6 +137,7 @@ void AVirtualWorldRuntime::Command(const FString& Action)
         return;
     }
     if(Action==TEXT("camera-reset")) {ResetCamera();return;}
+    if(bImportedModule&&!Action.StartsWith(TEXT("scene:"))&&Action!=TEXT("next")) return;
     if(Action==TEXT("interact")) {Interact(NearbyInteraction());return;}
     if(Action.StartsWith(TEXT("talk:"))) {Interact(Action.Mid(5));return;}
     if(Action.StartsWith(TEXT("choice:")))

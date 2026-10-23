@@ -167,6 +167,38 @@ node review.mjs setup --font-source "D:/Downloads/NotoSansCJKsc-Regular.otf"
 
 ## 6. 原生 smoke、人工记录与结果回传
 
+### 在关节 GUI 导入其他 STP 模组
+
+新导出的 UE 工程在关节左侧面板提供“导入 STEP / STP”“恢复 H-100”。选择一个本地
+`.stp` 或 `.step` 文件后，本机转换器在后台运行；无需网页、网络或模型服务。运行机器
+需安装 **Node.js 24 或更新版本并加入 PATH**，安装后重新启动 UE。转换依赖和许可随工程
+放在 `Content/VirtualWorldTools`，桌面打包会将该目录作为普通文件一起分发。
+
+每次只显示一个模组；一个 STEP 装配内的多个零件仍作为同一模组。新模组转换、校验和
+实际网格加载成功后才替换旧模组；取消、超时或失败时保留当前模组。支持转换时取消，
+也可以恢复默认 H-100。源文件、最终 GLB、SceneSpec、校验警告及派生清单保留在
+`Saved/VirtualWorld/Imports/<独立导入 ID>/`，失败目录不会被下一次导入覆盖。
+
+普通 STEP 保留可用名称、层级、颜色与物理单位，只提供静态旋转、平移、缩放和视角
+复位；不会套用 H-100 的运动、剖切、爆炸或抱闸参数。单位转换为米后再由已有 UE
+适配器转换为厘米，自动适配视角不改变模型尺度。输入上限 100 MiB，转换限时 90 秒，
+几何上限为 200 万顶点、200 万三角形、5000 个网格，最终 GLB 上限 256 MiB。
+
+检查流程：先导入毫米测试件，再导入多零件装配；检查尺寸、颜色与名称；用损坏文件
+重试并确认旧模型保持；转换中取消，再恢复 H-100 检查机构操作。文件选择器与独立
+桌面包需要在真实 Windows UE 窗口中另行验收。
+
+原生替换自动化使用真实转换夹具：
+
+```powershell
+node --import tsx scripts/unreal-step-fixtures.ts output/unreal-step-fixtures
+```
+
+启动导出的关节工程时增加
+`-VirtualWorldImportFixtures="D:/Project/virtualworld/output/unreal-step-fixtures"`，执行
+`Automation RunTests VirtualWorld.Import`。`NativeReplacement` 需要真实游戏世界与
+上述夹具；没有夹具会报告缺少前置条件，不能作为实际替换验收证据。
+
 运行菜单 **7**，或：
 
 ```powershell

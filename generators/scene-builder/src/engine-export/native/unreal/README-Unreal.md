@@ -222,3 +222,28 @@ establish C++ or packaged-runtime compatibility.
 - [Unreal packaging](https://dev.epicgames.com/documentation/en-us/unreal-engine/packaging-your-project)
 - [Pixel Streaming 2](https://dev.epicgames.com/documentation/unreal-engine/pixel-streaming-2-overview-in-unreal-engine)
 - [Official Pixel Streaming infrastructure](https://github.com/EpicGames/PixelStreamingInfrastructure)
+
+# Local STEP module import (Windows)
+
+The joint HUD provides **导入 STEP / STP**, **取消导入**, and **恢复 H-100**.
+Select one local file (100 MiB maximum). Conversion runs offline in a separate Node.js
+24+ process; install Node on PATH and restart Unreal after installation. Keep
+`Content/VirtualWorldTools` with the project and desktop distribution. It contains
+the bundled converter, pinned OCCT 0.0.23 WASM, validator and third-party licenses;
+no repository, editor service, provider key or internet connection is needed to import.
+
+The old module stays visible until validated geometry is ready. Cancellation,
+conversion failure, missing tools and the 90-second timeout preserve the current module.
+A STEP assembly is one module with multiple parts. Static imported models retain metric
+scale, available names, hierarchy and colors; they do not inherit H-100 motion settings.
+Home fits the imported geometry; mouse orbit, pan and zoom remain available.
+
+Each import retains separate source, models, SceneSpec and validation records under
+`Saved/VirtualWorld/Imports`. Partial failed output is retained for local diagnosis and
+never reused. Converter limits: 2 million vertices, 2 million triangles, 5000 meshes,
+256 MiB final GLB. Use a simpler model if conversion exceeds these limits.
+
+Packaged runtime and the file chooser require separate real Windows acceptance;
+source checks and converter tests alone do not prove them. OCCT is unmodified and
+redistributed under LGPL-2.1; package sources are available from
+https://github.com/kovacsv/occt-import-js (npm version 0.0.23). Retain all included licenses.
