@@ -60,8 +60,12 @@
 - [x] Independent review of launcher and native runtime changes; resolve concrete findings.
 - [x] Run repository tests, typecheck, build, format and relevant data/browser regression checks.
 - [x] Record executed results and outstanding native-only gates.
-- [ ] Commit and publish a focused PR against latest main; do not merge or assert local UE success.
+- [x] Commit and publish a focused PR against latest main; do not merge or assert local UE success.
 
 ## Execution record
 
 See `docs/validation-unreal-local-acceptance.md` for executed checks, the initial concurrent-test failures and successful isolated rerun, audit findings, actual dependency preparation, and native-only gates. Publication is a draft PR against verified main; no merge or native completion is authorized by software checks.
+
+Published as [draft PR #16](https://github.com/magic-alt/virtualworld/pull/16) from
+`feat/unreal-local-acceptance-20261023`, based on `eced5499b0e34fa115f8a3f7125cf83d4e4e53c5`.
+The reviewed implementation commit is `7cc42bcb77c38eb04834178fdee07da0456aff32`.
