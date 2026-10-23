@@ -1,6 +1,8 @@
 #include "VirtualWorldRuntime.h"
 #include "VirtualWorldModel.h"
 #include "Camera/CameraActor.h"
+#include "Engine/GameViewportClient.h"
+#include "UnrealClient.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
@@ -191,6 +193,7 @@ void AVirtualWorldRuntime::StepPlayerMovement(const FVector& Direction,bool bJum
 
 void AVirtualWorldRuntime::ResetCamera()
 {
+    PointerDrag.Reset();
     const VW::Json SourceCamera=VW::Object(Scene,TEXT("camera"));
     CameraTarget=VW::Position(VW::Vector(SourceCamera,TEXT("target")));
     CameraOffset=VW::Position(VW::Vector(SourceCamera,TEXT("position")))-CameraTarget;
@@ -235,8 +238,17 @@ void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
     if(Pressed(EKeys::Hyphen)||Pressed(EKeys::Subtract)) Command(TEXT("speed-down"));
     const FKey Digits[]={EKeys::One,EKeys::Two,EKeys::Three,EKeys::Four,EKeys::Five,EKeys::Six,EKeys::Seven,EKeys::Eight,EKeys::Nine,EKeys::Zero};
     for(int32 I=0;I<10;++I) if(Pressed(Digits[I])) Command(TEXT("choice:")+FString::FromInt(I));
-    float DX=0,DY=0;
-    if(PC->IsInputKeyDown(EKeys::RightMouseButton)) PC->GetInputMouseDelta(DX,DY);
+    int32 ViewWidth=0,ViewHeight=0;PC->GetViewportSize(ViewWidth,ViewHeight);
+    float MouseX=0,MouseY=0;const bool bHasPosition=PC->GetMousePosition(MouseX,MouseY)&&MouseX>=0&&MouseX<ViewWidth&&MouseY>=0&&MouseY<ViewHeight;
+    const UGameViewportClient* ViewportClient=GetWorld()->GetGameViewport();
+    const bool bFocused=ViewportClient&&ViewportClient->Viewport&&ViewportClient->Viewport->HasFocus();
+    const bool bInViewport=bHasPosition&&MouseX>=VW::ControlPanelWidth(ViewWidth)&&MouseX<ViewWidth&&MouseY>=0&&MouseY<ViewHeight;
+    const bool bOrbit=PC->IsInputKeyDown(EKeys::RightMouseButton)||(Mechanism&&PC->IsInputKeyDown(EKeys::LeftMouseButton));
+    const bool bPan=Mechanism&&PC->IsInputKeyDown(EKeys::MiddleMouseButton);
+    const FVector2D PointerDelta=PointerDrag.Update(FVector2D(MouseX,MouseY),bHasPosition,bFocused,bInViewport,bOrbit,bPan);
+    float DX=PointerDrag.Mode==1?static_cast<float>(PointerDelta.X):0.f;
+    float DY=PointerDrag.Mode==1?static_cast<float>(PointerDelta.Y):0.f;
+    if(PointerDrag.Mode==2) CameraTarget+=VW::PointerPan(CameraOffset,CameraUp,PointerDelta,ViewWidth,50.);
     DX+=((PC->IsInputKeyDown(EKeys::Right)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::Left)?1.f:0.f))*160.f*DeltaSeconds;
     DY+=((PC->IsInputKeyDown(EKeys::Down)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::Up)?1.f:0.f))*160.f*DeltaSeconds;
     if(!FMath::IsNearlyZero(DX)||!FMath::IsNearlyZero(DY))
@@ -250,10 +262,10 @@ void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
         const float Roll=(PC->IsInputKeyDown(EKeys::Q)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::F)?1.f:0.f);
         CameraUp=FQuat(-CameraOffset.GetSafeNormal(),Roll*DeltaSeconds).RotateVector(CameraUp);
     }
-    float MouseX=0,MouseY=0;PC->GetMousePosition(MouseX,MouseY);
-    if(MouseX>460.f)
+    if(bFocused&&bInViewport)
     {
-        const int Zoom=(Pressed(EKeys::MouseScrollUp)?-1:0)+(Pressed(EKeys::MouseScrollDown)?1:0);
-        if(Zoom) CameraOffset=CameraOffset.GetSafeNormal()*FMath::Clamp(CameraOffset.Size()*FMath::Pow(1.15,Zoom),Mechanism?0.5:100.,Mechanism?1000.:5000.);
+        float Wheel=PC->GetInputAnalogKeyState(EKeys::MouseWheelAxis);
+        if(FMath::IsNearlyZero(Wheel)) Wheel=(Pressed(EKeys::MouseScrollUp)?1.f:0.f)-(Pressed(EKeys::MouseScrollDown)?1.f:0.f);
+        if(!FMath::IsNearlyZero(Wheel)) CameraOffset=CameraOffset.GetSafeNormal()*FMath::Clamp(CameraOffset.Size()*FMath::Pow(1.15,-Wheel),Mechanism?0.5:100.,Mechanism?1000.:5000.);
     }
 }

@@ -4,6 +4,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/HUD.h"
 #include "VirtualWorldData.h"
+#include "VirtualWorldPointer.h"
 #include "VirtualWorldRuntime.generated.h"
 
 class AVirtualWorldModel;
@@ -133,6 +134,7 @@ private:
     FVector LastGroundedFeet = FVector::ZeroVector;
     FVector PlayerUp = FVector::UpVector;
     FVector PlayerForward = FVector::ForwardVector;
+    VW::FPointerDrag PointerDrag;
     FVector CameraTarget = FVector::ZeroVector;
     FVector CameraOffset = FVector(400,400,300);
     FVector CameraUp = FVector::UpVector;

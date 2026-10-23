@@ -12,6 +12,8 @@
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/SkyLight.h"
+#include "Engine/TextureCube.h"
+#include "Math/Float16Color.h"
 #include "Engine/ExponentialHeightFog.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
@@ -201,7 +203,7 @@ AVirtualWorldModel* AVirtualWorldRuntime::SpawnModel(const FString& ModelId,USce
     Model->SkeletalAnimationConfig.bRemoveRootMotion=bPlayer;
     Model->StaticMeshConfig.bBuildComplexCollision=bMeshCollision;
     Model->StaticMeshConfig.bAllowCPUAccess=bMeshCollision;
-    Model->StaticMeshConfig.CollisionComplexity=CTF_UseComplexAsSimple;
+    Model->StaticMeshConfig.CollisionComplexity=bMeshCollision?CTF_UseComplexAsSimple:CTF_UseDefault;
     Model->OnNodeProcessed.AddLambda([this,bMeshCollision,ModelId](const FglTFRuntimeNode& Node,USceneComponent* Component)
     {
         UPrimitiveComponent* Primitive=Cast<UPrimitiveComponent>(Component);
@@ -264,6 +266,7 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
     if(APlayerController* PC=GetWorld()->GetFirstPlayerController()) PC->SetViewTarget(Camera);
     const VW::Json Environment=VW::Object(Scene,TEXT("environment"));
     ADirectionalLight* Sun=GetWorld()->SpawnActor<ADirectionalLight>();SpawnedActors.Add(Sun);
+    Cast<UDirectionalLightComponent>(Sun->GetLightComponent())->SetForwardShadingPriority(1);
     Sun->SetActorRotation(FRotator(-45,-30,0));Sun->GetLightComponent()->SetMobility(EComponentMobility::Movable);
     Sun->GetLightComponent()->SetIntensity(static_cast<float>(VW::Number(Environment,TEXT("lightIntensity"),1)*3.14159));
     ADirectionalLight* Fill=GetWorld()->SpawnActor<ADirectionalLight>();SpawnedActors.Add(Fill);
@@ -276,6 +279,29 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
     ASkyLight* Sky=GetWorld()->SpawnActor<ASkyLight>();SpawnedActors.Add(Sky);
     Sky->GetLightComponent()->SetMobility(EComponentMobility::Movable);
     Sky->GetLightComponent()->SetIntensity(static_cast<float>(VW::Number(Environment,TEXT("ambientIntensity"),0.5)));
+    if(Mechanism)
+    {
+        // A captured empty Entry map is black: metallic glTF surfaces need a real reflection environment.
+        // A transient HDR studio cube remains self-contained in standalone runtime builds.
+        constexpr int32 Size=16;
+        UTextureCube* Studio=UTextureCube::CreateTransient(Size,Size,PF_FloatRGBA);
+        if(!Studio) {Fail(TEXT("Could not allocate studio reflection environment."));return;}
+        Studio->SRGB=false;Studio->NeverStream=true;
+        FTexture2DMipMap& Mip=Studio->GetPlatformData()->Mips[0];
+        FFloat16Color* Pixels=static_cast<FFloat16Color*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
+        const float Faces[6]={.55f,.1125f,.375f,.175f,.75f,.075f};
+        for(int32 Face=0;Face<6;++Face)
+            for(int32 Y=0;Y<Size;++Y)
+                for(int32 X=0;X<Size;++X)
+                {
+                    const float Level=Faces[Face]*(.8f+.2f*static_cast<float>(Y)/(Size-1));
+                    Pixels[Face*Size*Size+Y*Size+X]=FFloat16Color(FLinearColor(Level,Level,Level,1.f));
+                }
+        Mip.BulkData.Unlock();Studio->UpdateResource();
+        Sky->GetLightComponent()->SourceType=SLS_SpecifiedCubemap;
+        Sky->GetLightComponent()->bLowerHemisphereIsBlack=false;
+        Sky->GetLightComponent()->SetCubemap(Studio);
+    }
     Sky->GetLightComponent()->RecaptureSky();
 }
 

@@ -1,8 +1,9 @@
 #if WITH_DEV_AUTOMATION_TESTS
 #include "VirtualWorldRuntime.h"
 #include "Misc/AutomationTest.h"
+#include "VirtualWorldPointer.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCoordinateTest,"VirtualWorld.Coordinates.MatchPinnedImporter",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCoordinateTest,"VirtualWorld.Coordinates.MatchPinnedImporter",(EAutomationTestFlags::EditorContext|EAutomationTestFlags::ClientContext|EAutomationTestFlags::ServerContext|EAutomationTestFlags::CommandletContext|EAutomationTestFlags::ProgramContext)|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldCoordinateTest::RunTest(const FString& Parameters)
 {
     const FVector Point(.13,-.2,.45),Position(2,3,-4),Scale(1.2,.8,2.1);
@@ -18,7 +19,7 @@ bool FVirtualWorldCoordinateTest::RunTest(const FString& Parameters)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldTransmissionTest,"VirtualWorld.Harmonic.SignedPhase",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldTransmissionTest,"VirtualWorld.Harmonic.SignedPhase",(EAutomationTestFlags::EditorContext|EAutomationTestFlags::ClientContext|EAutomationTestFlags::ServerContext|EAutomationTestFlags::CommandletContext|EAutomationTestFlags::ProgramContext)|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldTransmissionTest::RunTest(const FString& Parameters)
 {
     const auto Zero=VW::Transmission(0,200,202),State=VW::Transmission(1.75/1.01,200,202);
@@ -29,7 +30,7 @@ bool FVirtualWorldTransmissionTest::RunTest(const FString& Parameters)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldProgressTest,"VirtualWorld.Story.ValidateSavedPrerequisites",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldProgressTest,"VirtualWorld.Story.ValidateSavedPrerequisites",(EAutomationTestFlags::EditorContext|EAutomationTestFlags::ClientContext|EAutomationTestFlags::ServerContext|EAutomationTestFlags::CommandletContext|EAutomationTestFlags::ProgramContext)|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldProgressTest::RunTest(const FString& Parameters)
 {
     VW::Json Source,Saved;
@@ -46,7 +47,7 @@ bool FVirtualWorldProgressTest::RunTest(const FString& Parameters)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldEntryTest,"VirtualWorld.Campaign.ExplicitEntryAndLaterGates",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldEntryTest,"VirtualWorld.Campaign.ExplicitEntryAndLaterGates",(EAutomationTestFlags::EditorContext|EAutomationTestFlags::ClientContext|EAutomationTestFlags::ServerContext|EAutomationTestFlags::CommandletContext|EAutomationTestFlags::ProgramContext)|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldEntryTest::RunTest(const FString& Parameters)
 {
     VW::Json Campaign;VW::Parse(TEXT(R"({"chapters":[{"id":"desert"},{"id":"b612","requires":["desert"]},{"id":"earth","requires":["b612"]}]})"),Campaign);
@@ -60,7 +61,7 @@ bool FVirtualWorldEntryTest::RunTest(const FString& Parameters)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldJumpTest,"VirtualWorld.Player.JumpAndAirborneGravity",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldJumpTest,"VirtualWorld.Player.JumpAndAirborneGravity",(EAutomationTestFlags::EditorContext|EAutomationTestFlags::ClientContext|EAutomationTestFlags::ServerContext|EAutomationTestFlags::CommandletContext|EAutomationTestFlags::ProgramContext)|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldJumpTest::RunTest(const FString& Parameters)
 {
     const auto Jump=VW::StepVerticalMotion(0,true,true,.02);
@@ -81,20 +82,20 @@ bool FVirtualWorldJumpTest::RunTest(const FString& Parameters)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldPlayerBoundsTest,"VirtualWorld.Player.BoundsPreserveAltitude",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldPlayerBoundsTest,"VirtualWorld.Player.BoundsPreserveAltitude",(EAutomationTestFlags::EditorContext|EAutomationTestFlags::ClientContext|EAutomationTestFlags::ServerContext|EAutomationTestFlags::CommandletContext|EAutomationTestFlags::ProgramContext)|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldPlayerBoundsTest::RunTest(const FString& Parameters)
 {
     VW::Json Bounds;VW::Parse(TEXT(R"({"min":[-2,-3],"max":[2,3]})"),Bounds);
     const FVector Clamped=VW::SourcePosition(VW::ConstrainPlanePosition(VW::Position(FVector(8,1.25,-9)),Bounds,25.));
     TestTrue(TEXT("Capsule clearance constrains both horizontal bounds"),FMath::Abs(Clamped.X-1.75)<.000001&&FMath::Abs(Clamped.Z+2.75)<.000001);
     TestTrue(TEXT("Bounds do not cancel a jump or falling altitude"),FMath::Abs(Clamped.Y-1.25)<.000001);
-    VW::Parse(TEXT(R"({"min":[-.1,-.1],"max":[.1,.1]})"),Bounds);
+    VW::Parse(TEXT(R"({"min":[-0.1,-0.1],"max":[0.1,0.1]})"),Bounds);
     const FVector Narrow=VW::SourcePosition(VW::ConstrainPlanePosition(VW::Position(FVector(8,-2,-9)),Bounds,25.));
     TestTrue(TEXT("An interval narrower than the capsule resolves to its centre"),FMath::Abs(Narrow.X)<.000001&&FMath::Abs(Narrow.Z)<.000001&&FMath::Abs(Narrow.Y+2)<.000001);
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldRadialMotionTest,"VirtualWorld.Player.SphericalMotionPreservesAltitude",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldRadialMotionTest,"VirtualWorld.Player.SphericalMotionPreservesAltitude",(EAutomationTestFlags::EditorContext|EAutomationTestFlags::ClientContext|EAutomationTestFlags::ServerContext|EAutomationTestFlags::CommandletContext|EAutomationTestFlags::ProgramContext)|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldRadialMotionTest::RunTest(const FString& Parameters)
 {
     const FVector Centre(130,-280,70),Feet=Centre+FVector::UpVector*640.;
@@ -107,4 +108,30 @@ bool FVirtualWorldRadialMotionTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Jump displacement uses local radial up away from the north pole"),FMath::Abs(FVector::Dist(SideJump,Centre)-610.)<.000001&&SideJump.Z>Centre.Z);
     return true;
 }
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldPointerGestureTest,"VirtualWorld.Input.MouseGestureBoundaries",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ClientContext|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldPointerGestureTest::RunTest(const FString& Parameters)
+{
+    const FVector Pan=VW::PointerPan(FVector(-100,0,0),FVector::UpVector,FVector2D(50,25),1000,90.);
+    TestTrue(TEXT("Horizontal FOV and width map 50 pixels to ten world units"),Pan.Equals(FVector(0,-10,5),.000001));
+    const FVector TiltedPan=VW::PointerPan(FVector(-100,0,0),FVector(1,0,1),FVector2D(50,25),1000,90.);
+    TestTrue(TEXT("Pan uses camera-plane up instead of changing view depth"),TiltedPan.Equals(FVector(0,-10,5),.000001));
+    VW::FPointerDrag Drag;
+    const auto Move=[&](double X,double Y,bool InView,bool Orbit,bool Pan,bool Focus=true,bool HasPosition=true)
+    {return Drag.Update(FVector2D(X,Y),HasPosition,Focus,InView,Orbit,Pan);};
+    TestTrue(TEXT("A HUD press produces no orbit"),Move(100,100,false,true,false).IsNearlyZero());
+    TestTrue(TEXT("Crossing out of HUD while holding cannot start orbit"),Move(600,100,true,true,false).IsNearlyZero()&&Drag.Mode==0);
+    Move(600,100,true,false,false);
+    TestTrue(TEXT("A fresh viewport press establishes its origin"),Move(600,100,true,true,false).IsNearlyZero());
+    TestTrue(TEXT("Visible-cursor movement yields actual pixel delta"),Move(624,112,true,true,false).Equals(FVector2D(24,12))&&Drag.Mode==1);
+    TestTrue(TEXT("Dragging across panel stays in the existing gesture"),Move(424,112,false,true,false).Equals(FVector2D(-200,0)));
+    TestTrue(TEXT("Release stops the camera"),Move(430,114,false,false,false).IsNearlyZero()&&Drag.Mode==0);
+    Move(600,100,true,true,false);
+    TestTrue(TEXT("Focus loss cancels a held drag"),Move(900,500,true,true,false,false).IsNearlyZero()&&Drag.Mode==0);
+    TestTrue(TEXT("Refocus cannot reuse an old cursor origin"),Move(1000,600,true,true,false).IsNearlyZero());
+    TestTrue(TEXT("Switching to pan does not jump"),Move(1050,640,true,false,true).IsNearlyZero()&&Drag.Mode==2);
+    TestTrue(TEXT("Middle drag has its own displacement"),Move(1060,635,true,false,true).Equals(FVector2D(10,-5)));
+    TestTrue(TEXT("Leaving the viewport cancels stale mouse position"),Move(0,0,true,false,true,true,false).IsNearlyZero()&&Drag.Mode==0);
+    return true;
+}
+
 #endif

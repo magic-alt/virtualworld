@@ -17,8 +17,8 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
     if(!FatalError.IsEmpty()) {Lines.Add(TEXT("Cannot load this native scene"));Lines.Add(FatalError);Lines.Add(TEXT("See Saved/Logs/VirtualWorld.log and README-Unreal.md."));return Lines;}
     if(!Metadata) {Lines.Add(TEXT("Loading canonical scene assets..."));return Lines;}
     Lines.Add(VW::String(Metadata,TEXT("name")));
-    Lines.Add(TEXT("Right drag / arrows: orbit. Wheel: zoom. Home: reset view. F9: screenshot."));
-    Lines.Add(TEXT("\u53f3\u952e\u62d6\u52a8/\u65b9\u5411\u952e\u65cb\u8f6c | \u6eda\u8f6e\u7f29\u653e | Home \u89c6\u89d2\u590d\u4f4d | F9 \u622a\u56fe"));
+    Lines.Add(IsMechanism()?TEXT("Left/right drag: orbit. Middle drag: pan. Wheel: zoom. Home: reset view. F9: screenshot."):TEXT("Right drag / arrows: orbit. Wheel: zoom. Home: reset view. F9: screenshot."));
+    Lines.Add(IsMechanism()?TEXT("\u5de6/\u53f3\u952e\u62d6\u52a8\u65cb\u8f6c | \u4e2d\u952e\u62d6\u52a8\u5e73\u79fb | \u6eda\u8f6e\u7f29\u653e | Home \u590d\u4f4d | F9 \u622a\u56fe"):TEXT("\u53f3\u952e\u62d6\u52a8/\u65b9\u5411\u952e\u65cb\u8f6c | \u6eda\u8f6e\u7f29\u653e | Home \u89c6\u89d2\u590d\u4f4d | F9 \u622a\u56fe"));
     if(Mechanism)
     {
         const VW::Harmonic State=VW::Transmission(InputAngle,VW::Number(Mechanism,TEXT("flexTeeth")),VW::Number(Mechanism,TEXT("ringTeeth")));
@@ -148,13 +148,14 @@ void AVirtualWorldHUD::DrawHUD()
     GetTextSize(TEXT("Ag\u56fd"),TextWidth,TextHeight,Font,.8f);
     GetTextSize(TEXT("Ag\u56fd"),TextWidth,FooterHeight,Font,.7f);
     const float LineHeight=FMath::Max(20.f,TextHeight),ButtonHeight=FMath::Max(34.f,LineHeight+12.f),RowHeight=ButtonHeight+6.f;
-    const float Width=FMath::Min(450.f,Canvas->SizeX*.48f),Top=FontError.IsEmpty()?52.f:118.f,Bottom=Canvas->SizeY-FooterHeight-8.f;
+    const float Width=VW::ControlPanelWidth(Canvas->SizeX),Top=FontError.IsEmpty()?52.f:118.f,Bottom=Canvas->SizeY-FooterHeight-8.f;
     APlayerController* PC=GetOwningPlayerController();
     float MX=0,MY=0;if(PC)PC->GetMousePosition(MX,MY);
     if(PC&&MX<Width)
     {
-        if(PC->WasInputKeyJustPressed(EKeys::MouseScrollDown)) PanelScroll+=60;
-        if(PC->WasInputKeyJustPressed(EKeys::MouseScrollUp)) PanelScroll-=60;
+        float Wheel=PC->GetInputAnalogKeyState(EKeys::MouseWheelAxis);
+        if(FMath::IsNearlyZero(Wheel)) Wheel=(PC->WasInputKeyJustPressed(EKeys::MouseScrollUp)?1.f:0.f)-(PC->WasInputKeyJustPressed(EKeys::MouseScrollDown)?1.f:0.f);
+        PanelScroll-=Wheel*60.f;
     }
     PanelScroll=FMath::Clamp(PanelScroll,0.f,FMath::Max(0.f,ContentHeight-(Bottom-Top)));
     DrawRect(FLinearColor(.025f,.035f,.06f,.94f),0,0,Width,Canvas->SizeY);

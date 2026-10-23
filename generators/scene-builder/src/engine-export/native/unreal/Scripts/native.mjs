@@ -280,6 +280,9 @@ function launch(command, options, projectRoot, data, engine, context) {
       projectFile,
       '/Engine/Maps/Entry',
       '-log',
+      '-windowed',
+      '-ResX=1280',
+      '-ResY=720',
       `-abslog=${join(logDirectory, 'engine.log')}`,
     ];
     if (command !== 'open') args.push('-game');
