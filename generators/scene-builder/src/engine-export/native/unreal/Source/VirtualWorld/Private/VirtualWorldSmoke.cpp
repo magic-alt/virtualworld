@@ -3,6 +3,12 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Engine/Engine.h"
+#include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
+#include "Components/DirectionalLightComponent.h"
+#include "Components/SkyLightComponent.h"
+#include "Engine/DirectionalLight.h"
+#include "Engine/SkyLight.h"
 #include "Engine/World.h"
 #include "Misc/App.h"
 #include "Misc/FileHelper.h"
@@ -84,6 +90,25 @@ void AVirtualWorldRuntime::RunSmokeStep()
     }
     if(Mechanism)
     {
+        const auto& Exposure=Camera->GetCameraComponent()->PostProcessSettings;
+        Require(Exposure.bOverride_AutoExposureMethod&&Exposure.AutoExposureMethod==AEM_Manual,
+            TEXT("Inspection lighting must lock exposure to prevent brightness pumping."));
+        bool bReflections=false,bViewFill=false;
+        for(AActor* Actor:SpawnedActors)
+        {
+            if(ASkyLight* Sky=Cast<ASkyLight>(Actor))
+                bReflections|=Sky->GetLightComponent()->SourceType==SLS_SpecifiedCubemap&&Sky->GetLightComponent()->Cubemap!=nullptr;
+            if(ADirectionalLight* Light=Cast<ADirectionalLight>(Actor))
+            {
+                Require(Light->GetLightComponent()->Mobility==EComponentMobility::Movable,
+                    TEXT("Inspection lights must work without baked lighting."));
+                if(Light->GetAttachParentActor()==Camera)
+                    bViewFill|=!Light->GetLightComponent()->CastShadows&&Light->GetLightComponent()->Intensity>0;
+            }
+        }
+        Require(bReflections,TEXT("Metal inspection requires a fixed, non-black environment reflection."));
+        Require(bViewFill,TEXT("Cutaways require a persistent unshadowed fill following the inspection camera."));
+        Result->SetBoolField(TEXT("stableInspectionLighting"),FatalError.IsEmpty());
         const VW::Harmonic Base=VW::Transmission(1,VW::Number(Mechanism,TEXT("flexTeeth")),VW::Number(Mechanism,TEXT("ringTeeth")));
         Require(Base.Output<0,TEXT("Harmonic output must reverse sign."));
         InputAngle=1.75/(1-Base.Ratio);ApplyMechanism();

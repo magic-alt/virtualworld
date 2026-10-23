@@ -2,7 +2,7 @@
 #include "VirtualWorldRuntime.h"
 #include "Misc/AutomationTest.h"
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCoordinateTest,"VirtualWorld.Coordinates.MatchPinnedImporter",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCoordinateTest,"VirtualWorld.Coordinates.MatchPinnedImporter",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldCoordinateTest::RunTest(const FString& Parameters)
 {
     const FVector Point(.13,-.2,.45),Position(2,3,-4),Scale(1.2,.8,2.1);
@@ -18,7 +18,7 @@ bool FVirtualWorldCoordinateTest::RunTest(const FString& Parameters)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldTransmissionTest,"VirtualWorld.Harmonic.SignedPhase",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldTransmissionTest,"VirtualWorld.Harmonic.SignedPhase",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldTransmissionTest::RunTest(const FString& Parameters)
 {
     const auto Zero=VW::Transmission(0,200,202),State=VW::Transmission(1.75/1.01,200,202);
@@ -29,7 +29,7 @@ bool FVirtualWorldTransmissionTest::RunTest(const FString& Parameters)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldProgressTest,"VirtualWorld.Story.ValidateSavedPrerequisites",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldProgressTest,"VirtualWorld.Story.ValidateSavedPrerequisites",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldProgressTest::RunTest(const FString& Parameters)
 {
     VW::Json Source,Saved;
@@ -46,7 +46,7 @@ bool FVirtualWorldProgressTest::RunTest(const FString& Parameters)
     return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldEntryTest,"VirtualWorld.Campaign.ExplicitEntryAndLaterGates",EAutomationTestFlags::ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldEntryTest,"VirtualWorld.Campaign.ExplicitEntryAndLaterGates",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldEntryTest::RunTest(const FString& Parameters)
 {
     VW::Json Campaign;VW::Parse(TEXT(R"({"chapters":[{"id":"desert"},{"id":"b612","requires":["desert"]},{"id":"earth","requires":["b612"]}]})"),Campaign);

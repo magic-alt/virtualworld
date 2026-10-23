@@ -101,7 +101,8 @@ TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
 
 AVirtualWorldRuntime* AVirtualWorldHUD::Runtime() const
 {
-    for(TActorIterator<AVirtualWorldRuntime> It(GetWorld());It;++It) return *It;
+    TActorIterator<AVirtualWorldRuntime> It(GetWorld());
+    if(It) return *It;
     return nullptr;
 }
 

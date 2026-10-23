@@ -52,6 +52,14 @@ still enforce chapter prerequisites. Reset returns to that launch chapter.
 ## Native controls
 
 The left HUD contains clickable actions, chapter choices, tasks and dialogue.
+Mechanism scenes use fixed manual exposure, a neutral key/fill lighting rig,
+and a weak shadow-free fill that follows the inspection camera. A fixed engine
+daylight cubemap supplies metal reflections without capturing the empty Entry
+sky. Lighting stays active while paused, running, sectioned or exploded; it has
+no exposure adaptation or time-of-day cycle. The cubemap directory is included
+in the cook configuration. Main-light shadows retain shape while the fills
+keep exposed internal parts readable.
+
 Scroll over the panel to reach additional controls. Scroll over the rendered
 scene to zoom. Right-drag or arrow keys orbit the camera; the mechanism camera
 has no polar clamp. Q/F rolls the mechanism view. The configured near plane is

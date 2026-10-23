@@ -12,6 +12,7 @@
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/SkyLight.h"
+#include "Engine/TextureCube.h"
 #include "Engine/ExponentialHeightFog.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
@@ -196,7 +197,7 @@ AVirtualWorldModel* AVirtualWorldRuntime::SpawnModel(const FString& ModelId,USce
     Model->SkeletalAnimationConfig.bRemoveRootMotion=bPlayer;
     Model->StaticMeshConfig.bBuildComplexCollision=bMeshCollision;
     Model->StaticMeshConfig.bAllowCPUAccess=bMeshCollision;
-    Model->StaticMeshConfig.CollisionComplexity=CTF_UseComplexAsSimple;
+    Model->StaticMeshConfig.CollisionComplexity=bMeshCollision?CTF_UseComplexAsSimple:CTF_UseDefault;
     Model->OnNodeProcessed.AddLambda([this,bMeshCollision,ModelId](const FglTFRuntimeNode& Node,USceneComponent* Component)
     {
         UPrimitiveComponent* Primitive=Cast<UPrimitiveComponent>(Component);
@@ -262,20 +263,57 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
     if(CameraOffset.IsNearlyZero()) CameraOffset=FVector(300,300,200);
     if(APlayerController* PC=GetWorld()->GetFirstPlayerController()) PC->SetViewTarget(Camera);
     const VW::Json Environment=VW::Object(Scene,TEXT("environment"));
-    ADirectionalLight* Sun=GetWorld()->SpawnActor<ADirectionalLight>();SpawnedActors.Add(Sun);
-    Sun->SetActorRotation(FRotator(-45,-30,0));Sun->GetLightComponent()->SetMobility(EComponentMobility::Movable);
-    Sun->GetLightComponent()->SetIntensity(static_cast<float>(VW::Number(Environment,TEXT("lightIntensity"),1)*3.14159));
-    ADirectionalLight* Fill=GetWorld()->SpawnActor<ADirectionalLight>();SpawnedActors.Add(Fill);
-    Fill->SetActorRotation(FRotator(35,150,0));Fill->GetLightComponent()->SetMobility(EComponentMobility::Movable);
-    Fill->GetLightComponent()->SetCastShadows(false);Fill->GetLightComponent()->SetIntensity(static_cast<float>(VW::Number(Environment,TEXT("ambientIntensity"),0.5)));
-    AExponentialHeightFog* Fog=GetWorld()->SpawnActor<AExponentialHeightFog>();SpawnedActors.Add(Fog);
-    const FLinearColor Background=FLinearColor::FromSRGBColor(FColor::FromHex(VW::String(Environment,TEXT("background"),TEXT("17243A"))));
-    Fog->GetComponent()->SetFogInscatteringColor(Background);
-    Fog->GetComponent()->SetFogDensity(static_cast<float>(VW::Number(Environment,TEXT("fog"),0.0005)));
+    // Set mobility BEFORE the transform: registered static lights reject runtime rotation.
+    const auto AddLight=[this](const FRotator& Rotation,float Intensity,bool bShadows,int32 Priority)
+    {
+        ADirectionalLight* Light=GetWorld()->SpawnActor<ADirectionalLight>();SpawnedActors.Add(Light);
+        UDirectionalLightComponent* Component=CastChecked<UDirectionalLightComponent>(Light->GetLightComponent());
+        Component->SetMobility(EComponentMobility::Movable);
+        Light->SetActorRotation(Rotation);
+        Component->SetIntensity(Intensity);Component->SetCastShadows(bShadows);
+        Component->SetForwardShadingPriority(Priority);
+        return Light;
+    };
+    const float Direct=FMath::Max(0.f,static_cast<float>(VW::Number(Environment,TEXT("lightIntensity"),1)));
+    const float Ambient=FMath::Max(0.f,static_cast<float>(VW::Number(Environment,TEXT("ambientIntensity"),.5)));
+    if(IsMechanism())
+    {
+        // Fixed exposure and persistent neutral studio lights; no adaptation, time-of-day or recapture loop.
+        FPostProcessSettings& Exposure=Camera->GetCameraComponent()->PostProcessSettings;
+        Exposure.bOverride_AutoExposureMethod=true;Exposure.AutoExposureMethod=AEM_Manual;
+        Exposure.bOverride_AutoExposureApplyPhysicalCameraExposure=true;Exposure.AutoExposureApplyPhysicalCameraExposure=false;
+        Exposure.bOverride_AutoExposureBias=true;Exposure.AutoExposureBias=0;
+        Exposure.bOverride_AutoExposureBiasCurve=true;Exposure.AutoExposureBiasCurve=nullptr;
+        AddLight(FRotator(-45,-35,0),Direct*6.f,true,10);
+        AddLight(FRotator(-20,130,0),Ambient*6.f,false,0);
+        AddLight(FRotator(45,45,0),Ambient*4.f,false,0);
+        // A weak, shadow-free inspection fill keeps cut faces readable at every orbit angle.
+        ADirectionalLight* ViewFill=AddLight(FRotator::ZeroRotator,Ambient*4.f,false,0);
+        ViewFill->AttachToActor(Camera,FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+    }
+    else
+    {
+        AddLight(FRotator(-45,-30,0),Direct*PI,true,10);
+        AddLight(FRotator(35,150,0),Ambient,false,0);
+        AExponentialHeightFog* Fog=GetWorld()->SpawnActor<AExponentialHeightFog>();SpawnedActors.Add(Fog);
+        const FLinearColor Background=FLinearColor::FromSRGBColor(FColor::FromHex(VW::String(Environment,TEXT("background"),TEXT("17243A"))));
+        Fog->GetComponent()->SetFogInscatteringColor(Background);
+        Fog->GetComponent()->SetFogDensity(static_cast<float>(VW::Number(Environment,TEXT("fog"),.0005)));
+    }
     ASkyLight* Sky=GetWorld()->SpawnActor<ASkyLight>();SpawnedActors.Add(Sky);
-    Sky->GetLightComponent()->SetMobility(EComponentMobility::Movable);
-    Sky->GetLightComponent()->SetIntensity(static_cast<float>(VW::Number(Environment,TEXT("ambientIntensity"),0.5)));
-    Sky->GetLightComponent()->RecaptureSky();
+    USkyLightComponent* SkyComponent=Sky->GetLightComponent();
+    SkyComponent->SetMobility(EComponentMobility::Movable);
+    SkyComponent->SetIntensity(IsMechanism()?Ambient*2.f:Ambient);
+    if(IsMechanism())
+    {
+        UTextureCube* StudioEnvironment=LoadObject<UTextureCube>(nullptr,TEXT("/Engine/MapTemplates/Sky/DaylightAmbientCubemap.DaylightAmbientCubemap"));
+        if(!StudioEnvironment) {Fail(TEXT("Inspection environment cubemap is missing."));return;}
+        SkyComponent->SourceType=SLS_SpecifiedCubemap;
+        SkyComponent->SetRealTimeCapture(false);
+        SkyComponent->SetCubemap(StudioEnvironment);
+        SkyComponent->SetCastShadows(false);
+    }
+    SkyComponent->RecaptureSky();
 }
 
 void AVirtualWorldRuntime::Tick(float DeltaSeconds)
