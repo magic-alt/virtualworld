@@ -3,8 +3,10 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/HUD.h"
+#include "HAL/PlatformProcess.h"
 #include "VirtualWorldData.h"
 #include "VirtualWorldPointer.h"
+#include "VirtualWorldImportState.h"
 #include "VirtualWorldRuntime.generated.h"
 
 class AVirtualWorldModel;
@@ -43,6 +45,7 @@ class VIRTUALWORLD_API AVirtualWorldRuntime : public AActor
 public:
     AVirtualWorldRuntime();
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type Reason) override;
     virtual void Tick(float DeltaSeconds) override;
     bool LoadScene(int32 Index, bool bSmoke = false);
     void Command(const FString& Action);
@@ -50,15 +53,30 @@ public:
     TArray<FVirtualWorldAction> Actions() const;
     const FString& Error() const { return FatalError; }
     bool IsMechanism() const { return Mechanism.IsValid(); }
+    bool IsModuleViewer() const { return IsMechanism() || bImportedModule; }
     UFUNCTION() void OnImportError(const FString ErrorContext, const FString ErrorMessage);
 
 private:
     friend class AVirtualWorldHUD;
     friend class FVirtualWorldProgressTest;
+    friend class FVirtualWorldImportReplacementTest;
     bool Fail(const FString& Message);
     bool ReadCatalog();
     void ClearScene();
-    AVirtualWorldModel* SpawnModel(const FString& ModelId, USceneComponent* Parent, bool bMeshCollision, bool bPlayer);
+    AVirtualWorldModel* SpawnModel(const FString& ModelId, USceneComponent* Parent, bool bMeshCollision, bool bPlayer, bool bStage = false);
+    void BeginStepImport();
+    void StartStepImport(const FString& Source);
+    void PollStepImport();
+    void CancelStepImport();
+    bool CommitStepImport(const FString& Directory);
+    void FitImportedCamera();
+    VW::FImportGeneration ImportGeneration;
+    FProcHandle ImportProcess;
+    double ImportStart=0;
+    FString ImportDirectory;
+    FString ImportFailure;
+    bool bImportedModule=false;
+    bool bStagingModel=false;
     bool BuildColliders(FVirtualWorldNode& Node);
     bool BuildPlayer();
     bool BindMechanism();
@@ -172,4 +190,5 @@ private:
     float PanelScroll = 0;
     float ContentHeight = 0;
     int32 LastScene = INDEX_NONE;
+    FString LastContentId;
 };

@@ -108,6 +108,19 @@ function diagnose(projectRoot, options, context) {
     status: nodeVersion.split('.')[0] === '24' ? 'ok' : 'error',
     message: `Node.js ${nodeVersion}. These scripts require Node.js 24.`,
   });
+  const stepTools = join(projectRoot, 'Content/VirtualWorldTools');
+  const stepAvailable = [
+    'step-import.cjs',
+    'node_modules/occt-import-js/dist/occt-import-js.wasm',
+    'node_modules/gltf-validator/index.js',
+  ].every((file) => existsSync(join(stepTools, file)));
+  checks.push({
+    id: 'step-converter',
+    status: stepAvailable ? 'ok' : 'warning',
+    message: stepAvailable
+      ? 'Local STEP converter files detected. GUI import requires Node.js 24+ on PATH; this check does not certify conversion or native rendering.'
+      : 'Local STEP converter missing. Re-export with Content/VirtualWorldTools to enable joint GUI import. Other scene functions remain available.',
+  });
   const inspect = (id, operation, action) => {
     try {
       const details = operation();

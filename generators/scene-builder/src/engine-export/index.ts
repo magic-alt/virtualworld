@@ -20,6 +20,7 @@ import {
 import { unityFiles } from './unity';
 import { godotFiles } from './godot';
 import { unrealFiles } from './unreal';
+import { stepToolFiles } from './step-tools';
 export type { EngineTarget } from './manifest';
 export interface EngineExportOptions {
   target: EngineTarget;
@@ -190,5 +191,7 @@ export async function writeEngineExport(options: EngineExportOptions): Promise<v
   const adapterFiles =
     target === 'unity' ? unityFiles() : target === 'unreal' ? unrealFiles() : godotFiles();
   for (const [path, content] of Object.entries(adapterFiles)) text(path, content);
+  if (target === 'unreal')
+    for (const [path, bytes] of Object.entries(await stepToolFiles())) emit(path, bytes);
   check();
 }

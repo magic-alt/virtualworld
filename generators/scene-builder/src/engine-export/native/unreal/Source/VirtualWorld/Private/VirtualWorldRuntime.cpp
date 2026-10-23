@@ -36,7 +36,8 @@ AVirtualWorldRuntime::AVirtualWorldRuntime()
 bool AVirtualWorldRuntime::Fail(const FString& Message)
 {
     if (FatalError.IsEmpty()) FatalError = Message;
-    UE_LOG(LogTemp, Error, TEXT("VirtualWorld: %s"), *Message);
+    if(bStagingModel) {UE_LOG(LogTemp, Warning, TEXT("VirtualWorld import: %s"), *Message);}
+    else {UE_LOG(LogTemp, Error, TEXT("VirtualWorld: %s"), *Message);}
     return false;
 }
 
@@ -121,6 +122,7 @@ bool AVirtualWorldRuntime::ReadCatalog()
 
 void AVirtualWorldRuntime::ClearScene()
 {
+    CancelStepImport();
     for (AActor* Actor : SpawnedActors) if (IsValid(Actor)) Actor->Destroy();
     SpawnedActors.Reset();
     for (int32 I=SceneComponents.Num()-1; I>=0; --I) if (IsValid(SceneComponents[I])) SceneComponents[I]->DestroyComponent();
@@ -132,6 +134,7 @@ void AVirtualWorldRuntime::ClearScene()
     LastGroundedFeet=FVector::ZeroVector;
     HiddenSubsystems.Reset();IsolatedNodes.Reset();IsolatedSubsystem.Empty();
     InputAngle=0;Rpm=6;Explosion=0;bRunning=false;bPaused=false;bSection=false;
+    bImportedModule=false;bHasBrake=false;bBrakeInstalled=false;bBrakePowered=true;
 }
 
 bool AVirtualWorldRuntime::LoadScene(int32 Index, bool bSmoke)
@@ -182,7 +185,7 @@ bool AVirtualWorldRuntime::LoadScene(int32 Index, bool bSmoke)
     return FatalError.IsEmpty();
 }
 
-AVirtualWorldModel* AVirtualWorldRuntime::SpawnModel(const FString& ModelId,USceneComponent* Parent,bool bMeshCollision,bool bPlayer)
+AVirtualWorldModel* AVirtualWorldRuntime::SpawnModel(const FString& ModelId,USceneComponent* Parent,bool bMeshCollision,bool bPlayer,bool bStage)
 {
     if(!ModelRecords.Contains(ModelId)) { Fail(TEXT("Missing canonical model: ")+ModelId);return nullptr; }
     UglTFRuntimeAsset* Asset=AssetCache.FindRef(ModelId);
@@ -199,6 +202,7 @@ AVirtualWorldModel* AVirtualWorldRuntime::SpawnModel(const FString& ModelId,USce
     }
     AVirtualWorldModel* Model=GetWorld()->SpawnActorDeferred<AVirtualWorldModel>(AVirtualWorldModel::StaticClass(),FTransform::Identity,this,nullptr,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
     if(!Model) { Fail(TEXT("Cannot allocate native model actor."));return nullptr; }
+    Model->SetActorHiddenInGame(bStage);
     SpawnedActors.Add(Model);Model->Asset=Asset;
     Model->SkeletalAnimationConfig.bRemoveRootMotion=bPlayer;
     Model->StaticMeshConfig.bBuildComplexCollision=bMeshCollision;
@@ -279,7 +283,7 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
     ASkyLight* Sky=GetWorld()->SpawnActor<ASkyLight>();SpawnedActors.Add(Sky);
     Sky->GetLightComponent()->SetMobility(EComponentMobility::Movable);
     Sky->GetLightComponent()->SetIntensity(static_cast<float>(VW::Number(Environment,TEXT("ambientIntensity"),0.5)));
-    if(Mechanism)
+    if(IsModuleViewer())
     {
         // A captured empty Entry map is black: metallic glTF surfaces need a real reflection environment.
         // A transient HDR studio cube remains self-contained in standalone runtime builds.
@@ -308,6 +312,7 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
 void AVirtualWorldRuntime::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    PollStepImport();
     if(bSmokeRequested) { RunSmokeStep();return; }
     if(!FatalError.IsEmpty()) return;
     const float Delta=FMath::Clamp(DeltaSeconds,0.f,0.05f);

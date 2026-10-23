@@ -194,6 +194,7 @@ void AVirtualWorldRuntime::StepPlayerMovement(const FVector& Direction,bool bJum
 void AVirtualWorldRuntime::ResetCamera()
 {
     PointerDrag.Reset();
+    if(bImportedModule) {FitImportedCamera();return;}
     const VW::Json SourceCamera=VW::Object(Scene,TEXT("camera"));
     CameraTarget=VW::Position(VW::Vector(SourceCamera,TEXT("target")));
     CameraOffset=VW::Position(VW::Vector(SourceCamera,TEXT("position")))-CameraTarget;
@@ -243,8 +244,8 @@ void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
     const UGameViewportClient* ViewportClient=GetWorld()->GetGameViewport();
     const bool bFocused=ViewportClient&&ViewportClient->Viewport&&ViewportClient->Viewport->HasFocus();
     const bool bInViewport=bHasPosition&&MouseX>=VW::ControlPanelWidth(ViewWidth)&&MouseX<ViewWidth&&MouseY>=0&&MouseY<ViewHeight;
-    const bool bOrbit=PC->IsInputKeyDown(EKeys::RightMouseButton)||(Mechanism&&PC->IsInputKeyDown(EKeys::LeftMouseButton));
-    const bool bPan=Mechanism&&PC->IsInputKeyDown(EKeys::MiddleMouseButton);
+    const bool bOrbit=PC->IsInputKeyDown(EKeys::RightMouseButton)||(IsModuleViewer()&&PC->IsInputKeyDown(EKeys::LeftMouseButton));
+    const bool bPan=IsModuleViewer()&&PC->IsInputKeyDown(EKeys::MiddleMouseButton);
     const FVector2D PointerDelta=PointerDrag.Update(FVector2D(MouseX,MouseY),bHasPosition,bFocused,bInViewport,bOrbit,bPan);
     float DX=PointerDrag.Mode==1?static_cast<float>(PointerDelta.X):0.f;
     float DY=PointerDrag.Mode==1?static_cast<float>(PointerDelta.Y):0.f;
@@ -257,7 +258,7 @@ void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
         const FQuat Rotation=FQuat(Right,-DY*.006f)*FQuat(CameraUp,-DX*.006f);
         CameraOffset=Rotation.RotateVector(CameraOffset);CameraUp=Rotation.RotateVector(CameraUp).GetSafeNormal();
     }
-    if(Mechanism)
+    if(IsModuleViewer())
     {
         const float Roll=(PC->IsInputKeyDown(EKeys::Q)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::F)?1.f:0.f);
         CameraUp=FQuat(-CameraOffset.GetSafeNormal(),Roll*DeltaSeconds).RotateVector(CameraUp);
@@ -266,6 +267,6 @@ void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
     {
         float Wheel=PC->GetInputAnalogKeyState(EKeys::MouseWheelAxis);
         if(FMath::IsNearlyZero(Wheel)) Wheel=(Pressed(EKeys::MouseScrollUp)?1.f:0.f)-(Pressed(EKeys::MouseScrollDown)?1.f:0.f);
-        if(!FMath::IsNearlyZero(Wheel)) CameraOffset=CameraOffset.GetSafeNormal()*FMath::Clamp(CameraOffset.Size()*FMath::Pow(1.15,-Wheel),Mechanism?0.5:100.,Mechanism?1000.:5000.);
+        if(!FMath::IsNearlyZero(Wheel)) CameraOffset=CameraOffset.GetSafeNormal()*FMath::Clamp(CameraOffset.Size()*FMath::Pow(1.15,-Wheel),bImportedModule?.001:(Mechanism?0.5:100.),bImportedModule?1.e8:(Mechanism?1000.:5000.));
     }
 }

@@ -2,6 +2,79 @@
 #include "VirtualWorldRuntime.h"
 #include "Misc/AutomationTest.h"
 #include "VirtualWorldPointer.h"
+#include "VirtualWorldImportState.h"
+#include "VirtualWorldModel.h"
+#include "EngineUtils.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "Misc/Paths.h"
+#include "HAL/PlatformTime.h"
+#include "Components/StaticMeshComponent.h"
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldImportReplacementTest,"VirtualWorld.Import.NativeReplacement",EAutomationTestFlags::ClientContext|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldImportReplacementTest::RunTest(const FString& Parameters)
+{
+    FString Fixtures;
+    if(!FParse::Value(FCommandLine::Get(),TEXT("VirtualWorldImportFixtures="),Fixtures))
+    {AddWarning(TEXT("Native STEP replacement test requires -VirtualWorldImportFixtures=<converted fixture directory>."));return true;}
+    AVirtualWorldRuntime* Runtime=nullptr;
+    for(const auto& Context:GEngine->GetWorldContexts())
+        if(Context.World()&&Context.World()->IsGameWorld())
+            for(TActorIterator<AVirtualWorldRuntime> It(Context.World());It;++It) {Runtime=*It;break;}
+    if(!TestNotNull(TEXT("Live native runtime exists"),Runtime)) return false;
+    const int32 DefaultIndex=Runtime->SceneIndex;
+    TestTrue(TEXT("Initial H-100 is a mechanism"),Runtime->IsMechanism());
+    Runtime->StartStepImport(Fixtures/TEXT("cube/source/cube-mm.step"));
+    TestTrue(TEXT("Real native converter process starts"),Runtime->ImportGeneration.bBusy);
+    const double Deadline=FPlatformTime::Seconds()+95.;
+    while(Runtime->ImportGeneration.bBusy&&FPlatformTime::Seconds()<Deadline)
+    {Runtime->PollStepImport();FPlatformProcess::Sleep(.02f);}
+    TestTrue(TEXT("Real cube conversion process commits"),Runtime->bImportedModule);
+    TestEqual(TEXT("Cube is one module"),Runtime->Nodes.Num(),1);
+    TestFalse(TEXT("Imported STEP has no H-100 mechanism"),Runtime->IsMechanism());
+    TestTrue(TEXT("Imported STEP keeps module camera gestures"),Runtime->IsModuleViewer());
+    TestFalse(TEXT("Static module has no H-100 Run action"),Runtime->Actions().ContainsByPredicate([](const FVirtualWorldAction& Action){return Action.Id==TEXT("run");}));
+    if(!Runtime->Nodes.Contains(TEXT("module"))) return false;
+    AVirtualWorldModel* Cube=Runtime->Nodes[TEXT("module")].Model;
+    TestTrue(TEXT("10 mm cube is 1 native centimetre"),FMath::Abs(Cube->GetComponentsBoundingBox(true).GetSize().X-1.)<.001);
+    const int32 ActorsBefore=Runtime->SpawnedActors.Num();
+    TestFalse(TEXT("Missing import cannot commit"),Runtime->CommitStepImport(Fixtures/TEXT("missing")));
+    TestTrue(TEXT("Failed import preserves exact current model"),Runtime->Nodes[TEXT("module")].Model==Cube);
+    TestEqual(TEXT("Failed import does not leak scene actors"),Runtime->SpawnedActors.Num(),ActorsBefore);
+    TestFalse(TEXT("Empty GLB is rejected by actual native geometry loading"),Runtime->CommitStepImport(Fixtures/TEXT("empty")));
+    TestTrue(TEXT("Native load failure preserves original actor and nonfatal state"),Runtime->Nodes[TEXT("module")].Model==Cube&&Runtime->FatalError.IsEmpty());
+    TestEqual(TEXT("Candidate actor released after native failure"),Runtime->SpawnedActors.Num(),ActorsBefore);
+    TestTrue(TEXT("Assembly replaces cube"),Runtime->CommitStepImport(Fixtures/TEXT("assembly")));
+    TestEqual(TEXT("Assembly remains one module"),Runtime->Nodes.Num(),1);
+    TArray<UStaticMeshComponent*> Parts;Runtime->Nodes[TEXT("module")].Model->GetComponents<UStaticMeshComponent>(Parts);
+    TestTrue(TEXT("Native assembly retains multiple actual mesh parts"),Parts.Num()>1);
+    TestFalse(TEXT("Old cube has been destroyed"),IsValid(Cube));
+    Runtime->Command(TEXT("scene:")+Runtime->SceneOrder[DefaultIndex]);
+    TestTrue(TEXT("Scene navigation remains available from a static import"),Runtime->IsMechanism());
+    TestTrue(TEXT("A new assembly may replace restored default"),Runtime->CommitStepImport(Fixtures/TEXT("assembly")));
+    Runtime->Command(TEXT("restore-module"));
+    TestEqual(TEXT("Restored original scene index"),Runtime->SceneIndex,DefaultIndex);
+    TestTrue(TEXT("Default mechanism controls restored"),Runtime->IsMechanism());
+    TestFalse(TEXT("Restore leaves no import in progress"),Runtime->ImportGeneration.bBusy);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldImportGenerationTest,"VirtualWorld.Import.CancelAndSceneIdentity",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ClientContext|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldImportGenerationTest::RunTest(const FString& Parameters)
+{
+    VW::FImportGeneration State;
+    const uint64 A=State.Begin(TEXT("joint"));
+    TestTrue(TEXT("Current import may commit"),State.CanCommit(A,TEXT("joint")));
+    TestFalse(TEXT("Another scene may never receive an import"),State.CanCommit(A,TEXT("prince")));
+    State.Cancel();
+    TestFalse(TEXT("Cancelled result cannot commit"),State.CanCommit(A,TEXT("joint")));
+    const uint64 B=State.Begin(TEXT("joint"));
+    TestFalse(TEXT("Older import cannot replace newer work"),State.CanCommit(A,TEXT("joint")));
+    TestTrue(TEXT("Newest import may commit"),State.CanCommit(B,TEXT("joint")));
+    return true;
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCoordinateTest,"VirtualWorld.Coordinates.MatchPinnedImporter",(EAutomationTestFlags::EditorContext|EAutomationTestFlags::ClientContext|EAutomationTestFlags::ServerContext|EAutomationTestFlags::CommandletContext|EAutomationTestFlags::ProgramContext)|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldCoordinateTest::RunTest(const FString& Parameters)
