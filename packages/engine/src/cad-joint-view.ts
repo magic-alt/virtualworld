@@ -198,7 +198,47 @@ export class CadJointView {
                 // Imported MASK/hashed materials must blend rather than discard the ghost surface.
                 m.alphaTest = 0;
                 m.alphaHash = false;
-                m.opacity = e.binding.inspectionOpacity!;
+                m.opacity =
+                  e.binding.inspectionWindowRadius === undefined ? e.binding.inspectionOpacity! : 1;
+                if (e.binding.inspectionWindowRadius !== undefined) {
+                  const localToCad = e.initial
+                    .clone()
+                    .multiply(e.object.matrixWorld.clone().invert())
+                    .multiply(object.matrixWorld);
+                  const matrix = localToCad.elements
+                    .map((v) => Number(v).toExponential(12))
+                    .join(',');
+                  const pivot = e.binding.pivot.map((v) => Number(v).toExponential(12)).join(',');
+                  const axis = e.binding.axis.map((v) => Number(v).toExponential(12)).join(',');
+                  const key = JSON.stringify([
+                    matrix,
+                    pivot,
+                    axis,
+                    e.binding.inspectionWindowRadius,
+                    e.binding.inspectionOpacity,
+                  ]);
+                  m.customProgramCacheKey = () => key;
+                  m.onBeforeCompile = (shader) => {
+                    shader.vertexShader = shader.vertexShader
+                      .replace(
+                        '#include <common>',
+                        '#include <common>\nvarying vec3 vwInspectionPosition;',
+                      )
+                      .replace(
+                        '#include <begin_vertex>',
+                        `#include <begin_vertex>\nvwInspectionPosition=(mat4(${matrix})*vec4(transformed,1.0)).xyz;`,
+                      );
+                    shader.fragmentShader = shader.fragmentShader
+                      .replace(
+                        '#include <common>',
+                        '#include <common>\nvarying vec3 vwInspectionPosition;',
+                      )
+                      .replace(
+                        '#include <alphamap_fragment>',
+                        `#include <alphamap_fragment>\nvec3 vwInspectionDelta=vwInspectionPosition-vec3(${pivot});\nfloat vwInspectionRadius=length(vwInspectionDelta-dot(vwInspectionDelta,vec3(${axis}))*vec3(${axis}));\ndiffuseColor.a *= mix(${e.binding.inspectionOpacity}, 1.0, step(${Number(e.binding.inspectionWindowRadius).toExponential(12)},vwInspectionRadius));`,
+                      );
+                  };
+                }
                 m.depthWrite = false;
                 return m;
               },

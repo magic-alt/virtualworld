@@ -162,6 +162,23 @@ also verifies actor clips, hierarchy references, campaign dependencies and
 harmonic target names. Missing render meshes, animation bindings, morph pairs or
 import errors produce a persistent HUD error and a native log entry.
 
+## Central harmonic inspection
+
+A CAD binding may specify `inspectionWindowRadius` in original CAD metres together
+with `inspectionOpacity`. Its pivot/axis define a coaxial center window. Native
+inspection partitions display surfaces with a64-sided prism, retains the opaque
+rim with its source materials and ghosts only the center. This adds no caps and
+changes no source mesh or physical transmission. Fragments are aggregated by
+source material so section compaction cannot recolor the rim. Display copies are
+built once per inspection entry, follow the actual moving component, and are
+released on full-assembly restoration. The browser uses a radial alpha mask in
+transient clones. The source CAD and materials remain unchanged.
+
+The local real-joint profile uses a19mm radius on three documented occluders,
+retains the circular spline entirely opaque, and authors202RPM as its motor
+setpoint. Fixed flexspline with101:1 circular output produces+2RPM. These are local
+profile values; legacy unconfigured scenes keep their authored/default behavior.
+
 ## Standalone applications and Windows builds
 
 Package on the target platform with the installed UE5.8 C++ toolchain. The helper

@@ -522,3 +522,37 @@ it('ghosts only selected occluder materials, retains complete geometry and resto
   expect(original[0].alphaTest).toBe(0.5);
   expect(original[1].alphaHash).toBe(true);
 });
+
+it('validates a central inspection window and keeps the rim opaque in the transient shader', () => {
+  const binding = { ...inputBinding(1), inspectionOpacity: 0.18, inspectionWindowRadius: 0.02 };
+  expect(CadMechanismSchema.safeParse(inspectionConfig([binding])).success).toBe(true);
+  for (const radius of [0, -1, Infinity, NaN])
+    expect(
+      CadMechanismSchema.safeParse(
+        inspectionConfig([{ ...binding, inspectionWindowRadius: radius }]),
+      ).success,
+    ).toBe(false);
+  expect(
+    CadMechanismSchema.safeParse(
+      inspectionConfig([{ ...inputBinding(1), inspectionWindowRadius: 0.02 }]),
+    ).success,
+  ).toBe(false);
+  const { model, parent } = nestedCad();
+  const original = parent.material;
+  const view = new CadJointView(model, inspectionConfig([binding]), new T.Group());
+  view.update(0.2, 0, true);
+  const material = parent.material as T.Material;
+  expect(material.opacity).toBe(1);
+  const shader = {
+    vertexShader: '#include <common>\n#include <begin_vertex>',
+    fragmentShader: '#include <common>\n#include <alphamap_fragment>',
+    uniforms: {},
+  };
+  material.onBeforeCompile(shader as T.WebGLProgramParametersWithUniforms, {} as T.WebGLRenderer);
+  expect(shader.fragmentShader).toContain('vwInspectionRadius');
+  expect(shader.fragmentShader).toContain('mix(0.18, 1.0');
+  expect(shader.vertexShader).toContain('vwInspectionPosition');
+  view.update(0.4, 0, false);
+  expect(parent.material).toBe(original);
+  view.dispose();
+});

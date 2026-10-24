@@ -1,5 +1,6 @@
 #if WITH_DEV_AUTOMATION_TESTS
 #include "VirtualWorldRuntime.h"
+#include "VirtualWorldCadWindow.h"
 #include "VirtualWorldModel.h"
 #include "Components/PrimitiveComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -247,6 +248,28 @@ bool FVirtualWorldCadJointSectionVisibilityTest::RunTest(const FString& Paramete
     R->ApplyVisibility();TestTrue(TEXT("Material instance reused without per-frame allocation"),Original->GetMaterial(0)==Ghost);
     R->bSection=false;R->ApplyVisibility();TestTrue(TEXT("Leaving inspection restores source material and shadow"),Original->GetMaterial(0)==SourceMaterial&&Original->CastShadow==SourceShadow);
     R->bSection=true;R->ApplyVisibility();R->ReleaseCadSections();TestTrue(TEXT("Scene disposal restores retained source material"),Original->GetMaterial(0)==SourceMaterial);
+    Transparent.Data->SetNumberField(TEXT("inspectionWindowRadius"),.02);R->bSection=true;R->ApplyVisibility();
+    auto* Radial=Transparent.InspectionMesh;
+    if(TestNotNull(TEXT("Central-only transparency has a cached display partition"),Radial))
+    {
+        double OpaqueArea=0,GhostArea=0;
+        for(int S=0;S<Radial->GetNumSections();++S)if(const auto* Part=Radial->GetProcMeshSection(S))
+        {
+            const bool Translucent=Radial->GetMaterial(S)->GetBlendMode()==BLEND_Translucent;
+            for(int I=0;I+2<Part->ProcIndexBuffer.Num();I+=3)
+            {
+                FVector P[3];for(int J=0;J<3;++J)P[J]=Radial->GetComponentTransform().TransformPosition(Part->ProcVertexBuffer[Part->ProcIndexBuffer[I+J]].Position);
+                const double Area=FVector::CrossProduct(P[1]-P[0],P[2]-P[0]).Size()*.5;
+                if(Translucent){GhostArea+=Area;for(const auto& V:P){const FVector CAD=VW::SourcePosition(R->CadModelRoot->GetComponentTransform().InverseTransformPosition(V));TestTrue(TEXT("Ghost vertices stay inside central window"),CAD.Size2D()<=.02/FMath::Cos(PI/64)+1e-5);}}
+                else OpaqueArea+=Area;
+            }
+        }
+        TestTrue(TEXT("Opaque rim and transparent center both retained"),OpaqueArea>500&&GhostArea>0);
+        TestTrue(TEXT("Partition retains all original cube surface area without caps or overlap"),FMath::IsNearlyEqual(OpaqueArea+GhostArea,600.,.05));
+        const auto Revision=Transparent.InspectionRevision;R->ApplyVisibility();TestTrue(TEXT("No partition rebuilding on unchanged inspection"),Transparent.InspectionMesh==Radial&&Transparent.InspectionRevision==Revision);
+        Original->AddLocalRotation(FRotator(0,20,0));TestTrue(TEXT("Display partition follows actual moving part"),Radial->GetAttachParent()==Original);
+    }
+    R->bSection=false;R->ApplyVisibility();TestNull(TEXT("Central display disposed on full assembly"),Transparent.InspectionMesh);TestTrue(TEXT("Opaque source and material restored"),Original->IsVisible()&&Original->GetMaterial(0)==SourceMaterial&&Original->GetStaticMesh()==SourceMesh);
     World->DestroyWorld(false);return true;
 }
 
@@ -370,7 +393,21 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
                 if(Omitted){TestNull(Name+TEXT(" omitted internals have no cut mesh"),Entry.InspectionMesh);TestNull(Name+TEXT(" omitted internals have no motion marker"),Entry.Marker);}
                 if(VW::Bool(B,TEXT("inspectionCut"))&&!VW::Bool(B,TEXT("inspectionHidden"))&&!Omitted)TestNotNull(Name+TEXT(" selected occluder is actually cut"),Entry.InspectionMesh);
                 double Opacity=0;if(B->TryGetNumberField(TEXT("inspectionOpacity"),Opacity)&&!Omitted&&!VW::Bool(B,TEXT("inspectionHidden")))
-                {auto* Ghost=Cast<UMaterialInstanceDynamic>(Entry.Component->GetMaterial(0));if(TestNotNull(Name+TEXT(" real reducer transparency"),Ghost)){FLinearColor Color;Ghost->GetVectorParameterValue(FMaterialParameterInfo(TEXT("baseColorFactor")),Color);TestTrue(Name+TEXT(" real reducer has translucent blend and authored opacity"),Ghost->GetBlendMode()==BLEND_Translucent&&FMath::IsNearlyEqual(double(Color.A),Opacity,1e-6));}TestNull(Name+TEXT(" real transparent body remains complete"),Entry.InspectionMesh);}
+                {
+                    if(B->HasField(TEXT("inspectionWindowRadius")))
+                    {
+                        if(TestNotNull(Name+TEXT(" real central-only inspection copy"),Entry.InspectionMesh))
+                        {
+                            bool Opaque=false,Center=false;for(int S=0;S<Entry.InspectionMesh->GetNumSections();++S)if(auto* Material=Entry.InspectionMesh->GetMaterial(S))
+                            {
+                                if(Material->GetBlendMode()==BLEND_Translucent){Center=true;FLinearColor Color;Material->GetVectorParameterValue(FMaterialParameterInfo(TEXT("baseColorFactor")),Color);TestTrue(Name+TEXT(" central region keeps authored opacity"),FMath::IsNearlyEqual(double(Color.A),Opacity,1e-6));}
+                                else Opaque=true;
+                            }
+                            TestTrue(Name+TEXT(" real cover retains opaque rim and translucent center"),Opaque&&Center);TestTrue(Name+TEXT(" real cover display follows source motion"),Entry.InspectionMesh->GetAttachParent()==Entry.Component);
+                        }
+                    }
+                    else {auto* Ghost=Cast<UMaterialInstanceDynamic>(Entry.Component->GetMaterial(0));if(TestNotNull(Name+TEXT(" real reducer transparency"),Ghost)){FLinearColor Color;Ghost->GetVectorParameterValue(FMaterialParameterInfo(TEXT("baseColorFactor")),Color);TestTrue(Name+TEXT(" real reducer has translucent blend and authored opacity"),Ghost->GetBlendMode()==BLEND_Translucent&&FMath::IsNearlyEqual(double(Color.A),Opacity,1e-6));}TestNull(Name+TEXT(" real transparent body remains complete"),Entry.InspectionMesh);}
+                }
                 const double Factor=Role==TEXT("output")?Factors.output:Role==TEXT("flexspline")?Factors.flex:Role==TEXT("circular-spline")?Factors.circular:Role==TEXT("input")?1:0;
                 if(Factor!=0)
                 {
@@ -468,6 +505,25 @@ bool FVirtualWorldCadJointWorkBudgetTest::RunTest(const FString& Parameters)
     const FString Directory=FPaths::ProjectSavedDir()/TEXT("Automation/CadJointPerformance");IFileManager::Get().MakeDirectory(*Directory,true);
     FFileHelper::SaveStringToFile(VW::Serialize(Report),*(Directory/Label+TEXT(".json")),FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
     return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadWindowMaterialTest,"VirtualWorld.CadJoint.CentralWindowMaterialSlots",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldCadWindowMaterialTest::RunTest(const FString& Parameters)
+{
+    UWorld* World=UWorld::CreateWorld(EWorldType::Game,false);auto* R=World->SpawnActor<AVirtualWorldRuntime>();
+    auto* Inside=NewObject<UProceduralMeshComponent>(R);R->AddInstanceComponent(Inside);Inside->SetupAttachment(R->GetRootComponent());Inside->RegisterComponent();
+    auto* Base=LoadObject<UMaterialInterface>(nullptr,TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+    for(int S=0;S<2;++S)
+    {
+        const double Size=S==0?.001:.04,Z=S*.001;TArray<FVector> Vertices;
+        for(FVector P:{FVector(-Size,-Size,Z),FVector(Size,-Size,Z),FVector(Size,Size,Z),FVector(-Size,Size,Z)})Vertices.Add(VW::Position(P));
+        Inside->CreateMeshSection_LinearColor(S,Vertices,{0,1,2,0,2,3},{},{},{},{},false);Inside->SetMaterial(S,UMaterialInstanceDynamic::Create(Base,R));
+    }
+    TArray<FProcMeshSection> Outside;VWPartitionCadWindow(Inside,FTransform::Identity,FVector(0,0,1),FVector::ZeroVector,.019,Outside);
+    TestTrue(TEXT("Wholly central first material contributes no opaque rim fragments"),Outside[0].ProcIndexBuffer.IsEmpty());
+    TestTrue(TEXT("Second material retains its rim despite compacted Other sections"),Outside[1].ProcIndexBuffer.Num()>0);
+    for(const auto& V:Outside[1].ProcVertexBuffer)TestTrue(TEXT("Opaque second-slot vertices keep original CAD plane"),FMath::IsNearlyEqual(VW::SourcePosition(V.Position).Z,.001,1e-7));
+    World->DestroyWorld(false);return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldInspectionPointerTest,"VirtualWorld.CadJoint.InspectionPointerRouting",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)

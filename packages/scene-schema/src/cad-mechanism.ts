@@ -97,6 +97,8 @@ const BindingSchema = z
     inspectionCut: z.boolean().optional(),
     /** Selected-part inspection transparency; source materials and whole surfaces remain intact. */
     inspectionOpacity: z.number().finite().gt(0).lt(1).optional(),
+    /** Coaxial central transparency window, radius in original CAD metres; opaque rim retained. */
+    inspectionWindowRadius: positive.optional(),
     /** Omit display details in every view without changing the retained source CAD. */
     displayHidden: z.boolean().optional(),
     group: z.string().min(1).max(200).optional(),
@@ -197,6 +199,8 @@ export function validateCadMechanism(
         code: 'custom',
         message: 'Inspection opacity and cutting cannot target the same body',
       });
+    if (binding.inspectionWindowRadius !== undefined && binding.inspectionOpacity === undefined)
+      ctx.addIssue({ code: 'custom', message: 'Inspection window requires inspection opacity' });
     if (binding.bearingId && !bearings.has(binding.bearingId))
       ctx.addIssue({ code: 'custom', message: `Missing bearing: ${binding.bearingId}` });
     if (['ball', 'inner-race', 'outer-race'].includes(binding.role) && !binding.bearingId)

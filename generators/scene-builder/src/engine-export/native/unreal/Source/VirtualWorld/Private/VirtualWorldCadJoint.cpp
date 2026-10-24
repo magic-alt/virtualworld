@@ -70,6 +70,7 @@ bool AVirtualWorldRuntime::BindCadJoint()
         if(VW::Array(Binding,TEXT("pivot")).Num()!=3||VW::Vector(Binding,TEXT("pivot")).ContainsNaN()||VW::Vector(Binding,TEXT("center")).ContainsNaN())return Fail(TEXT("Invalid CAD SI pivot/center."));
         double Opacity;
         if(Binding->TryGetNumberField(TEXT("inspectionOpacity"),Opacity)&&(!FMath::IsFinite(Opacity)||Opacity<=0||Opacity>=1||VW::Bool(Binding,TEXT("inspectionCut"))))return Fail(TEXT("Invalid or ambiguous CAD inspection opacity."));
+        double Radius;if(Binding->TryGetNumberField(TEXT("inspectionWindowRadius"),Radius)&&(!FMath::IsFinite(Radius)||Radius<=0||!Binding->HasField(TEXT("inspectionOpacity"))))return Fail(TEXT("Central inspection window requires positive SI radius and opacity."));
         if(!VW::Vector(Binding,TEXT("axis")).IsUnit(1e-6)) return Fail(TEXT("CAD axis must have unit length."));
         if(Role==TEXT("ball")&&VW::Array(Binding,TEXT("center")).Num()!=3) return Fail(TEXT("A ball requires its measured center; motion was not guessed."));
         if(Role==TEXT("ball")||Role==TEXT("inner-race")||Role==TEXT("outer-race"))
@@ -235,6 +236,7 @@ void AVirtualWorldRuntime::UpdateCadTransparency()
                 Entry.TransparentInspectionMaterials.Emplace(Ghost);
             }
         }
+        double Radius;if(Entry.Data->TryGetNumberField(TEXT("inspectionWindowRadius"),Radius)){BuildCadTransparencyWindow(Entry,Radius);continue;}
         for(int I=0;I<Entry.TransparentInspectionMaterials.Num();++I)Entry.Component->SetMaterial(I,Entry.TransparentInspectionMaterials[I].Get());
         Entry.Component->SetCastShadow(false);
     }

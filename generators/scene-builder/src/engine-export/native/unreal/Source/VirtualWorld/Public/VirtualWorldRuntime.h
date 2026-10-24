@@ -100,6 +100,7 @@ private:
     VWJoint::Transmission CadTransmission() const;
     void UpdateCadSections();
     void UpdateCadTransparency();
+    bool BuildCadTransparencyWindow(FVirtualWorldCadBinding& Entry,double Radius);
     void ReleaseCadSections();
     void SelectCadSectionCamera();
     void BuildCadPrinciple();
