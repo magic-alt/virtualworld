@@ -251,6 +251,11 @@ bool FVirtualWorldCadJointInspectionTest::RunTest(const FString& Parameters)
     R->Command(TEXT("speed-down"));R->Command(TEXT("reset"));
     TestEqual(TEXT("Native reset restores 6 RPM setpoint"),R->Rpm,6.f);TestEqual(TEXT("Native reset restores real-time clock"),R->JointTimeScale,1.);TestFalse(TEXT("Native reset clears running intent"),R->bRunning);
     TestTrue(TEXT("Solver and cached installation/power flags agree"),R->JointDynamics->snapshot().installed==R->bBrakeInstalled&&R->JointDynamics->snapshot().powered==R->bBrakePowered);
+    R->Mechanism->SetNumberField(TEXT("defaultRpm"),1000);R->Command(TEXT("reset"));
+    TestEqual(TEXT("Authored default restores1000 RPM after reset"),R->Rpm,1000.f);TestEqual(TEXT("Solver receives1000 RPM default"),R->JointDynamics->snapshot().targetRpm,1000.);
+    R->Command(TEXT("run"));R->JointDynamics->tick(2);TestTrue(TEXT("Motor reaches1000 RPM on physical clock"),FMath::IsNearlyEqual(R->JointDynamics->snapshot().omega*30/VWJoint::Pi,1000.,1e-6));
+    R->Command(TEXT("speed-up"));TestEqual(TEXT("Speed control does not clamp1000 RPM back to30"),R->Rpm,1001.f);
+    R->Command(TEXT("reset"));TestEqual(TEXT("Reset retains user default and real-time clock"),R->Rpm,1000.f);TestEqual(TEXT("Reset keeps realtime clock"),R->JointTimeScale,1.);
     World->DestroyWorld(false);return true;
 }
 
@@ -279,6 +284,7 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
     AVirtualWorldRuntime* R=nullptr;
     for(const FWorldContext& Context:GEngine->GetWorldContexts())if(Context.World()&&Context.World()->IsGameWorld())for(TActorIterator<AVirtualWorldRuntime> It(Context.World());It;++It)if(It->JointDynamics)R=*It;
     if(!TestNotNull(TEXT("Active real CAD scene required for rendered component evidence"),R))return false;
+    TestTrue(TEXT("Fresh scene load uses its authored motor default"),FMath::IsNearlyEqual(double(R->Rpm),VW::Number(R->Mechanism,TEXT("defaultRpm"),6),1e-6));
     const TSharedPtr<VWJoint::Dynamics> Saved=MakeShared<VWJoint::Dynamics>(*R->JointDynamics);const FVector SavedTarget=R->CameraTarget,SavedOffset=R->CameraOffset,SavedUp=R->CameraUp;const float SavedRpm=R->Rpm;
     const bool Paused=R->bPaused,Markers=R->bRollingMarkers,Section=R->bSection,Principle=R->bPrinciple;const double Offset=R->KinematicOffset;
     R->bPaused=true;R->bRollingMarkers=true;R->bSection=true;R->bPrinciple=false;R->KinematicOffset=0;R->JointDynamics->reset();R->JointDynamics->setRpm(30);R->Rpm=30;R->JointDynamics->start();

@@ -135,6 +135,7 @@ it('accepts an explicit motor window and disabled markers without inventing meas
   const config = {
     ...inspectionConfig(),
     motionMarkers: false,
+    defaultRpm: 1000,
     inspectionCutaway: 'quarter-window',
     gear: {
       status: 'user-specified',

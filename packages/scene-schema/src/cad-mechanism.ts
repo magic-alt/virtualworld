@@ -130,6 +130,7 @@ export const CadMechanismObjectSchema = z
     sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
     modelSha256: z.string().regex(/^[a-f0-9]{64}$/),
     motionMarkers: z.boolean().optional(),
+    defaultRpm: z.number().finite().min(-100000).max(100000).optional(),
     inspectionCutaway: z.enum(['half', 'quarter-window']).optional(),
     principle: z
       .object({

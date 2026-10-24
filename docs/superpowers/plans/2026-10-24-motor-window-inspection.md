@@ -40,3 +40,11 @@
 - [x] Install validated private profile: cuts0/258 only; no markers; uncut bearings/reducer; user-specified fixed member. Verify immutable source and final GLB hashes.
 - [x] Full software/check/build/format, affected CAD browser and actual native automation; ordinary UE window inspection/motion/brake verification.
 - [x] Fresh final review, resolve important findings, record evidence and limitations, commit/push to existing PR19.
+
+### Task3: User-specified default1000RPM
+
+User explicitly requests1000RPM default; persist as SceneSpec.mechanism.defaultRpm, initialize and reset both solver/setpoint from it, keep clock1x and101output. Preserve legacy6 when absent; extend CAD presentation speed controls consistently to twice the configured default (minimum30, numerical maximum100000), not a claimed rated capability.
+
+- [x] Web/default schema RED→GREEN, native reset/freshload/limits RED.
+- [x] GREEN native build/fullautomation and ordinary window1000RPM/9.90099RPM, reset/reopen.
+- [x] Record final evidence and independent review; commit/push to existing PR19.

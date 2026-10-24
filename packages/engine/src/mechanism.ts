@@ -52,11 +52,14 @@ export class MechanismController {
       hasBrake: boolean;
       dynamics?: JointDynamicsConfig;
       gear?: CadMechanism['gear'];
+      defaultRpm?: number;
     },
   ) {
     this.installed = config.hasBrake;
     if (config.kind === 'cad-joint') {
+      this.speed = config.defaultRpm ?? 6;
       this.dynamics = new JointDynamics(config.dynamics);
+      this.dynamics.setRpm(this.speed);
       this.dynamics.setInstalled(config.hasBrake);
     }
   }
@@ -132,7 +135,10 @@ export class MechanismController {
   }
   setSpeed(rpm: number) {
     if (Number.isFinite(rpm)) {
-      this.speed = Math.max(-30, Math.min(30, rpm));
+      const limit = this.dynamics
+        ? Math.min(100000, Math.max(30, Math.abs(this.config.defaultRpm ?? 6) * 2))
+        : 30;
+      this.speed = Math.max(-limit, Math.min(limit, rpm));
       this.dynamics?.setRpm(this.speed);
       this.emit();
     }
@@ -154,7 +160,8 @@ export class MechanismController {
     this.angle = 0;
     if (this.dynamics) {
       this.dynamics.reset();
-      this.speed = 6;
+      this.speed = this.config.defaultRpm ?? 6;
+      this.dynamics.setRpm(this.speed);
       this.timeScale = 1;
     }
     this.moving = false;

@@ -119,9 +119,22 @@ export function mountMechanismControls(
   const back = button('输入 −15°', () => runtime.stepMechanism(-Math.PI / 12), transport);
   const forward = button('输入 +15°', () => runtime.stepMechanism(Math.PI / 12), transport);
   const rpm = input('输入 RPM', 'range');
-  Object.assign(rpm, { min: '-30', max: '30', step: '1', value: '6' });
+  const defaultRpm = m.kind === 'cad-joint' ? (m.defaultRpm ?? 6) : 6;
+  const rpmLimit =
+    m.kind === 'cad-joint' ? Math.min(100000, Math.max(30, Math.abs(defaultRpm) * 2)) : 30;
+  Object.assign(rpm, {
+    min: String(-rpmLimit),
+    max: String(rpmLimit),
+    step: '1',
+    value: String(defaultRpm),
+  });
   const number = input('输入转速数值', 'number');
-  Object.assign(number, { min: '-30', max: '30', step: '1', value: '6' });
+  Object.assign(number, {
+    min: String(-rpmLimit),
+    max: String(rpmLimit),
+    step: '1',
+    value: String(defaultRpm),
+  });
   rpm.addEventListener('input', () => runtime.setTransmissionSpeed(Number(rpm.value)), {
     signal: listeners.signal,
   });

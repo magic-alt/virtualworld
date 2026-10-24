@@ -1,6 +1,37 @@
 import { expect, it } from 'vitest';
 import { MechanismController } from '../../packages/engine/src/mechanism';
 import { DEMO_JOINT_DYNAMICS } from '@virtualworld/engine/joint-dynamics';
+it('starts and resets the authored 1000 RPM motor default while retaining 101 reduction and usable speed controls', () => {
+  const c = new MechanismController({
+    kind: 'cad-joint',
+    hasBrake: true,
+    defaultRpm: 1000,
+    dynamics: DEMO_JOINT_DYNAMICS,
+    gear: {
+      status: 'user-specified',
+      reductionRatio: 101,
+      fixedMember: 'flexspline',
+      evidence: 'User configuration',
+    },
+  });
+  expect(c.snapshot()).toMatchObject({ inputRpm: 1000, actualInputRpm: 0, timeScale: 1 });
+  expect(c.snapshot().dynamics?.targetRpm).toBe(1000);
+  c.setMoving(true);
+  c.tick(2, false);
+  expect(c.snapshot().actualInputRpm).toBeCloseTo(1000, 8);
+  expect(c.snapshot().actualOutputRpm).toBeCloseTo(1000 / 101, 8);
+  c.setSpeed(1001);
+  expect(c.snapshot().inputRpm).toBe(1001);
+  c.setTimeScale(0.1);
+  c.resetMotion();
+  expect(c.snapshot()).toMatchObject({
+    inputRpm: 1000,
+    actualInputRpm: 0,
+    moving: false,
+    timeScale: 1,
+  });
+  expect(c.snapshot().dynamics?.targetRpm).toBe(1000);
+});
 it('reports actual user-stated output speed and signed 101-turn motion without asserting measured teeth', () => {
   const gear = {
     status: 'user-specified' as const,

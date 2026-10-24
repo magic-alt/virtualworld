@@ -83,7 +83,9 @@ bool AVirtualWorldRuntime::BindCadJoint()
         const double Nf=VW::Number(Gear,TEXT("flexTeeth")),Nc=VW::Number(Gear,TEXT("ringTeeth"));
         if(!FMath::IsFinite(Nf)||!FMath::IsFinite(Nc)||Nf<=0||Nc<=Nf||!VW::Bool(Gear,TEXT("fixedRing")))return Fail(TEXT("Invalid legacy evidenced fixed-ring transmission."));
     }
-    JointDynamics=MakeUnique<VWJoint::Dynamics>(C);JointDynamics->setRpm(Rpm);
+    const double DefaultRpm=VW::Number(Mechanism,TEXT("defaultRpm"),6);
+    if(!FMath::IsFinite(DefaultRpm)||FMath::Abs(DefaultRpm)>100000)return Fail(TEXT("Invalid default motor RPM."));
+    Rpm=DefaultRpm;JointDynamics=MakeUnique<VWJoint::Dynamics>(C);JointDynamics->setRpm(Rpm);
     bHasBrake=bBrakeInstalled=bBrakePowered=true;
     // Optional child markers leave every imported material unchanged.
     UStaticMesh* Sphere=LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Sphere.Sphere"));
