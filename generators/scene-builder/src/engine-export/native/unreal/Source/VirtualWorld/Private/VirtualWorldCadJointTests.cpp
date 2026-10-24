@@ -115,7 +115,7 @@ bool FVirtualWorldCadJointSectionTest::RunTest(const FString& Parameters)
     R->CadModelRoot->SetWorldTransform(FTransform(FRotator(10,20,30),FVector(20,30,40),FVector(1.2,.8,1.1)));
     auto* Original=NewObject<UStaticMeshComponent>(R);R->AddInstanceComponent(Original);Original->SetupAttachment(R->CadModelRoot);Original->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube")));Original->RegisterComponent();Original->SetRelativeScale3D(FVector(.1));
     FVirtualWorldCadBinding B;B.Component=Original;B.Original=Original->GetRelativeTransform();VW::Parse(TEXT(R"({"role":"output","axis":[0,0,1],"pivot":[0,0,0],"inspectionCut":true})"),B.Data);R->CadBindings.Add(B);
-    const auto* SourceMesh=Original->GetStaticMesh();const FBoxSphereBounds SourceBounds=Original->Bounds;auto* Material=Original->GetMaterial(0);
+    const UStaticMesh* SourceMesh=Original->GetStaticMesh();const FBoxSphereBounds SourceBounds=Original->Bounds;auto* Material=Original->GetMaterial(0);
     R->Camera=World->SpawnActor<ACameraActor>();const FVector CameraBefore=R->CameraOffset;R->Command(TEXT("section"));
     auto& Binding=R->CadBindings[0];if(!TestNotNull(TEXT("Section uses derived procedural geometry"),Binding.InspectionMesh)){World->DestroyWorld(false);return false;}
     auto* Derived=Binding.InspectionMesh;TestFalse(TEXT("Original hidden while display copy is cut"),Original->IsVisible());TestTrue(TEXT("Cut display visible"),Derived->IsVisible());
@@ -123,7 +123,7 @@ bool FVirtualWorldCadJointSectionTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("Section entry selects near-longitudinal model camera"),R->CameraOffset.GetSafeNormal().Equals(ExpectedCamera,1e-7));
     TestTrue(TEXT("Section up follows model CAD Z"),R->CameraUp.Equals(R->CadModelRoot->GetComponentTransform().TransformVectorNoScale(VW::Position(FVector(0,0,1))).GetSafeNormal(),1e-7));
     TestTrue(TEXT("Cut changes actual display bounds"),Derived->Bounds.BoxExtent.Size()<SourceBounds.BoxExtent.Size());
-    for(double Input:{0.,101*PI/3,-101*PI/4})
+    for(double Input:{0.,101.*VWJoint::Pi/3.,-101.*VWJoint::Pi/4.})
     {
         R->KinematicOffset=Input;R->ApplyCadJoint();int32 CapTriangles=0,Vertices=0;
         for(int32 S=0;S<Derived->GetNumSections();++S)if(const auto* Section=Derived->GetProcMeshSection(S))

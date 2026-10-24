@@ -107,7 +107,7 @@ bool AVirtualWorldRuntime::BindCadJoint()
         {
             // Pick an actual final-GLB surface vertex. World AABBs inflate under model rotation.
             double Furthest=-TNumericLimits<double>::Max();bool Found=false;
-            if(const auto* Static=Cast<UStaticMeshComponent>(Entry.Component))if(const auto* Mesh=Static->GetStaticMesh())if(const auto* Render=Mesh->GetRenderData())if(!Render->LODResources.IsEmpty())
+            if(const auto* Static=Cast<UStaticMeshComponent>(Entry.Component))if(const UStaticMesh* Mesh=Static->GetStaticMesh())if(const auto* Render=Mesh->GetRenderData())if(!Render->LODResources.IsEmpty())
             {
                 const auto& Positions=Render->LODResources[0].VertexBuffers.PositionVertexBuffer;
                 for(uint32 I=0;I<Positions.GetNumVertices();++I)
@@ -189,7 +189,7 @@ void AVirtualWorldRuntime::UpdateCadSections()
     {
         if(!VW::Bool(Entry.Data,TEXT("inspectionCut"))||VW::Bool(Entry.Data,TEXT("inspectionHidden")))continue;
         auto* Source=Cast<UStaticMeshComponent>(Entry.Component);if(!Source||!Source->GetStaticMesh())continue;
-        auto* Mesh=Source->GetStaticMesh();const auto* RenderData=Mesh->GetRenderData();
+        UStaticMesh* Mesh=Source->GetStaticMesh();const auto* RenderData=Mesh->GetRenderData();
         if(!RenderData||RenderData->LODResources.IsEmpty()||RenderData->LODResources[0].VertexBuffers.PositionVertexBuffer.GetNumVertices()==0)
         {Notice=TEXT("Inspection warning: a selected mesh has no CPU LOD0 geometry; its original remains visible.");continue;}
         const FTransform Pose=Source->GetComponentTransform().GetRelativeTransform(ModelWorld);
