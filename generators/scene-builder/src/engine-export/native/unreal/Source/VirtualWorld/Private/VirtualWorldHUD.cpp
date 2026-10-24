@@ -2,9 +2,14 @@
 #include "Components/SceneComponent.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
+#include "Engine/Font.h"
 #include "EngineUtils.h"
+#include "Fonts/CompositeFont.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/FileManager.h"
 #include "InputCoreTypes.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 
 TArray<FString> AVirtualWorldRuntime::StatusLines() const
 {
@@ -12,7 +17,9 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
     if(!FatalError.IsEmpty()) {Lines.Add(TEXT("Cannot load this native scene"));Lines.Add(FatalError);Lines.Add(TEXT("See Saved/Logs/VirtualWorld.log and README-Unreal.md."));return Lines;}
     if(!Metadata) {Lines.Add(TEXT("Loading canonical scene assets..."));return Lines;}
     Lines.Add(VW::String(Metadata,TEXT("name")));
-    Lines.Add(TEXT("Right drag / arrows: orbit. Middle drag: pan. Wheel: zoom."));
+    Lines.Add(IsModuleViewer()?TEXT("Left/right drag: orbit. Middle drag: pan. Wheel: zoom. Home: reset view. F9: screenshot."):TEXT("Right drag / arrows: orbit. Wheel: zoom. Home: reset view. F9: screenshot."));
+    Lines.Add(IsModuleViewer()?TEXT("\u5de6/\u53f3\u952e\u62d6\u52a8\u65cb\u8f6c | \u4e2d\u952e\u62d6\u52a8\u5e73\u79fb | \u6eda\u8f6e\u7f29\u653e | Home \u590d\u4f4d | F9 \u622a\u56fe"):TEXT("\u53f3\u952e\u62d6\u52a8/\u65b9\u5411\u952e\u65cb\u8f6c | \u6eda\u8f6e\u7f29\u653e | Home \u89c6\u89d2\u590d\u4f4d | F9 \u622a\u56fe"));
+    if(bImportedModule) Lines.Add(TEXT("Static STEP assembly | \u9759\u6001\u6a21\u7ec4 | \u6bcf\u6b21\u4ec5\u663e\u793a\u4e00\u4e2a\u6a21\u7ec4"));
     if(Mechanism)
     {
         if(JointDynamics)
@@ -53,15 +60,16 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
         Lines.Add(FString::Printf(TEXT("Angle %.2f rad | Output %.3f rad"),InputAngle,State.Output));
         Lines.Add(FString::Printf(TEXT("WaveCos %+.3f | WaveSin %+.3f | Explode %.0f%%"),State.Cos,State.Sin,Explosion*100));
         Lines.Add(bBrakeInstalled?(bBrakePowered?TEXT("Brake installed / powered / released"):TEXT("Brake installed / power off / LOCKED")):TEXT("Brake not installed"));
-        Lines.Add(TEXT("Space run | +/- rpm | [ ] step | C section | X explode"));
+        Lines.Add(TEXT("Space run / \u8fd0\u884c | +/- rpm | [ ] step / \u6b65\u8fdb"));
+        Lines.Add(TEXT("C section / \u5256\u5207 | X explode / \u7206\u70b8\u56fe"));
         Lines.Add(TEXT("B brake power | I install brake | Q/F roll | R zero"));
         Lines.Add(VW::String(Mechanism,TEXT("referenceNotes")));
         }
     }
     else if(PlayerRoot)
     {
-        Lines.Add(TEXT("WASD move | E interact | 1-0 choice | Tab chapter"));
-        Lines.Add(TEXT("Surface walking only; jumping is unavailable in this adapter."));
+        Lines.Add(TEXT("WASD move / \u79fb\u52a8 | Space jump / \u8df3\u8dc3"));
+        Lines.Add(TEXT("E interact / \u4ea4\u4e92 | 1-0 choice / \u9009\u62e9 | Tab chapter"));
         Lines.Add(TEXT("P pause | R reset campaign | Escape close dialogue"));
         const FVirtualWorldProgress* State=Progress.Find(SceneOrder[SceneIndex]);
         if(State)
@@ -94,11 +102,21 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
 TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
 {
     TArray<FVirtualWorldAction> Result;
-    Result.Add({TEXT("import-cad"),TEXT("Import STEP / STP [O]"),!CadProcess.IsValid()});
-    if(CadProcess.IsValid()) Result.Add({TEXT("cancel-import"),TEXT("Cancel import"),true});
+    Result.Add({TEXT("import-cad"),TEXT("Import STEP / STP [O]"),!CadProcess.IsValid()&&!ImportGeneration.bBusy});
+    if(CadProcess.IsValid()||ImportGeneration.bBusy) Result.Add({TEXT("cancel-import"),TEXT("Cancel import"),true});
     if(!FatalError.IsEmpty()||!Metadata) return Result;
-    Result.Add({TEXT("pause"),bPaused?TEXT("Resume [P]"):TEXT("Pause [P]"),true});
-    Result.Add({TEXT("reset"),Mechanism?TEXT("Zero input [R]"):(PlayerRoot?TEXT("Reset campaign [R]"):TEXT("Frame model [R]")),true});
+    if(IsModuleViewer())
+    {
+        Result.Add({TEXT("import-step"),TEXT("\u5bfc\u5165 STEP / STP"),!ImportGeneration.bBusy&&!CadProcess.IsValid()});
+        Result.Add({TEXT("restore-module"),TEXT("\u6062\u590d H-100"),true});
+    }
+    if(!bImportedModule)
+    {
+        Result.Add({TEXT("pause"),bPaused?TEXT("Resume [P]"):TEXT("Pause [P]"),true});
+        Result.Add({TEXT("reset"),Mechanism?TEXT("Zero input [R]"):(PlayerRoot?TEXT("Reset campaign [R]"):TEXT("Frame model [R]")),true});
+    }
+    Result.Add({TEXT("camera-reset"),TEXT("Reset view [Home]"),true});
+    Result.Add({TEXT("screenshot"),TEXT("Screenshot [F9]"),true});
     if(Mechanism)
     {
         const bool Locked=JointDynamics?(!JointDynamics->snapshot().powered||(JointDynamics->snapshot().installed&&(JointDynamics->snapshot().closure!=0||FString(UTF8_TO_TCHAR(JointDynamics->snapshot().brakePhase))!=TEXT("released")))):bBrakeInstalled&&!bBrakePowered;
@@ -142,7 +160,7 @@ TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
         }
     }
     for(int32 I=0;I<SceneOrder.Num();++I)
-        Result.Add({TEXT("scene:")+SceneOrder[I],(I==SceneIndex?TEXT("> "):TEXT(""))+VW::String(Scenes[I],TEXT("name")),IsUnlocked(SceneOrder[I])});
+        Result.Add({TEXT("scene:")+SceneOrder[I],(I==SceneIndex&&!bImportedModule?TEXT("> "):TEXT(""))+VW::String(Scenes[I],TEXT("name")),IsUnlocked(SceneOrder[I])});
     return Result;
 }
 
@@ -153,36 +171,67 @@ AVirtualWorldRuntime* AVirtualWorldHUD::Runtime() const
     return nullptr;
 }
 
+void AVirtualWorldHUD::InitializeFont()
+{
+    if(bFontInitialized) return;
+    bFontInitialized=true;
+    const FString FontPath=FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()/TEXT("VirtualWorldFonts/NotoSansCJKsc-Regular.otf"));
+    const int64 FontBytes=IFileManager::Get().FileSize(*FontPath);
+    TArray<uint8> Bytes;
+    // Verify direct Editor/packaged launches too; the Node preflight is not required to open a .uproject.
+    if(FontBytes<=0||FontBytes>32LL*1024*1024||!FFileHelper::LoadFileToArray(Bytes,*FontPath)||
+        VW::Digest(Bytes)!=TEXT("2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b"))
+    {
+        FontError=TEXT("CJK font missing or changed.\nRun: node Scripts/prepare-font.mjs\nThen restart the project.");
+        UE_LOG(LogTemp,Error,TEXT("VirtualWorld: verified CJK HUD font is unavailable: %s. Run node Scripts/prepare-font.mjs before native acceptance."),*FontPath);
+        return;
+    }
+    RuntimeFont=NewObject<UFont>(this,NAME_None,RF_Transient);
+    RuntimeFont->FontCacheType=EFontCacheType::Runtime;
+    RuntimeFont->LegacyFontName=FName(TEXT("Regular"));
+    RuntimeFont->LegacyFontSize=18;
+    RuntimeFont->CompositeFont=FCompositeFont(RuntimeFont->LegacyFontName,FontPath,EFontHinting::Default,EFontLoadingPolicy::LazyLoad);
+    // A verified source font does not certify glyph rasterization or the visible layout on this platform.
+}
+
 void AVirtualWorldHUD::DrawHUD()
 {
     Super::DrawHUD();
     AVirtualWorldRuntime* Player=Runtime();if(!Player||!Canvas||!GEngine)return;
-    if(LastScene!=Player->SceneIndex) {LastScene=Player->SceneIndex;PanelScroll=0;}
-    const float Width=FMath::Min(450.f,Canvas->SizeX*.48f),Top=52,Bottom=Canvas->SizeY-24;
+    InitializeFont();
+    UFont* Font=RuntimeFont?RuntimeFont.Get():GEngine->GetMediumFont();
+    const FString ContentId=VW::String(Player->Metadata,TEXT("id"));
+    if(LastScene!=Player->SceneIndex||LastContentId!=ContentId) {LastScene=Player->SceneIndex;LastContentId=ContentId;PanelScroll=0;}
+    float TextWidth=0,TextHeight=0,FooterHeight=0;
+    GetTextSize(TEXT("Ag\u56fd"),TextWidth,TextHeight,Font,.8f);
+    GetTextSize(TEXT("Ag\u56fd"),TextWidth,FooterHeight,Font,.7f);
+    const float LineHeight=FMath::Max(20.f,TextHeight),ButtonHeight=FMath::Max(34.f,LineHeight+12.f),RowHeight=ButtonHeight+6.f;
+    const float Width=VW::ControlPanelWidth(Canvas->SizeX),Top=FontError.IsEmpty()?52.f:118.f,Bottom=Canvas->SizeY-FooterHeight-8.f;
     APlayerController* PC=GetOwningPlayerController();
     float MX=0,MY=0;if(PC)PC->GetMousePosition(MX,MY);
     PanelScroll-=Player->PendingPanelWheel*60;Player->PendingPanelWheel=0;
     PanelScroll=FMath::Clamp(PanelScroll,0.f,FMath::Max(0.f,ContentHeight-(Bottom-Top)));
     DrawRect(FLinearColor(.025f,.035f,.06f,.94f),0,0,Width,Canvas->SizeY);
-    DrawText(TEXT("Unreal Engine | VirtualWorld"),FLinearColor(.85f,.92f,1),16,14,GEngine->GetMediumFont(),1.f);
-    DrawText(TEXT("Scroll this panel for all controls"),FLinearColor(.5f,.65f,.8f),16,Canvas->SizeY-20,GEngine->GetSmallFont(),.8f);
+    DrawText(TEXT("Unreal Engine | VirtualWorld"),FLinearColor(.85f,.92f,1),16,14,Font,1.f);
+    if(!FontError.IsEmpty()) DrawText(FontError,FLinearColor(1,.4f,.3f),16,40,GEngine->GetSmallFont(),.9f);
+    DrawText(TEXT("Scroll panel / \u6eda\u52a8\u9762\u677f\u67e5\u770b\u5168\u90e8\u64cd\u4f5c"),FLinearColor(.5f,.65f,.8f),16,Canvas->SizeY-FooterHeight-4.f,Font,.7f);
     float Y=Top-PanelScroll;
     const auto Line=[&](const FString& Text,FLinearColor Color)
     {
         FString Current;
-        const auto Flush=[&]() {if(Y>=Top&&Y+20<=Bottom)DrawText(Current,Color,16,Y,GEngine->GetMediumFont(),.8f);Current.Empty();Y+=22;};
+        const auto Flush=[&]() {if(Y>=Top&&Y+LineHeight<=Bottom)DrawText(Current,Color,16,Y,Font,.8f);Current.Empty();Y+=LineHeight+2.f;};
         TArray<FString> Paragraphs;Text.ParseIntoArrayLines(Paragraphs,false);
         for(int32 Paragraph=0;Paragraph<Paragraphs.Num();++Paragraph)
         {
             if(Paragraph>0)Flush();TArray<FString> Words;Paragraphs[Paragraph].ParseIntoArrayWS(Words);
             for(const FString& Word:Words)
             {
-                FString Candidate=Current.IsEmpty()?Word:Current+TEXT(" ")+Word;float W=0,H=0;GetTextSize(Candidate,W,H,GEngine->GetMediumFont(),.8f);
+                FString Candidate=Current.IsEmpty()?Word:Current+TEXT(" ")+Word;float W=0,H=0;GetTextSize(Candidate,W,H,Font,.8f);
                 if(W<=Width-32){Current=Candidate;continue;}
-                if(!Current.IsEmpty())Flush();GetTextSize(Word,W,H,GEngine->GetMediumFont(),.8f);
+                if(!Current.IsEmpty())Flush();GetTextSize(Word,W,H,Font,.8f);
                 if(W<=Width-32){Current=Word;continue;}
                 // Long unspaced words/CJK retain the glyph-by-glyph fallback.
-                for(TCHAR C:Word){Candidate=Current;Candidate.AppendChar(C);GetTextSize(Candidate,W,H,GEngine->GetMediumFont(),.8f);if(W>Width-32&&!Current.IsEmpty())Flush();Current.AppendChar(C);}
+                for(TCHAR C:Word){Candidate=Current;Candidate.AppendChar(C);GetTextSize(Candidate,W,H,Font,.8f);if(W>Width-32&&!Current.IsEmpty())Flush();Current.AppendChar(C);}
             }
         }
         if(!Current.IsEmpty()) Flush();
@@ -192,17 +241,17 @@ void AVirtualWorldHUD::DrawHUD()
     const auto Buttons=Player->Actions();const float ButtonWidth=(Width-42)/2;
     for(int32 I=0;I<Buttons.Num();++I)
     {
-        const auto& Button=Buttons[I];const float X=16+(I%2)*(ButtonWidth+10),RowY=Y+(I/2)*40;
-        if(RowY<Top||RowY+34>Bottom) continue;
-        const bool Hover=MX>=X&&MX<X+ButtonWidth&&MY>=RowY&&MY<RowY+34;
-        DrawRect(Button.bEnabled?(Hover?FLinearColor(.2f,.36f,.5f,1):FLinearColor(.12f,.22f,.34f,1)):FLinearColor(.09f,.11f,.14f,1),X,RowY,ButtonWidth,34);
-        FString Label=Button.Label;float W=0,H=0;GetTextSize(Label,W,H,GEngine->GetSmallFont(),.9f);
-        while(W>ButtonWidth-14&&Label.Len()>3) {Label.LeftChopInline(1);GetTextSize(Label+TEXT("..."),W,H,GEngine->GetSmallFont(),.9f);}
+        const auto& Button=Buttons[I];const float X=16+(I%2)*(ButtonWidth+10),RowY=Y+(I/2)*RowHeight;
+        if(RowY<Top||RowY+ButtonHeight>Bottom) continue;
+        const bool Hover=MX>=X&&MX<X+ButtonWidth&&MY>=RowY&&MY<RowY+ButtonHeight;
+        DrawRect(Button.bEnabled?(Hover?FLinearColor(.2f,.36f,.5f,1):FLinearColor(.12f,.22f,.34f,1)):FLinearColor(.09f,.11f,.14f,1),X,RowY,ButtonWidth,ButtonHeight);
+        FString Label=Button.Label;float W=0,H=0;GetTextSize(Label,W,H,Font,.8f);
+        while(W>ButtonWidth-14&&Label.Len()>3) {Label.LeftChopInline(1);GetTextSize(Label+TEXT("..."),W,H,Font,.8f);}
         if(Label!=Button.Label)Label+=TEXT("...");
-        DrawText(Label,Button.bEnabled?FLinearColor::White:FLinearColor(.4f,.45f,.5f),X+7,RowY+8,GEngine->GetSmallFont(),.9f);
-        if(Button.bEnabled) AddHitBox(FVector2D(X,RowY),FVector2D(ButtonWidth,34),FName(*Button.Id),true);
+        DrawText(Label,Button.bEnabled?FLinearColor::White:FLinearColor(.4f,.45f,.5f),X+7,RowY+(ButtonHeight-LineHeight)*.5f,Font,.8f);
+        if(Button.bEnabled) AddHitBox(FVector2D(X,RowY),FVector2D(ButtonWidth,ButtonHeight),FName(*Button.Id),true);
     }
-    ContentHeight=Y+PanelScroll-Top+FMath::CeilToInt(Buttons.Num()/2.f)*40+16;
+    ContentHeight=Y+PanelScroll-Top+FMath::CeilToInt(Buttons.Num()/2.f)*RowHeight+16;
     if(PC&&Player->PlayerRoot&&!Player->bSmokeRequested)
     {
         for(const auto& Pair:Player->Nodes)
@@ -212,9 +261,9 @@ void AVirtualWorldHUD::DrawHUD()
             if(!PC->ProjectWorldLocationToScreen(Pair.Value.Wrapper->GetComponentLocation()+Player->PlayerUp*25.,Screen)||Screen.X<Width+10||Screen.X>Canvas->SizeX-160||Screen.Y<20||Screen.Y>Canvas->SizeY-50)continue;
             const bool Near=Player->InteractionDistance(Pair.Key)<=300.;
             const FString Label=VW::String(Interaction,TEXT("title"))+FString::Printf(TEXT(" %.1fm"),Player->InteractionDistance(Pair.Key)/100.);
-            DrawRect(FLinearColor(.02f,.04f,.08f,.8f),Screen.X-5,Screen.Y-4,200,30);
-            DrawText(Label,Near?FLinearColor(1,.82f,.3f):FLinearColor(.7f,.8f,.9f),Screen.X,Screen.Y,GEngine->GetSmallFont(),.8f);
-            AddHitBox(Screen-FVector2D(5,4),FVector2D(200,30),FName(*(TEXT("talk:")+Pair.Key)),true);
+            DrawRect(FLinearColor(.02f,.04f,.08f,.8f),Screen.X-5,Screen.Y-4,200,LineHeight+8.f);
+            DrawText(Label,Near?FLinearColor(1,.82f,.3f):FLinearColor(.7f,.8f,.9f),Screen.X,Screen.Y,Font,.8f);
+            AddHitBox(Screen-FVector2D(5,4),FVector2D(200,LineHeight+8.f),FName(*(TEXT("talk:")+Pair.Key)),true);
         }
     }
 }

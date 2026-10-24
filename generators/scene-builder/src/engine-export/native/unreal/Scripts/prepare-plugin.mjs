@@ -1,7 +1,16 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, renameSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  realpathSync,
+  rmSync,
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 import { pluginRepository, pluginRevision } from './pin.mjs';
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -19,6 +28,8 @@ function git(cwd, args) {
     cwd,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: args[0] === 'fetch' ? 300000 : 30000,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
   });
   if (result.error || result.status !== 0)
     throw new Error(`git ${args[0]} failed: ${result.error?.message ?? result.stderr.trim()}`);
@@ -68,12 +79,31 @@ export function installPlugin(root = project) {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  existsSync(process.argv[1]) &&
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+) {
   try {
-    const revision = process.argv.includes('--verify') ? verifyPlugin() : installPlugin();
-    console.log(
-      `Verified glTFRuntime ${revision}; its MIT license and content remain in Plugins/glTFRuntime.`,
-    );
+    const { values, tokens } = parseArgs({
+      options: { verify: { type: 'boolean' }, help: { type: 'boolean' } },
+      strict: true,
+      allowPositionals: false,
+      tokens: true,
+    });
+    const names = tokens.filter((token) => token.kind === 'option').map((token) => token.name);
+    if (new Set(names).size !== names.length)
+      throw new Error('Duplicate plugin preparation option.');
+    if (values.help)
+      console.log(
+        'Usage: node Scripts/prepare-plugin.mjs [--verify]. Without --verify, explicitly fetch the pinned public plugin into a fresh directory.',
+      );
+    else {
+      const revision = values.verify ? verifyPlugin() : installPlugin();
+      console.log(
+        `Verified glTFRuntime ${revision}; its MIT license and content remain in Plugins/glTFRuntime.`,
+      );
+    }
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

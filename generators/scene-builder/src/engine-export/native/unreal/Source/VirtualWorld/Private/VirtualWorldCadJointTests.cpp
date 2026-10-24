@@ -561,6 +561,27 @@ bool FVirtualWorldInspectionPointerTest::RunTest(const FString& Parameters)
         TestTrue(TEXT("Equivalent raw and screen-position input has the same orbit direction"),Raw->CameraOffset.Equals(Absolute->CameraOffset,1e-8)&&Raw->CameraUp.Equals(Absolute->CameraUp,1e-8));
         TestTrue(TEXT("Equivalent raw and screen-position input has the same pan direction"),Raw->CameraTarget.Equals(Absolute->CameraTarget,1e-8));
     }
+    auto* Module=World->SpawnActor<AVirtualWorldRuntime>();Module->bImportedModule=true;
+    Module->CameraOffset=Offset;Module->CameraUp=FVector::UpVector;
+    const auto LeftMove=[&](FVector2D Position,bool Down,bool Focus=true,double Wheel=0.)
+    {Module->UpdateInspectionPointer(Position,true,FVector2D::ZeroVector,false,false,Wheel,1000,800,Down,Focus);};
+    LeftMove(FVector2D(100,100),true);LeftMove(FVector2D(600,100),true);
+    TestTrue(TEXT("Module left press on HUD cannot become an orbit after crossing its edge"),!Module->bPointerOrbit&&Module->CameraOffset.Equals(Offset));
+    LeftMove(FVector2D(600,100),false);LeftMove(FVector2D(600,100),true);
+    TestTrue(TEXT("Module left orbit begins without a camera jump"),Module->bPointerOrbit&&Module->CameraOffset.Equals(Offset));
+    LeftMove(FVector2D(620,110),true);
+    TestFalse(TEXT("Module left drag orbits through the screen delta fallback"),Module->CameraOffset.Equals(Offset));
+    const FVector FocusOffset=Module->CameraOffset;
+    LeftMove(FVector2D(800,300),true,false,2.);
+    TestTrue(TEXT("Focus loss cancels module orbit and suppresses wheel zoom"),!Module->bPointerOrbit&&Module->CameraOffset.Equals(FocusOffset));
+    LeftMove(FVector2D(820,320),true);
+    TestTrue(TEXT("Refocus while held cannot revive an old gesture"),!Module->bPointerOrbit&&Module->CameraOffset.Equals(FocusOffset));
+    LeftMove(FVector2D(820,320),false);LeftMove(FVector2D(820,320),true);LeftMove(FVector2D(830,330),true);
+    TestFalse(TEXT("Fresh module press after refocus can orbit again"),Module->CameraOffset.Equals(FocusOffset));
+    Module->bImportedModule=false;Module->bPointerOrbit=false;Module->bRightWasDown=false;
+    const FVector PlayerOffset=Module->CameraOffset;
+    LeftMove(FVector2D(830,330),true);LeftMove(FVector2D(840,340),true);
+    TestTrue(TEXT("Left drag stays available for interaction outside module viewers"),!Module->bPointerOrbit&&Module->CameraOffset.Equals(PlayerOffset));
     World->DestroyWorld(false);return true;
 }
 #endif

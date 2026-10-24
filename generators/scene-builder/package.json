@@ -22,9 +22,10 @@
     "@virtualworld/planner": "*",
     "@virtualworld/scene-schema": "*",
     "@virtualworld/tripo": "*",
+    "esbuild": "0.25.12",
     "gltf-validator": "2.0.0-dev.3.10",
+    "occt-import-js": "0.0.23",
     "three": "0.180.0",
-    "zod": "3.25.76",
-    "occt-import-js": "0.0.23"
+    "zod": "3.25.76"
   }
 }

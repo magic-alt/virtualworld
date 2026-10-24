@@ -4,12 +4,12 @@ Studio's **导出目标** selector provides four archive targets. The initial ta
 **网页** and the existing **导出网页** action is preserved. Native downloads include
 the target in their filenames and direct users to `compatibility.json`.
 
-| Target        | Deliverable                                                                                         | How to use it                                                                                                                                                                                                                                                         |
-| ------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web (default) | Existing standalone browser player, `scene.json`, assets and optional campaign chapters             | Build the player with `npm run build`, extract the archive and serve it over HTTP.                                                                                                                                                                                    |
-| Godot 4       | `project.godot`, `main.tscn`, native importer, canonical GLBs, packaged raw GLB bytes and manifests | Open the extracted project in Godot. Run `main.tscn`; the requested current scene is the entry scene.                                                                                                                                                                 |
-| Unity 6       | C# runtime, Editor importer, runnable scene/prefab generation, canonical GLBs and manifests           | Install `com.unity.cloud.gltfast` **6.14.1** in an existing project, or generate a fresh source project with `npm run native:export -- --target unity --scene ID --out FRESH_DIRECTORY`. See `README-Unity.md`. |
-| Unreal 5.8    | C++ runtime, `.uproject`, fixed glTFRuntime installer, canonical GLBs and manifests                   | Generate with target `unreal`, install the pinned plugin and native toolchain, then use the included build/run/smoke scripts. See `README-Unreal.md`. |
+| Target                            | Deliverable                                                                                         | How to use it                                                                                                                                                                                                   |
+| --------------------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web (default)                     | Existing standalone browser player, `scene.json`, assets and optional campaign chapters             | Build the player with `npm run build`, extract the archive and serve it over HTTP.                                                                                                                              |
+| Godot 4                           | `project.godot`, `main.tscn`, native importer, canonical GLBs, packaged raw GLB bytes and manifests | Open the extracted project in Godot. Run `main.tscn`; the requested current scene is the entry scene.                                                                                                           |
+| Unity 6                           | C# runtime, Editor importer, runnable scene/prefab generation, canonical GLBs and manifests         | Install `com.unity.cloud.gltfast` **6.14.1** in an existing project, or generate a fresh source project with `npm run native:export -- --target unity --scene ID --out FRESH_DIRECTORY`. See `README-Unity.md`. |
+| Unreal 5.x (5.4+ source baseline) | C++ runtime, `.uproject`, fixed glTFRuntime installer, canonical GLBs and manifests                 | Generate with target `unreal`, or use `npm run unreal:prepare -- --out FRESH_DIRECTORY` for the two-project local acceptance kit. Installed-engine discovery and actual compilation remain separate checks.     |
 
 Native archives do not require `dist/player` or any player build. Unity and Unreal
 include native gameplay source for the built-in scenes; actual native compilation,
@@ -100,8 +100,9 @@ as metadata, with the corresponding unsupported-runtime findings.
 
 Splat rendering, generic joint controls, dynamically deformed collision and
 pixel-identical material/environment rendering are outside current native coverage.
-Unreal character jumping and airborne gravity are not implemented and produce
-`CHARACTER_JUMP_UNMAPPED`; its controller currently provides grounded movement.
+Unreal source now implements planar/radial character jumping, gravity and landing,
+plus a programmatic movement path in native smoke. `NATIVE_RUNTIME_REQUIRES_VALIDATION`
+continues to mark actual engine compilation, collision, keyboard input and visual behavior as unverified by export.
 Imported clips in whole GLBs still require native binding/visual verification. Selected
 skinned meshes are rejected rather than exported with an incorrect bind pose;
 selected model animations are not preserved by geometry extraction and are

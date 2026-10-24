@@ -10,5 +10,7 @@ public class VirtualWorld : ModuleRules
         });
         PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
         if (Target.bBuildEditor) PrivateDependencyModuleNames.Add("DesktopPlatform");
+        if (Target.Platform == UnrealTargetPlatform.Win64)
+            PublicSystemLibraries.Add("comdlg32.lib");
     }
 }

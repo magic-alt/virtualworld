@@ -95,9 +95,9 @@ export function findings(scene: SceneSpec, target: EngineTarget = 'godot'): Comp
     );
   if (target === 'unreal' && scene.actor)
     add(
-      'CHARACTER_JUMP_UNMAPPED',
+      'NATIVE_RUNTIME_REQUIRES_VALIDATION',
       'actor jump',
-      'The Unreal source controller supports grounded plane/sphere movement; character jump and airborne gravity are not implemented.',
+      'The Unreal source controller implements planar and radial jump/gravity with native collision queries; validate keyboard input, landing, terrain edges and spherical camera behavior in the installed engine.',
     );
   if (scene.mechanism)
     add(

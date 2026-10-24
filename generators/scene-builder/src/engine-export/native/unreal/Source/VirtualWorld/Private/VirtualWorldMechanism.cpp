@@ -118,7 +118,12 @@ void AVirtualWorldRuntime::ApplyVisibility()
     {
         FVirtualWorldNode& Node=Pair.Value;Node.bVisible=Local[Node.Id];FString Parent=Node.Parent;
         while(!Parent.IsEmpty()) { Node.bVisible&=Local[Parent];Parent=Nodes[Parent].Parent; }
-        if(Node.Model) Node.Model->SetActorHiddenInGame(!Node.bVisible);
+        if(Node.Model)
+        {
+            Node.Model->SetActorHiddenInGame(!Node.bVisible);
+            // Render visibility and collision must agree for whole-GLB mesh colliders as well as proxies.
+            Node.Model->SetActorEnableCollision(Node.bVisible);
+        }
         for(USceneComponent* Child:Node.Wrapper->GetAttachChildren())
             if(UShapeComponent* Shape=Cast<UShapeComponent>(Child)) Shape->SetCollisionEnabled(Node.bVisible?ECollisionEnabled::QueryOnly:ECollisionEnabled::NoCollision);
     }

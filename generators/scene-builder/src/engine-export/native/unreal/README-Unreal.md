@@ -1,6 +1,6 @@
 # VirtualWorld native Unreal project
 
-This source project targets **Unreal Engine 5.8** and the exact glTFRuntime commit
+This source project discovers the installed **Unreal Engine 5.x (5.4+ source baseline)** and uses the exact glTFRuntime commit
 `0b22180d5d5d48b13457b683f4405113b6afd87b` (2026-10-14). It loads the canonical
 GLBs at runtime, retaining their scene hierarchy, skins, original clips, textures,
 materials, and named morph targets. It needs no VirtualWorld Studio service.
@@ -11,7 +11,7 @@ Run the native acceptance checks below on an actual Unreal installation.
 
 ## Prepare, build, and play
 
-Install Unreal Engine 5.8 and its platform C++ toolchain through Epic's supported
+Install Unreal Engine 5.4 or newer 5.x and its matching platform C++ toolchain through Epic's supported
 installation process. Git and Node.js 24 are required for these helper scripts.
 Unpack the export into a fresh directory. Keep the entire project together:
 `VirtualWorld.uproject`, `Source`, `Config`, `Scripts`, and
@@ -21,19 +21,36 @@ From that directory:
 
 ```sh
 node Scripts/native.mjs check --data-only
-node Scripts/prepare-plugin.mjs
-node Scripts/prepare-plugin.mjs --verify
-node Scripts/native.mjs build --engine /absolute/path/to/UnrealEngine
-node Scripts/native.mjs run --engine /absolute/path/to/UnrealEngine
+node Scripts/native.mjs doctor
+node Scripts/native.mjs prepare
+node Scripts/native.mjs build
+node Scripts/native.mjs run
 ```
 
-`UE_ROOT` can supply the engine installation root instead of `--engine`.
+`--engine /absolute/path/to/UnrealEngine` takes precedence over `UE_ROOT`, followed by
+installed-engine discovery. The helper reads `Engine/Build/Build.version`; the folder
+name is not version evidence. The highest valid installed version is selected and
+reported; use `--engine` to pin a different installation when several are present.
+The source baseline does not certify compilation on every 5.x minor version.
 Windows and macOS are also recognized; pass a quoted installation directory.
 The installer fetches only the pinned public GitHub commit into a newly created
 `Plugins/glTFRuntime` directory. It refuses an existing destination, including
 symlinks, and never upgrades or replaces a checkout. Verification rejects a
 different commit, modified tracked files, and untracked source files. The
 plugin's complete MIT license and content stay with its checkout.
+
+`prepare` also installs a pinned, hash-verified Noto Sans CJK SC font and its SIL OFL
+license under `Content/VirtualWorldFonts`. Repeated preparation verifies existing
+dependencies without replacing them. Offline font input is supported with
+`prepare --font-source /path/to/NotoSansCJKsc-Regular.otf`. A changed/partial existing
+font or plugin installation fails verification; preserve it and export a fresh project.
+
+`doctor` checks data, detected engine, platform toolchain, Git, plugin and font without
+installing anything. `generate` creates IDE project files; `open --scene SCENE_ID`
+opens the real Editor (press Play), while `run --scene SCENE_ID` opens the game window.
+The Entry map is populated at game start, so an empty edit-time map is expected.
+Every native command records its actual process result and streamed log under
+`Saved/VirtualWorld/native-runs`. Missing dependencies never manufacture a pass.
 
 Alternatively, generate the IDE project files from `VirtualWorld.uproject`,
 compile the `VirtualWorldEditor` Development target, then open the project and
@@ -108,6 +125,8 @@ HUD panel handles its own wheel scrolling. Mouse smoothing is disabled. Q/F roll
 | Experience          | Keyboard                                                        |
 | ------------------- | --------------------------------------------------------------- |
 | Player movement     | WASD, relative to the camera                                    |
+| Player jump         | Space; native gravity/landing, no midair second jump            |
+| Reset view          | Home or HUD; preserves story and mechanism state                |
 | Nearest interaction | E, within 3 metres; world markers are clickable                 |
 | Dialogue choices    | 1–9 and 0; Escape closes the dialogue                           |
 | Chapter selection   | HUD buttons; Tab cycles unlocked chapters                       |
@@ -121,15 +140,17 @@ HUD panel handles its own wheel scrolling. Mouse smoothing is disabled. Q/F roll
 The Prince is instantiated once from `actorModel`; its editing preview node is
 not duplicated. Native skeletal components play the authored Idle/Walk/Interact
 clips. The pilot uses its skeletal Idle; the fox uses its rigid node Idle.
-Authored node clips honor loop and speed. Plane navigation uses bounds and
-native capsule sweeps with a wall slide; when a collider-backed surface ends,
-the unsupported step is rejected. Spherical navigation constrains the feet to
-the authored radius and transports the player/camera frame along the surface.
+Authored node clips honor loop and speed. Plane navigation uses horizontal bounds
+and native capsule sweeps with a wall slide. Losing ground support starts a fall;
+falling below the collision world's recovery floor restores the last grounded
+position. Spherical navigation keeps the authored radius as the minimum foot
+radius and transports the player/camera frame along the surface.
 These are kinematic native queries, not a claim of physics parity with Rapier.
-Prince jumping and airborne gravity are not implemented in this adapter. Space
-only operates the harmonic mechanism; it does not make the player jump. Treat
-`CHARACTER_JUMP_UNMAPPED` as an unsupported feature, separate from the native
-validation status of the implemented surface movement.
+The source controller now applies a 5.2 m/s grounded jump and 14 m/s² gravity,
+retains altitude on a spherical surface, sweeps for ceilings/obstacles, and lands
+without requiring continued movement input. Actual engine collision and keyboard
+behavior remain native acceptance gates. Space operates the mechanism in H-100
+and jumps in the Prince scenes. Hidden imported mesh actors also disable collision.
 
 Interactions check proximity and required flags before granting progress. Choice
 text, tasks, completion, and campaign prerequisites come from scene metadata.
@@ -144,6 +165,11 @@ native `SetMorphTarget` without zero-to-one clamping or percentage scaling.
 The flex cup is loaded as a morph-capable skeletal mesh even when its source has
 no skin. The power-off brake prevents run/step changes while installed and
 unpowered. It does not simulate brake force, torque or stopping distance.
+
+Press F9 or the Screenshot button to request a real screenshot with the HUD.
+Unreal writes it under `Saved/Screenshots`; a request notification is not confirmation
+that the asynchronous screenshot was saved. The evidence command copies existing
+PNG/JPEG/WebP screenshots.
 
 ## Coordinate and asset contract
 
@@ -234,7 +260,8 @@ node Scripts/native.mjs package --engine /absolute/path/to/UnrealEngine
 ```
 
 The smoke helper starts the actual Unreal game renderer, loads each exported
-scene, checks canonical imports and native collision queries, exercises story
+scene, checks canonical imports and native collision queries, exercises the actual
+movement path for jump/apex/fall/landing and a short walk, and tests story
 prerequisites/choices/completion, and checks signed morph readback plus mechanism
 controls. It does not save gameplay progress. The native executable writes
 `Saved/VirtualWorld/smoke-report.json` with a new run ID. Missing engines, missing
@@ -259,10 +286,16 @@ The smoke report deliberately records `visualParityVerified: false` and
 - A packaged build on the target platform, including runtime static mesh collision,
   material/shader availability, font fallback and performance.
 
-The HUD currently uses Unreal's engine fonts. Chinese glyph coverage in the
-target engine/package is an explicit visual acceptance gate; this source export
-does not bundle or certify a CJK font. Add a licensed font with the required glyphs
-to the native project if the target package's fallback lacks them.
+The HUD uses the prepared Noto Sans CJK font through a runtime composite UFont.
+The file hash is also checked on direct Editor/packaged launch, and missing/changed
+font bytes produce a persistent diagnostic. The font and its OFL license are staged
+as loose NonUFS data. Actual glyph rasterization and target-package layout remain
+visual acceptance gates; a valid font hash alone does not certify them.
+
+Collect existing command logs, engine version, source/manifest digests, smoke output
+and screenshots with `node Scripts/native.mjs evidence --out FRESH_DIRECTORY`.
+This command works even when the engine or dependencies are absent and records the
+missing prerequisites. It never manufactures a successful native report.
 
 ## Packaging and browser delivery
 
@@ -274,7 +307,7 @@ provision a GPU host.
 
 UE5 browser delivery requires a separately built/hosted Pixel Streaming setup.
 Enable Pixel Streaming 2 in the native project and use Epic's frontend and
-signalling infrastructure matching UE 5.8. Bind each configured browser URL to
+signalling infrastructure matching your installed UE version. Bind each configured browser URL to
 the appropriate process/project and pass `-VirtualWorldScene=<id>` on the native
 process when necessary. The export contains no server credentials or cloud
 deployment. It does not claim an Unreal WebGL/HTML5 build.
@@ -282,13 +315,12 @@ deployment. It does not claim an Unreal WebGL/HTML5 build.
 ## Remaining limits
 
 Generic interactive node joint controls remain metadata beyond their initial
-transform. Prince jumping/airborne gravity, splat rendering and arbitrary authored
-light nodes are not implemented.
+transform. Splat rendering and arbitrary authored light nodes are not implemented.
 Static mesh/box/ball collision is implemented; a skinned or morphing mesh collider
 fails with a request for authored box/ball proxies. Fog, lighting and PBR appearance
 are engine approximations and require visual assessment. glTFRuntime's supported
 extensions and platform behavior remain dependency constraints. The native module
-and this plugin pin still need a real UE 5.8 compile; a JavaScript preflight cannot
+and this plugin pin still need a real compile with your installed UE version; a JavaScript preflight cannot
 establish C++ or packaged-runtime compatibility.
 
 ## Primary implementation references
@@ -302,3 +334,28 @@ establish C++ or packaged-runtime compatibility.
 - [Unreal packaging](https://dev.epicgames.com/documentation/en-us/unreal-engine/packaging-your-project)
 - [Pixel Streaming 2](https://dev.epicgames.com/documentation/unreal-engine/pixel-streaming-2-overview-in-unreal-engine)
 - [Official Pixel Streaming infrastructure](https://github.com/EpicGames/PixelStreamingInfrastructure)
+
+# Local STEP module import (Windows)
+
+The joint HUD provides **导入 STEP / STP**, **取消导入**, and **恢复 H-100**.
+Select one local file (100 MiB maximum). Conversion runs offline in a separate Node.js
+24+ process; install Node on PATH and restart Unreal after installation. Keep
+`Content/VirtualWorldTools` with the project and desktop distribution. It contains
+the bundled converter, pinned OCCT 0.0.23 WASM, validator and third-party licenses;
+no repository, editor service, provider key or internet connection is needed to import.
+
+The old module stays visible until validated geometry is ready. Cancellation,
+conversion failure, missing tools and the 90-second timeout preserve the current module.
+A STEP assembly is one module with multiple parts. Static imported models retain metric
+scale, available names, hierarchy and colors; they do not inherit H-100 motion settings.
+Home fits the imported geometry; mouse orbit, pan and zoom remain available.
+
+Each import retains separate source, models, SceneSpec and validation records under
+`Saved/VirtualWorld/Imports`. Partial failed output is retained for local diagnosis and
+never reused. Converter limits: 2 million vertices, 2 million triangles, 5000 meshes,
+256 MiB final GLB. Use a simpler model if conversion exceeds these limits.
+
+Packaged runtime and the file chooser require separate real Windows acceptance;
+source checks and converter tests alone do not prove them. OCCT is unmodified and
+redistributed under LGPL-2.1; package sources are available from
+https://github.com/kovacsv/occt-import-js (npm version 0.0.23). Retain all included licenses.

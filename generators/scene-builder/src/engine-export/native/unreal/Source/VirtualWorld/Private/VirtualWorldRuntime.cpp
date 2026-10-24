@@ -15,6 +15,7 @@
 #include "Engine/DirectionalLight.h"
 #include "Engine/SkyLight.h"
 #include "Engine/TextureCube.h"
+#include "Math/Float16Color.h"
 #include "Engine/ExponentialHeightFog.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
@@ -37,7 +38,8 @@ AVirtualWorldRuntime::AVirtualWorldRuntime()
 bool AVirtualWorldRuntime::Fail(const FString& Message)
 {
     if (FatalError.IsEmpty()) FatalError = Message;
-    UE_LOG(LogTemp, Error, TEXT("VirtualWorld: %s"), *Message);
+    if(bStagingModel) {UE_LOG(LogTemp, Warning, TEXT("VirtualWorld import: %s"), *Message);}
+    else {UE_LOG(LogTemp, Error, TEXT("VirtualWorld: %s"), *Message);}
     return false;
 }
 
@@ -77,8 +79,12 @@ void AVirtualWorldRuntime::BeginPlay()
 
 bool AVirtualWorldRuntime::ReadCatalog()
 {
-    FString Text;
-    if (!FFileHelper::LoadFileToString(Text, *(DataDirectory / TEXT("engine-manifest.json"))) || !VW::Parse(Text, Manifest))
+    FString Text;TArray<uint8> ManifestBytes;
+    if (!FFileHelper::LoadFileToArray(ManifestBytes, *(DataDirectory / TEXT("engine-manifest.json"))))
+        return Fail(TEXT("Missing or invalid Content/VirtualWorldData/engine-manifest.json"));
+    ManifestSha256=VW::Digest(ManifestBytes);
+    FFileHelper::BufferToString(Text,ManifestBytes.GetData(),ManifestBytes.Num());
+    if (!VW::Parse(Text, Manifest))
         return Fail(TEXT("Missing or invalid Content/VirtualWorldData/engine-manifest.json"));
     if (VW::Number(Manifest, TEXT("version")) != 1 || VW::String(Manifest, TEXT("target")) != TEXT("unreal"))
         return Fail(TEXT("Expected Unreal manifest version 1."));
@@ -122,6 +128,7 @@ bool AVirtualWorldRuntime::ReadCatalog()
 void AVirtualWorldRuntime::ClearScene()
 {
     ReleaseCadSections();
+    CancelStepImport();
     for (AActor* Actor : SpawnedActors) if (IsValid(Actor)) Actor->Destroy();
     SpawnedActors.Reset();
     bPrincipleBuilt=false;
@@ -132,10 +139,12 @@ void AVirtualWorldRuntime::ClearScene()
     AssetCache.Reset();Nodes.Reset();MorphComponents.Reset();
     PlayerModel=nullptr;PlayerRoot=nullptr;Camera=nullptr;
     SelectedInteraction.Empty();Dialogue.Empty();PlayerClip.Empty();
-    ColliderCount=0;InteractionRemaining=0;
+    ColliderCount=0;InteractionRemaining=0;PlayerVerticalSpeed=0;bPlayerGrounded=false;
+    LastGroundedFeet=FVector::ZeroVector;
     HiddenSubsystems.Reset();IsolatedNodes.Reset();IsolatedSubsystem.Empty();
     bLastPointerValid=bPointerOrbit=bPointerPan=bRightWasDown=bMiddleWasDown=false;PendingPanelWheel=0;
     InputAngle=0;Rpm=6;Explosion=0;bRunning=false;bPaused=false;bSection=false;
+    bImportedModule=false;bHasBrake=false;bBrakeInstalled=false;bBrakePowered=true;
 }
 
 bool AVirtualWorldRuntime::LoadScene(int32 Index, bool bSmoke)
@@ -188,7 +197,7 @@ bool AVirtualWorldRuntime::LoadScene(int32 Index, bool bSmoke)
     return FatalError.IsEmpty();
 }
 
-AVirtualWorldModel* AVirtualWorldRuntime::SpawnModel(const FString& ModelId,USceneComponent* Parent,bool bMeshCollision,bool bPlayer)
+AVirtualWorldModel* AVirtualWorldRuntime::SpawnModel(const FString& ModelId,USceneComponent* Parent,bool bMeshCollision,bool bPlayer,bool bStage)
 {
     if(!ModelRecords.Contains(ModelId)) { Fail(TEXT("Missing canonical model: ")+ModelId);return nullptr; }
     UglTFRuntimeAsset* Asset=AssetCache.FindRef(ModelId);
@@ -205,6 +214,7 @@ AVirtualWorldModel* AVirtualWorldRuntime::SpawnModel(const FString& ModelId,USce
     }
     AVirtualWorldModel* Model=GetWorld()->SpawnActorDeferred<AVirtualWorldModel>(AVirtualWorldModel::StaticClass(),FTransform::Identity,this,nullptr,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
     if(!Model) { Fail(TEXT("Cannot allocate native model actor."));return nullptr; }
+    Model->SetActorHiddenInGame(bStage);
     SpawnedActors.Add(Model);Model->Asset=Asset;
     Model->SkeletalAnimationConfig.bRemoveRootMotion=bPlayer;
     Model->StaticMeshConfig.bBuildComplexCollision=bMeshCollision;
@@ -269,24 +279,7 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
 {
     Camera=GetWorld()->SpawnActor<ACameraActor>();SpawnedActors.Add(Camera);
     Camera->GetCameraComponent()->FieldOfView=50.f;
-    const VW::Json SourceCamera=VW::Object(Scene,TEXT("camera"));
-    CameraTarget=VW::Position(VW::Vector(SourceCamera,TEXT("target")));
-    CameraOffset=VW::Position(VW::Vector(SourceCamera,TEXT("position")))-CameraTarget;
-    CameraUp=PlayerModel?PlayerUp:FVector::UpVector;
-    if(CameraOffset.IsNearlyZero()) CameraOffset=FVector(300,300,200);
-    if(VW::String(Metadata,TEXT("mode"))==TEXT("industrial"))
-    {
-        Camera->GetCameraComponent()->SetConstraintAspectRatio(false);
-        int32 Width=0,Height=0;
-        if(APlayerController* PC=GetWorld()->GetFirstPlayerController()) PC->GetViewportSize(Width,Height);
-        if(!Mechanism && Width>0 && Height>0)
-        {
-            const double Panel=FMath::Min(450.,Width*.48);
-            CameraOffset*=FMath::Max(static_cast<double>(Width)/Height,Width/(Width-Panel));
-        }
-    }
-    InspectionZoomMin=FMath::Max(.02f,static_cast<float>(CameraOffset.Size()*.015));
-    InspectionZoomMax=FMath::Max(InspectionZoomMin*2,static_cast<float>(CameraOffset.Size()*50));
+    ResetCamera();
     if(APlayerController* PC=GetWorld()->GetFirstPlayerController()) PC->SetViewTarget(Camera);
     const VW::Json Environment=VW::Object(Scene,TEXT("environment"));
     // Set mobility BEFORE the transform: registered static lights reject runtime rotation.
@@ -355,6 +348,7 @@ void AVirtualWorldRuntime::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
     TickCadImport();
+    PollStepImport();
     if(bSmokeRequested) { RunSmokeStep();return; }
     if(!FatalError.IsEmpty()) return;
     const float Elapsed=FMath::IsFinite(DeltaSeconds)?FMath::Max(0.f,DeltaSeconds):0.f;

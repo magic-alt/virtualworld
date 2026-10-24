@@ -35,7 +35,8 @@
     "demos:build": "tsx scripts/demos.ts build",
     "demos:validate": "tsx scripts/demos.ts validate",
     "native:export": "node --import tsx scripts/native-project.ts",
-    "test:cad-joint": "node --import tsx tests/e2e/cad-joint-check.mjs"
+    "test:cad-joint": "node --import tsx tests/e2e/cad-joint-check.mjs",
+    "unreal:prepare": "node --import tsx scripts/unreal-acceptance.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.3",

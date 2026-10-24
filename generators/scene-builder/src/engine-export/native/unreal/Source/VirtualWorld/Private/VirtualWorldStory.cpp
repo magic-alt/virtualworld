@@ -4,6 +4,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
+#include "UnrealClient.h"
 
 bool AVirtualWorldRuntime::IsUnlocked(const FString& Id) const
 {
@@ -126,8 +127,18 @@ void AVirtualWorldRuntime::SaveProgress()
 void AVirtualWorldRuntime::Command(const FString& Action)
 {
     if(Action==TEXT("import-cad")) {ChooseCadFile();return;}
-    if(Action==TEXT("cancel-import")) {CancelCadImport(TEXT("Import cancelled; current scene retained."));return;}
+    if(Action==TEXT("cancel-import")) {CancelCadImport(TEXT("Import cancelled; current scene retained."));CancelStepImport();Notice=TEXT("Import cancelled; current scene retained.");return;}
     if(!FatalError.IsEmpty()||!Metadata) return;
+    if(Action==TEXT("import-step")) {BeginStepImport();return;}
+    if(Action==TEXT("restore-module")&&IsModuleViewer()) {CancelStepImport();LoadScene(SceneIndex);Notice=TEXT("H-100 restored.");return;}
+    if(Action==TEXT("screenshot"))
+    {
+        FScreenshotRequest::RequestScreenshot(true);
+        Notice=TEXT("Screenshot requested; see Saved/Screenshots.");
+        return;
+    }
+    if(Action==TEXT("camera-reset")) {ResetCamera();return;}
+    if(bImportedModule&&!Action.StartsWith(TEXT("scene:"))&&Action!=TEXT("next")) return;
     if(Action==TEXT("interact")) {Interact(NearbyInteraction());return;}
     if(Action.StartsWith(TEXT("talk:"))) {Interact(Action.Mid(5));return;}
     if(Action.StartsWith(TEXT("choice:")))

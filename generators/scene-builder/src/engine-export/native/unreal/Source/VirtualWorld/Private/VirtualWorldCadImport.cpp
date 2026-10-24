@@ -18,7 +18,7 @@
 
 void AVirtualWorldRuntime::ChooseCadFile()
 {
-    if(CadProcess.IsValid()) return;
+    if(CadProcess.IsValid()||ImportGeneration.bBusy) return;
 #if WITH_EDITOR
     if(IDesktopPlatform* Desktop=FDesktopPlatformModule::Get())
     {
@@ -41,7 +41,7 @@ void AVirtualWorldRuntime::ChooseCadFile()
 
 void AVirtualWorldRuntime::BeginCadImport(const FString& Path)
 {
-    if(CadProcess.IsValid()) return;
+    if(CadProcess.IsValid()||ImportGeneration.bBusy) return;
     const FString Extension=FPaths::GetExtension(Path).ToLower();
     const int64 Size=IFileManager::Get().FileSize(*Path);
     if((Extension!=TEXT("step")&&Extension!=TEXT("stp"))||Size<=0||Size>100LL*1024*1024)

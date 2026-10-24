@@ -1,3 +1,4 @@
+#include "VirtualWorldCadWindow.h"
 #include "VirtualWorldRuntime.h"
 #include "Components/StaticMeshComponent.h"
 #include "ProceduralMeshComponent.h"
@@ -5,7 +6,6 @@
 #include "Engine/StaticMesh.h"
 #include "StaticMeshResources.h"
 
-#include "VirtualWorldCadWindow.h"
 
 bool VWPartitionCadWindow(UProceduralMeshComponent* Inside,const FTransform& Model,const FVector& Axis,const FVector& Pivot,double Radius,TArray<FProcMeshSection>& Outside)
 {

@@ -1,14 +1,16 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "HAL/PlatformProcess.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/HUD.h"
+#include "HAL/PlatformProcess.h"
 #include "VirtualWorldData.h"
 #include "VirtualWorldJointDynamics.h"
 #include "VirtualWorldJointTransmission.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Materials/MaterialInterface.h"
+#include "VirtualWorldPointer.h"
+#include "VirtualWorldImportState.h"
 #include "VirtualWorldRuntime.generated.h"
 
 class AVirtualWorldModel;
@@ -33,6 +35,7 @@ struct FVirtualWorldCadBinding
     bool bOriginalVisible = true;
     FTransform Original; // Native basis, model-relative, before any motion.
 };
+class UFont;
 
 struct FVirtualWorldNode
 {
@@ -63,14 +66,15 @@ class VIRTUALWORLD_API AVirtualWorldRuntime : public AActor
 public:
     AVirtualWorldRuntime();
     virtual void BeginPlay() override;
-    virtual void Tick(float DeltaSeconds) override;
     virtual void EndPlay(const EEndPlayReason::Type Reason) override;
+    virtual void Tick(float DeltaSeconds) override;
     bool LoadScene(int32 Index, bool bSmoke = false);
     void Command(const FString& Action);
     TArray<FString> StatusLines() const;
     TArray<FVirtualWorldAction> Actions() const;
     const FString& Error() const { return FatalError; }
     bool IsMechanism() const { return Mechanism.IsValid(); }
+    bool IsModuleViewer() const { return IsMechanism() || bImportedModule; }
     UFUNCTION() void OnImportError(const FString ErrorContext, const FString ErrorMessage);
 
 private:
@@ -87,10 +91,24 @@ private:
     friend class FVirtualWorldCadJointTransmissionTest;
     friend class FVirtualWorldCadJointSectionTest;
     friend class FVirtualWorldCadJointSectionVisibilityTest;
+    friend class FVirtualWorldImportReplacementTest;
     bool Fail(const FString& Message);
     bool ReadCatalog();
     void ClearScene();
-    AVirtualWorldModel* SpawnModel(const FString& ModelId, USceneComponent* Parent, bool bMeshCollision, bool bPlayer);
+    AVirtualWorldModel* SpawnModel(const FString& ModelId, USceneComponent* Parent, bool bMeshCollision, bool bPlayer, bool bStage = false);
+    void BeginStepImport();
+    void StartStepImport(const FString& Source);
+    void PollStepImport();
+    void CancelStepImport();
+    bool CommitStepImport(const FString& Directory);
+    void FitImportedCamera();
+    VW::FImportGeneration ImportGeneration;
+    FProcHandle ImportProcess;
+    double ImportStart=0;
+    FString ImportDirectory;
+    FString ImportFailure;
+    bool bImportedModule=false;
+    bool bStagingModel=false;
     bool BuildColliders(FVirtualWorldNode& Node);
     bool BuildPlayer();
     bool BindMechanism();
@@ -125,9 +143,12 @@ private:
     uint64 SceneGeneration = 0;
     uint64 CadGeneration = 0;
     void StepPlayer(float DeltaSeconds);
+    void StepPlayerMovement(const FVector& Direction, bool bJumpPressed, float DeltaSeconds);
+    bool ProbePlayerGround(FHitResult& Hit, float Distance) const;
+    void ResetCamera();
     void UpdateCamera();
     void HandleInput(float DeltaSeconds);
-    void UpdateInspectionPointer(FVector2D Position,bool HasPosition,FVector2D RawDelta,bool RightDown,bool MiddleDown,double Wheel,int32 Width,int32 Height);
+    void UpdateInspectionPointer(FVector2D Position,bool HasPosition,FVector2D RawDelta,bool RightDown,bool MiddleDown,double Wheel,int32 Width,int32 Height,bool LeftDown=false,bool Focused=true);
     void PlayPlayerClip(const FString& State);
     void ApplyMechanism();
     void StepMechanism(float DeltaSeconds);
@@ -161,6 +182,7 @@ private:
     FString IsolatedSubsystem;
     FString DataDirectory;
     FString ProgressPath;
+    FString ManifestSha256;
     FString FatalError;
     FString Notice;
     FString Dialogue;
@@ -198,6 +220,8 @@ private:
     float PlayerHeight = 160;
     float PlayerRadius = 23;
     float InteractionRemaining = 0;
+    double PlayerVerticalSpeed = 0;
+    double PlayerRecoveryFloor = -1200;
     bool bRunning = false;
     bool bPaused = false;
     bool bSection = false;
@@ -206,9 +230,12 @@ private:
     bool bBrakePowered = true;
     bool bSmokeRequested = false;
     bool bSmokeFinished = false;
+    bool bPlayerGrounded = false;
     FVector PlayerFeet = FVector::ZeroVector;
+    FVector LastGroundedFeet = FVector::ZeroVector;
     FVector PlayerUp = FVector::UpVector;
     FVector PlayerForward = FVector::ForwardVector;
+    VW::FPointerDrag PointerDrag;
     FVector CameraTarget = FVector::ZeroVector;
     FVector CameraOffset = FVector(400,400,300);
     FVector CameraUp = FVector::UpVector;
@@ -253,7 +280,12 @@ public:
     virtual void NotifyHitBoxClick(FName BoxName) override;
 private:
     AVirtualWorldRuntime* Runtime() const;
+    void InitializeFont();
+    UPROPERTY() TObjectPtr<UFont> RuntimeFont;
+    bool bFontInitialized = false;
+    FString FontError;
     float PanelScroll = 0;
     float ContentHeight = 0;
     int32 LastScene = INDEX_NONE;
+    FString LastContentId;
 };

@@ -3,6 +3,11 @@
 日期：2026-10-21（Asia/Shanghai）。基线：
 `e5ed66325eb049d5a7bbd4141a002aaf926ac739`。
 
+这是 2026-10-21 的历史验收记录；当时的跳跃、字体及版本限制保留在此供追溯。
+后续 Unreal 本地验收改进及本轮执行结果见
+[2026-10-23 验收记录](validation-unreal-local-acceptance.md)，当前操作见
+[Unreal 本地验收指南](unreal-local-acceptance.md)。
+
 ## 结论与范围
 
 本次交付是原生运行源码、可复现的工程生成流程，以及已有原生部署的网页入口。
@@ -342,3 +347,14 @@ Schema及UE加载同时检查六个引用各不重复、角色为input/input/inp
 本轮不修改Mac沙盒、不扩展离线导入范围，Windows实际构建仍未验证。私有模型、配置、原始回归证据和独立应用均保留本地忽略目录`output/playwright/central-harmonic-window-2026-10-24/`及`output/native/`。
 
 实际Mac独立应用已重新build/cook/package/archive成功，并通过普通窗口检查：C检查模式下从减速器后端观察，端盖外缘和孔圈保持不透明、中心透视，钢轮仍完整；窗口稳定读数为输入202.0000RPM、输出+2.000000RPM，Whole clock1.00x。C退出检查模式恢复完整源模型，再次C进入可恢复检查模式。真实组件读回同时验证各阶段旋转与材质；未声称从未标定CAD辨认出真实齿形。当前CAD更新CPU工作量中位数为隐藏原理层0.222ms、显示原理层3.273ms（每组40次；不是总帧率）。截图与报告保存在上述本地目录。
+
+
+## PR #19 合并验证（2026-10-24）
+
+将 `main` 的 `9639f2e250ffb1b0b12d300e337115b516800de8` 合入 PR 分支，保留原生启动器的严格参数、环境诊断、证据导出、中文字体与单模组 STEP 导入，同时保留真实关节、中央检查窗口、原生归档和本机 Node 运行库配置。解决重复 EndPlay、导入取消路由与互斥、鼠标焦点/左键手势、字体排版及相机面板偏移冲突；移除 STEP 相机重复面板补偿，新增实际原生断言。STEP 转换进程复用启动器指定或随包的本机 Node。命令行通过目录别名启动的回归先失败，修复入口路径判断后通过。
+
+本次执行：Node 24.19.0 下 `npm ci`、`npm test`（76 文件、499 项通过）、`npm run check`、`npm run build`、`npm run test:browser`（33 项通过）、`npm run format:check`。最终原生导出、启动器及 STEP 相关回归另跑 4 文件、49 项通过。`npm audit` 仍报告 4 项风险（1 high、3 moderate），不记为通过。
+
+使用进程级 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`，UE 5.8.4 Mac Editor Development 编译通过；23 项 VirtualWorld 原生测试全部成功，其中空 GLB 拒绝用例保留 1 条预期的“no renderable mesh”警告，其余 22 项无测试警告。实际测试覆盖本机 STEP 转换进程、模型替换/失败保留/恢复、相机中心、模块左键手势与失焦、CAD 关节及中央窗口。独立复查发现的相机偏移问题已修复，复查未发现其他待处理项。
+
+本次未重新执行独立应用打包、Windows 编译/执行、长时间 soak 或硬件输入延迟验收；此前限制与 Mac 沙盒选择保持不变。通用浏览器用例与本地 HTTP 模型夹具不代表实付供应商验证。报告与原生测试夹具位于本地忽略目录 `output/playwright/pr19-merge-native-green/`、`output/playwright/pr19-merge-step-fixtures/`，客户 CAD、生成二进制及字体未提交。
