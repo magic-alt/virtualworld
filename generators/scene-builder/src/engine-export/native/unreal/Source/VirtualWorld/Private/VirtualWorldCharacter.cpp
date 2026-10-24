@@ -1,6 +1,7 @@
 #include "VirtualWorldRuntime.h"
 #include "VirtualWorldModel.h"
 #include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
 #include "Engine/GameViewportClient.h"
 #include "UnrealClient.h"
 #include "Engine/World.h"
@@ -194,7 +195,11 @@ void AVirtualWorldRuntime::StepPlayerMovement(const FVector& Direction,bool bJum
 void AVirtualWorldRuntime::ResetCamera()
 {
     PointerDrag.Reset();
-    if(bImportedModule) {FitImportedCamera();return;}
+    bLastPointerValid=bPointerOrbit=bPointerPan=bRightWasDown=bMiddleWasDown=false;PendingPanelWheel=0;
+    if(bImportedModule)
+    {
+        FitImportedCamera();InspectionZoomMin=.001f;InspectionZoomMax=1.e8f;return;
+    }
     const VW::Json SourceCamera=VW::Object(Scene,TEXT("camera"));
     CameraTarget=VW::Position(VW::Vector(SourceCamera,TEXT("target")));
     CameraOffset=VW::Position(VW::Vector(SourceCamera,TEXT("position")))-CameraTarget;
@@ -207,6 +212,8 @@ void AVirtualWorldRuntime::ResetCamera()
         const FVector SpawnUp=(VW::Position(VW::Vector(Scene,TEXT("spawn")))-Centre).GetSafeNormal(SMALL_NUMBER,FVector::UpVector);
         CameraOffset=FQuat::FindBetweenNormals(SpawnUp,PlayerUp).RotateVector(CameraOffset);
     }
+    InspectionZoomMin=FMath::Max(.02f,static_cast<float>(CameraOffset.Size()*.015));
+    InspectionZoomMax=FMath::Max(InspectionZoomMin*2,static_cast<float>(CameraOffset.Size()*50));
     UpdateCamera();
 }
 
@@ -214,13 +221,26 @@ void AVirtualWorldRuntime::UpdateCamera()
 {
     if(!Camera) return;
     if(PlayerRoot) CameraTarget=PlayerFeet+PlayerUp*(PlayerHeight*.65);
-    Camera->SetActorLocationAndRotation(CameraTarget+CameraOffset,FRotationMatrix::MakeFromXZ(-CameraOffset,CameraUp).ToQuat());
+    const FQuat Rotation=FRotationMatrix::MakeFromXZ(-CameraOffset,CameraUp).ToQuat();
+    FVector ViewTarget=CameraTarget;
+    if(VW::String(Metadata,TEXT("mode"))==TEXT("industrial"))
+    {
+        int32 Width=0,Height=0;
+        if(APlayerController* PC=GetWorld()->GetFirstPlayerController()) PC->GetViewportSize(Width,Height);
+        if(Width>0)
+        {
+            const double Panel=FMath::Min(450.,Width*.48);
+            ViewTarget-=Rotation.GetRightVector()*CameraOffset.Size()*FMath::Tan(FMath::DegreesToRadians(25.))*Panel/Width;
+        }
+    }
+    Camera->SetActorLocationAndRotation(ViewTarget+CameraOffset,Rotation);
 }
 
 void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
 {
     APlayerController* PC=GetWorld()->GetFirstPlayerController();if(!PC)return;
     const auto Pressed=[PC](const FKey& Key){return PC->WasInputKeyJustPressed(Key);};
+    if(Pressed(EKeys::O)) ChooseCadFile();
     if(Pressed(EKeys::E)) Command(TEXT("interact"));
     if(Pressed(EKeys::Escape)) {Dialogue.Empty();SelectedInteraction.Empty();}
     if(Pressed(EKeys::Tab)) Command(TEXT("next"));
@@ -233,25 +253,27 @@ void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
     if(Pressed(EKeys::RightBracket)) Command(TEXT("step"));
     if(Pressed(EKeys::C)) Command(TEXT("section"));
     if(Pressed(EKeys::X)) Command(TEXT("explode"));
+    if(Pressed(EKeys::M)) Command(TEXT("markers"));
+    if(Pressed(EKeys::G)) Command(TEXT("principle"));
+    if(Pressed(EKeys::K)) Command(TEXT("focus-brake"));
+    if(Pressed(EKeys::V)) Command(TEXT("focus-principle"));
+    if(Pressed(EKeys::H)) Command(TEXT("frame-assembly"));
+    if(Pressed(EKeys::T)) Command(TEXT("slow-motion"));
     if(Pressed(EKeys::B)) Command(TEXT("brake-power"));
     if(Pressed(EKeys::I)) Command(TEXT("brake-install"));
     if(Pressed(EKeys::Equals)||Pressed(EKeys::Add)) Command(TEXT("speed-up"));
     if(Pressed(EKeys::Hyphen)||Pressed(EKeys::Subtract)) Command(TEXT("speed-down"));
     const FKey Digits[]={EKeys::One,EKeys::Two,EKeys::Three,EKeys::Four,EKeys::Five,EKeys::Six,EKeys::Seven,EKeys::Eight,EKeys::Nine,EKeys::Zero};
     for(int32 I=0;I<10;++I) if(Pressed(Digits[I])) Command(TEXT("choice:")+FString::FromInt(I));
-    int32 ViewWidth=0,ViewHeight=0;PC->GetViewportSize(ViewWidth,ViewHeight);
-    float MouseX=0,MouseY=0;const bool bHasPosition=PC->GetMousePosition(MouseX,MouseY)&&MouseX>=0&&MouseX<ViewWidth&&MouseY>=0&&MouseY<ViewHeight;
+    float MX=0,MY=0,RawX=0,RawY=0;const bool HasPosition=PC->GetMousePosition(MX,MY);
+    PC->GetInputMouseDelta(RawX,RawY);int32 Width=0,Height=0;PC->GetViewportSize(Width,Height);
+    double Wheel=PC->GetInputAnalogKeyState(EKeys::MouseWheelAxis);
+    if(!FMath::IsFinite(Wheel)||FMath::IsNearlyZero(Wheel))Wheel=(Pressed(EKeys::MouseScrollUp)?1:0)-(Pressed(EKeys::MouseScrollDown)?1:0);
     const UGameViewportClient* ViewportClient=GetWorld()->GetGameViewport();
-    const bool bFocused=ViewportClient&&ViewportClient->Viewport&&ViewportClient->Viewport->HasFocus();
-    const bool bInViewport=bHasPosition&&MouseX>=VW::ControlPanelWidth(ViewWidth)&&MouseX<ViewWidth&&MouseY>=0&&MouseY<ViewHeight;
-    const bool bOrbit=PC->IsInputKeyDown(EKeys::RightMouseButton)||(IsModuleViewer()&&PC->IsInputKeyDown(EKeys::LeftMouseButton));
-    const bool bPan=IsModuleViewer()&&PC->IsInputKeyDown(EKeys::MiddleMouseButton);
-    const FVector2D PointerDelta=PointerDrag.Update(FVector2D(MouseX,MouseY),bHasPosition,bFocused,bInViewport,bOrbit,bPan);
-    float DX=PointerDrag.Mode==1?static_cast<float>(PointerDelta.X):0.f;
-    float DY=PointerDrag.Mode==1?static_cast<float>(PointerDelta.Y):0.f;
-    if(PointerDrag.Mode==2) CameraTarget+=VW::PointerPan(CameraOffset,CameraUp,PointerDelta,ViewWidth,50.);
-    DX+=((PC->IsInputKeyDown(EKeys::Right)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::Left)?1.f:0.f))*160.f*DeltaSeconds;
-    DY+=((PC->IsInputKeyDown(EKeys::Down)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::Up)?1.f:0.f))*160.f*DeltaSeconds;
+    const bool Focused=ViewportClient&&ViewportClient->Viewport&&ViewportClient->Viewport->HasFocus();
+    UpdateInspectionPointer(FVector2D(MX,MY),HasPosition,FVector2D(RawX,RawY),PC->IsInputKeyDown(EKeys::RightMouseButton),PC->IsInputKeyDown(EKeys::MiddleMouseButton),Wheel,Width,Height,PC->IsInputKeyDown(EKeys::LeftMouseButton),Focused);
+    const float DX=((PC->IsInputKeyDown(EKeys::Right)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::Left)?1.f:0.f))*160.f*DeltaSeconds;
+    const float DY=((PC->IsInputKeyDown(EKeys::Down)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::Up)?1.f:0.f))*160.f*DeltaSeconds;
     if(!FMath::IsNearlyZero(DX)||!FMath::IsNearlyZero(DY))
     {
         const FVector Right=FVector::CrossProduct(CameraUp,-CameraOffset.GetSafeNormal()).GetSafeNormal();
@@ -263,10 +285,45 @@ void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
         const float Roll=(PC->IsInputKeyDown(EKeys::Q)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::F)?1.f:0.f);
         CameraUp=FQuat(-CameraOffset.GetSafeNormal(),Roll*DeltaSeconds).RotateVector(CameraUp);
     }
-    if(bFocused&&bInViewport)
+ }
+
+void AVirtualWorldRuntime::UpdateInspectionPointer(FVector2D Position,bool HasPosition,FVector2D RawDelta,bool RightDown,bool MiddleDown,double Wheel,int32 Width,int32 Height,bool LeftDown,bool Focused)
+{
+    const bool OrbitDown=RightDown||(IsModuleViewer()&&LeftDown);
+    if(Width<=0||Height<=0||!Focused)
     {
-        float Wheel=PC->GetInputAnalogKeyState(EKeys::MouseWheelAxis);
-        if(FMath::IsNearlyZero(Wheel)) Wheel=(Pressed(EKeys::MouseScrollUp)?1.f:0.f)-(Pressed(EKeys::MouseScrollDown)?1.f:0.f);
-        if(!FMath::IsNearlyZero(Wheel)) CameraOffset=CameraOffset.GetSafeNormal()*FMath::Clamp(CameraOffset.Size()*FMath::Pow(1.15,-Wheel),bImportedModule?.001:(Mechanism?0.5:100.),bImportedModule?1.e8:(Mechanism?1000.:5000.));
+        bLastPointerValid=bPointerOrbit=bPointerPan=false;
+        bRightWasDown=OrbitDown;bMiddleWasDown=MiddleDown;return;
     }
+    HasPosition=HasPosition&&FMath::IsFinite(Position.X)&&FMath::IsFinite(Position.Y)&&Position.X>=0&&Position.X<Width&&Position.Y>=0&&Position.Y<Height;
+    const double Panel=VW::ControlPanelWidth(Width);
+    const bool InScene=HasPosition&&Position.X>=Panel&&Position.X<Width&&Position.Y>=0&&Position.Y<Height;
+    const bool Continuing=(bPointerOrbit&&OrbitDown)||(bPointerPan&&MiddleDown);
+    if(!OrbitDown)bPointerOrbit=false;if(!MiddleDown)bPointerPan=false;
+    if(!bPointerOrbit&&!bPointerPan&&InScene){bPointerOrbit=OrbitDown&&!bRightWasDown;bPointerPan=MiddleDown&&!bMiddleWasDown&&!OrbitDown&&!PlayerRoot;}
+    // Unreal MouseY is positive upward; absolute cursor positions are positive downward.
+    FVector2D Delta(RawDelta.X,-RawDelta.Y);
+    if(Delta.IsNearlyZero()&&HasPosition&&bLastPointerValid)Delta=Position-LastPointerPosition;
+    if(Continuing&&!Delta.ContainsNaN())
+    {
+        const FVector Right=FVector::CrossProduct(CameraUp,-CameraOffset.GetSafeNormal()).GetSafeNormal();
+        if(bPointerOrbit)
+        {
+            const FQuat Rotation=FQuat(Right,-Delta.Y*.006)*FQuat(CameraUp,-Delta.X*.006);
+            CameraOffset=Rotation.RotateVector(CameraOffset);CameraUp=Rotation.RotateVector(CameraUp).GetSafeNormal();
+        }
+        else if(bPointerPan)
+        {
+            // World distance per viewport pixel at the inspection target, preserving camera roll.
+            const double Fov=Camera?Camera->GetCameraComponent()->FieldOfView:50.;
+            CameraTarget+=VW::PointerPan(CameraOffset,CameraUp,Delta,Width,Fov);
+        }
+    }
+    if(HasPosition&&FMath::IsFinite(Wheel)&&Wheel!=0)
+    {
+        if(InScene)CameraOffset=CameraOffset.GetSafeNormal()*FMath::Clamp(CameraOffset.Size()*FMath::Pow(1.12,-Wheel),PlayerRoot?100.:(bImportedModule?.001:InspectionZoomMin),PlayerRoot?5000.:(bImportedModule?1.e8:InspectionZoomMax));
+        else if(Position.X>=0&&Position.X<Panel)PendingPanelWheel+=Wheel;
+    }
+    bRightWasDown=OrbitDown;bMiddleWasDown=MiddleDown;
+    bLastPointerValid=HasPosition;if(HasPosition)LastPointerPosition=Position;
 }

@@ -5,6 +5,10 @@
 #include "GameFramework/HUD.h"
 #include "HAL/PlatformProcess.h"
 #include "VirtualWorldData.h"
+#include "VirtualWorldJointDynamics.h"
+#include "VirtualWorldJointTransmission.h"
+#include "UObject/StrongObjectPtr.h"
+#include "Materials/MaterialInterface.h"
 #include "VirtualWorldPointer.h"
 #include "VirtualWorldImportState.h"
 #include "VirtualWorldRuntime.generated.h"
@@ -14,6 +18,23 @@ class ACameraActor;
 class UglTFRuntimeAsset;
 class USkeletalMeshComponent;
 class UPrimitiveComponent;
+class UProceduralMeshComponent;
+
+struct FVirtualWorldCadBinding
+{
+    VW::Json Data;
+    UPrimitiveComponent* Component = nullptr;
+    USceneComponent* Marker = nullptr;
+    UProceduralMeshComponent* InspectionMesh = nullptr;
+    TArray<TStrongObjectPtr<UMaterialInterface>> OriginalInspectionMaterials;
+    TArray<TStrongObjectPtr<UMaterialInterface>> TransparentInspectionMaterials;
+    bool bOriginalCastShadow = true;
+    FTransform InspectionPose;
+    bool bInspectionBuilt = false;
+    uint64 InspectionRevision = 0;
+    bool bOriginalVisible = true;
+    FTransform Original; // Native basis, model-relative, before any motion.
+};
 class UFont;
 
 struct FVirtualWorldNode
@@ -59,6 +80,17 @@ public:
 private:
     friend class AVirtualWorldHUD;
     friend class FVirtualWorldProgressTest;
+    friend class FVirtualWorldMechanismTimingTest;
+    friend class FVirtualWorldInspectionTest;
+    friend class FVirtualWorldCadJointComponentTest;
+    friend class FVirtualWorldCadJointWorkBudgetTest;
+    friend class FVirtualWorldInspectionPointerTest;
+    friend class FVirtualWorldCadJointPivotTest;
+    friend class FVirtualWorldCadJointSuspensionTest;
+    friend class FVirtualWorldCadJointInspectionTest;
+    friend class FVirtualWorldCadJointTransmissionTest;
+    friend class FVirtualWorldCadJointSectionTest;
+    friend class FVirtualWorldCadJointSectionVisibilityTest;
     friend class FVirtualWorldImportReplacementTest;
     bool Fail(const FString& Message);
     bool ReadCatalog();
@@ -80,16 +112,48 @@ private:
     bool BuildColliders(FVirtualWorldNode& Node);
     bool BuildPlayer();
     bool BindMechanism();
+    bool BindCadJoint();
+    bool CheckCadDriveChain(FString& Reason) const;
+    void ApplyCadJoint();
+    VWJoint::Transmission CadTransmission() const;
+    void UpdateCadSections();
+    void UpdateCadTransparency();
+    bool BuildCadTransparencyWindow(FVirtualWorldCadBinding& Entry,double Radius);
+    void ReleaseCadSections();
+    void SelectCadSectionCamera();
+    void BuildCadPrinciple();
+    void UpdateCadPrinciple();
+    void FrameCadInspection(bool bPrincipleOnly = false);
+    void FrameCadBrakeInspection();
+    void FrameCadPrincipleInspection();
     void BuildCameraAndLight();
+    void ChooseCadFile();
+    void BeginCadImport(const FString& Path);
+    void TickCadImport();
+    void CancelCadImport(const FString& Message);
+    bool InstallCadCatalog(const FString& Directory, const FString& SceneId);
+    void WriteCadReport(bool bSuccess, const FString& Message);
+    FProcHandle CadProcess;
+    void* CadReadPipe = nullptr;
+    void* CadWritePipe = nullptr;
+    FString CadDirectory;
+    FString CadRequestId;
+    FString CadLog;
+    double CadStartedAt = 0;
+    uint64 SceneGeneration = 0;
+    uint64 CadGeneration = 0;
     void StepPlayer(float DeltaSeconds);
     void StepPlayerMovement(const FVector& Direction, bool bJumpPressed, float DeltaSeconds);
     bool ProbePlayerGround(FHitResult& Hit, float Distance) const;
     void ResetCamera();
     void UpdateCamera();
     void HandleInput(float DeltaSeconds);
+    void UpdateInspectionPointer(FVector2D Position,bool HasPosition,FVector2D RawDelta,bool RightDown,bool MiddleDown,double Wheel,int32 Width,int32 Height,bool LeftDown=false,bool Focused=true);
     void PlayPlayerClip(const FString& State);
     void ApplyMechanism();
     void StepMechanism(float DeltaSeconds);
+    void BindJointClockLifecycle();
+    void UnbindJointClockLifecycle();
     void ApplyVisibility();
     bool IsDescendant(const FString& Id, const FString& Ancestor) const;
     bool IsUnlocked(const FString& SceneId) const;
@@ -131,6 +195,25 @@ private:
     int32 ColliderCount = 0;
     int32 SmokeFrame = 0;
     int32 SmokeIndex = 0;
+    VWJoint::ClockGate JointClock;
+    FDelegateHandle JointDeactivateHandle,JointReactivateHandle,JointBackgroundHandle,JointForegroundHandle;
+#if WITH_DEV_AUTOMATION_TESTS
+    int32 JointClockFocusOverride = -1;
+#endif
+    TUniquePtr<VWJoint::Dynamics> JointDynamics;
+    TArray<FVirtualWorldCadBinding> CadBindings;
+    USceneComponent* CadModelRoot = nullptr;
+    UProceduralMeshComponent* PrincipleMesh = nullptr;
+    USceneComponent* PrincipleArmature = nullptr;
+    USceneComponent* PrincipleBrakePole = nullptr;
+    bool bRollingMarkers = false;
+    bool bPrinciple = false;
+    double JointTimeScale = 1;
+    double KinematicOffset = 0;
+    double PrincipleMinGap = 0;
+    bool bPrincipleBuilt = false;
+    double PrincipleBuiltAngle = 0;
+    double PrincipleBuiltClosure = 0;
     double InputAngle = 0;
     float Rpm = 6;
     float Explosion = 0;
@@ -156,6 +239,20 @@ private:
     FVector CameraTarget = FVector::ZeroVector;
     FVector CameraOffset = FVector(400,400,300);
     FVector CameraUp = FVector::UpVector;
+    FVector SectionSavedTarget = FVector::ZeroVector;
+    FVector SectionSavedOffset = FVector::ZeroVector;
+    FVector SectionSavedUp = FVector::UpVector;
+    bool bSectionCameraSaved = false;
+    bool bSectionSavedPrinciple = false;
+    FVector2D LastPointerPosition = FVector2D::ZeroVector;
+    bool bLastPointerValid = false;
+    bool bPointerOrbit = false;
+    bool bPointerPan = false;
+    bool bRightWasDown = false;
+    bool bMiddleWasDown = false;
+    float PendingPanelWheel = 0;
+    float InspectionZoomMin = .02f;
+    float InspectionZoomMax = 5000.f;
     UPROPERTY() TArray<TObjectPtr<AActor>> SpawnedActors;
     UPROPERTY() TArray<TObjectPtr<USceneComponent>> SceneComponents;
     UPROPERTY() TMap<FString, TObjectPtr<UglTFRuntimeAsset>> AssetCache;

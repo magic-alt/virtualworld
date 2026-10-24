@@ -66,12 +66,60 @@ The equivalent native argument is `-VirtualWorldScene=little-prince-b612`.
 An explicit startup chapter is playable on a fresh save. Later menu transitions
 still enforce chapter prerequisites. Reset returns to that launch chapter.
 
+## Local STEP / STP import
+
+Projects created by the repository's `npm run native:export` command include an
+approximately 10 MiB offline CAD helper under `Content/VirtualWorldTools/Cad`.
+Run with Node.js 24 or later:
+
+```sh
+node Scripts/native.mjs run --engine /absolute/path/to/UE_5.8
+# Optional initial file, also useful for repeatable native acceptance:
+node Scripts/native.mjs run --engine /absolute/path/to/UE_5.8 --import /absolute/path/to/model.stp
+```
+
+Click **Import STEP / STP** or press **O**. Editor-based game runs use the native
+file selector. Packaged game builds use a path-entry window because they cannot
+depend on the editor's DesktopPlatform module. The launcher supplies `VW_NODE_EXECUTABLE`. The package helper copies the installed
+host Node runtime and its LICENSE into the non-UFS tools directory; a directly
+launched package uses that bundled runtime without a separately installed Node.
+An explicitly supplied `VW_NODE_EXECUTABLE` overrides the bundled path. The
+packaging host needs an official Node24+ distribution with its LICENSE present. Nothing downloads
+Node, contacts Studio or calls a paid provider. Plain source archives exported
+through the generic download API do not contain the CAD helper; create a native
+project through the CLI above to enable this optional feature.
+
+The converter runs separately while the current scene remains visible. The
+Cancel button, scene changes, shutdown and a 180-second limit stop an import.
+Failed conversion keeps the current scene. Successful imports extend the scene
+menu, so H-100 and previous imports remain selectable during this run. Imports
+are retained under `Saved/VirtualWorld/Imports/<request-id>/converted`: `source/`
+holds original STEP bytes, `optimized/` holds the generated GLB, `scene.json` is
+the validated SceneSpec, and `manifests/import.json` retains hashes, dimensions,
+parser version and glTF validator messages. Imported models are static inspection
+assets with their available hierarchy and colors; no motion constraints or
+engineering parameters are inferred. **R** frames the imported model again.
+
+A fresh native diagnostic receipt is written to
+`Saved/VirtualWorld/import-report.json`. It records the installed scene, actual
+native static mesh count and bounds in centimetres. The source/manifest remains
+in metres; the engine loader performs the single centimetre conversion.
+
 ## Native controls
 
 The left HUD contains clickable actions, chapter choices, tasks and dialogue.
+Mechanism scenes use fixed manual exposure, a neutral key/fill lighting rig,
+and a weak shadow-free fill that follows the inspection camera. A fixed engine
+daylight cubemap supplies metal reflections without capturing the empty Entry
+sky. Lighting stays active while paused, running, sectioned or exploded; it has
+no exposure adaptation or time-of-day cycle. The cubemap directory is included
+in the cook configuration. Main-light shadows retain shape while the fills
+keep exposed internal parts readable.
+
 Scroll over the panel to reach additional controls. Scroll over the rendered
-scene to zoom. Right-drag or arrow keys orbit the camera; the mechanism camera
-has no polar clamp. Q/F rolls the mechanism view. The configured near plane is
+scene to zoom. Right-drag or arrow keys orbit the camera; middle-drag pans an inspection view; the mechanism camera
+has no polar clamp. Drag starts over the scene, without an initial jump, and the
+HUD panel handles its own wheel scrolling. Mouse smoothing is disabled. Q/F rolls the mechanism view. The configured near plane is
 0.01 centimetres so the small harmonic model can be inspected close up.
 
 | Experience          | Keyboard                                                        |
@@ -139,6 +187,70 @@ path before loading. The importer cannot resolve external files. The data checke
 also verifies actor clips, hierarchy references, campaign dependencies and
 harmonic target names. Missing render meshes, animation bindings, morph pairs or
 import errors produce a persistent HUD error and a native log entry.
+
+## Central harmonic inspection
+
+A CAD binding may specify `inspectionWindowRadius` in original CAD metres together
+with `inspectionOpacity`. Its pivot/axis define a coaxial center window. Native
+inspection partitions display surfaces with a64-sided prism, retains the opaque
+rim with its source materials and ghosts only the center. This adds no caps and
+changes no source mesh or physical transmission. Fragments are aggregated by
+source material so section compaction cannot recolor the rim. Display copies are
+built once per inspection entry, follow the actual moving component, and are
+released on full-assembly restoration. The browser uses a radial alpha mask in
+transient clones. The source CAD and materials remain unchanged.
+
+The local real-joint profile uses a19mm radius on three documented occluders,
+retains the circular spline entirely opaque, and authors202RPM as its motor
+setpoint. Fixed flexspline with101:1 circular output produces+2RPM. These are local
+profile values; legacy unconfigured scenes keep their authored/default behavior.
+
+## Standalone applications and Windows builds
+
+Package on the target platform with the installed UE5.8 C++ toolchain. The helper
+performs build/cook/stage/package/archive; `--output` names the distribution
+folder. Distribute the whole archived directory, including the executable/app,
+Pak files and non-UFS model/tool files. An exported `.uproject` is source, not a
+standalone executable. A packaged player does not need the UE editor, Node or
+Studio installed; the optional CAD importer uses the bundled licensed runtime.
+
+macOS, with Xcode selected:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer node Scripts/native.mjs package --engine '/Users/Shared/Epic Games/UE_5.8' --configuration Development --output ./Packaged/Mac
+```
+
+Windows PowerShell, with UE5.8 and its supported Visual Studio C++ workload and
+Windows SDK installed:
+
+```powershell
+node Scripts/native.mjs check --data-only
+node Scripts/prepare-plugin.mjs
+node Scripts/prepare-plugin.mjs --verify
+node Scripts/native.mjs package --engine 'C:\Program Files\Epic Games\UE_5.8' --platform Win64 --configuration Development --output 'D:\VirtualWorldBuild'
+```
+
+Use `--configuration Shipping` for a distribution configuration after target
+validation. The default is Development for diagnostics. Windows packaging runs
+on Windows; this helper rejects a Win64 target on macOS rather than claiming a
+cross-built `.exe`. Node, pinned plugin, canonical GLBs, tools and required
+licenses must remain present during packaging. No runtime binary is downloaded
+by the helper. Verify the archived application on each intended target system;
+unsigned/notarization, signing and installer distribution are separate release
+work. A successful Mac build does not validate a Windows build.
+
+Mac packaged offline import still requires sandbox-compatible file selection and
+writable converter storage. Direct playback is verified; the current default
+sandbox blocks creating the conversion directory for an absolute-path import.
+Keep that distinction when distributing this build.
+
+During CAD playback, the hidden illustrative layer keeps its buffers; opening
+it synchronizes to the current physical angle. Visible animated strips reuse
+topology/render sections and analytic normals. Paused unchanged geometry is
+cached. These changes do not alter physical time,101 reduction or source CAD.
+
+Official references: [Epic packaging](https://dev.epicgames.com/documentation/en-us/unreal-engine/packaging-your-project),
+[Epic Visual Studio setup](https://dev.epicgames.com/documentation/en-us/unreal-engine/setting-up-visual-studio-development-environment-for-cplusplus-projects-in-unreal-engine).
 
 ## Native acceptance checks
 

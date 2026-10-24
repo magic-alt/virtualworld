@@ -1,0 +1,800 @@
+{
+  "version": 1,
+  "units": "SI: radians, rad/s, seconds, Nm, kg*m^2, joules",
+  "tolerance": 0.000001,
+  "config": {
+    "inertia": 0.00012,
+    "driveTorque": 0.012,
+    "brakeTorque": 0.06,
+    "holdTorque": 0.08,
+    "viscousDrag": 0.00002,
+    "engageDelay": 0.025,
+    "engageRamp": 0.04,
+    "releaseDelay": 0.02,
+    "releaseRamp": 0.035,
+    "armatureTravel": 0.00015,
+    "provenance": "demonstration-assumption",
+    "notes": "Illustrative equivalent shaft values chosen for visible transitions; no measurement, vendor rating or human confirmation."
+  },
+  "scenarios": [
+    {
+      "name": "forward-power-off-hold-release-interlock",
+      "actions": [
+        {
+          "method": "setRpm",
+          "args": [60],
+          "expected": {
+            "angle": 0,
+            "omega": 0,
+            "time": 0,
+            "dissipatedEnergy": 0,
+            "kineticEnergy": 0,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": false,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "start",
+          "args": [],
+          "accepted": true,
+          "expected": {
+            "angle": 0,
+            "omega": 0,
+            "time": 0,
+            "dissipatedEnergy": 0,
+            "kineticEnergy": 0,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.2],
+          "expected": {
+            "angle": 1.0585523144717732,
+            "omega": 6.283185307179585,
+            "time": 0.2,
+            "dissipatedEnergy": 0.00012470969967511578,
+            "kineticEnergy": 0.002368705056261445,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "setPowered",
+          "args": [false],
+          "expected": {
+            "angle": 1.0585523144717732,
+            "omega": 6.283185307179585,
+            "time": 0.2,
+            "dissipatedEnergy": 0.00012470969967511578,
+            "kineticEnergy": 0.002368705056261445,
+            "closure": 0,
+            "brakePhase": "engage-delay",
+            "powered": false,
+            "installed": true,
+            "running": false,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.0125],
+          "expected": {
+            "angle": 1.1370103752873557,
+            "omega": 6.270108963710322,
+            "time": 0.21250000000000002,
+            "dissipatedEnergy": 0.00013455877092852914,
+            "kineticEnergy": 0.0023588559850080317,
+            "closure": 0,
+            "brakePhase": "engage-delay",
+            "powered": false,
+            "installed": true,
+            "running": false,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.025],
+          "expected": {
+            "angle": 1.2893700922766251,
+            "omega": 5.268153177545443,
+            "time": 0.23750000000000004,
+            "dissipatedEnergy": 0.000828208481811632,
+            "kineticEnergy": 0.001665206274124929,
+            "closure": 0.3125,
+            "brakePhase": "engaging",
+            "powered": false,
+            "installed": true,
+            "running": false,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.12],
+          "expected": {
+            "angle": 1.34685645964236,
+            "omega": 0,
+            "time": 0.35750000000000004,
+            "dissipatedEnergy": 0.002493414755936561,
+            "kineticEnergy": 0,
+            "closure": 1,
+            "brakePhase": "holding",
+            "powered": false,
+            "installed": true,
+            "running": false,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "setPowered",
+          "args": [true],
+          "expected": {
+            "angle": 1.34685645964236,
+            "omega": 0,
+            "time": 0.35750000000000004,
+            "dissipatedEnergy": 0.002493414755936561,
+            "kineticEnergy": 0,
+            "closure": 1,
+            "brakePhase": "release-delay",
+            "powered": true,
+            "installed": true,
+            "running": false,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "start",
+          "args": [],
+          "accepted": false,
+          "expected": {
+            "angle": 1.34685645964236,
+            "omega": 0,
+            "time": 0.35750000000000004,
+            "dissipatedEnergy": 0.002493414755936561,
+            "kineticEnergy": 0,
+            "closure": 1,
+            "brakePhase": "release-delay",
+            "powered": true,
+            "installed": true,
+            "running": false,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.06],
+          "expected": {
+            "angle": 1.34685645964236,
+            "omega": 0,
+            "time": 0.4175000000000001,
+            "dissipatedEnergy": 0.002493414755936561,
+            "kineticEnergy": 0,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": false,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.2],
+          "expected": {
+            "angle": 1.34685645964236,
+            "omega": 0,
+            "time": 0.6175000000000002,
+            "dissipatedEnergy": 0.002493414755936561,
+            "kineticEnergy": 0,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": false,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "start",
+          "args": [],
+          "accepted": true,
+          "expected": {
+            "angle": 1.34685645964236,
+            "omega": 0,
+            "time": 0.6175000000000002,
+            "dissipatedEnergy": 0.002493414755936561,
+            "kineticEnergy": 0,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.1],
+          "expected": {
+            "angle": 1.7770902433961746,
+            "omega": 6.283185307179585,
+            "time": 0.7175000000000001,
+            "dissipatedEnergy": 0.002539167620402962,
+            "kineticEnergy": 0.002368705056261445,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": 60
+          }
+        }
+      ]
+    },
+    {
+      "name": "reverse-power-off-and-mid-ramp-toggle",
+      "actions": [
+        {
+          "method": "setRpm",
+          "args": [-97],
+          "expected": {
+            "angle": 0,
+            "omega": 0,
+            "time": 0,
+            "dissipatedEnergy": 0,
+            "kineticEnergy": 0,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": false,
+            "targetRpm": -97
+          }
+        },
+        {
+          "method": "start",
+          "args": [],
+          "accepted": true,
+          "expected": {
+            "angle": 0,
+            "omega": 0,
+            "time": 0,
+            "dissipatedEnergy": 0,
+            "kineticEnergy": 0,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": -97
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.2],
+          "expected": {
+            "angle": -1.5127208195304522,
+            "omega": -10.157816246606997,
+            "time": 0.2,
+            "dissipatedEnergy": 0.00027208349884275714,
+            "kineticEnergy": 0.006190873853989983,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": -97
+          }
+        },
+        {
+          "method": "setPowered",
+          "args": [false],
+          "expected": {
+            "angle": -1.5127208195304522,
+            "omega": -10.157816246606997,
+            "time": 0.2,
+            "dissipatedEnergy": 0.00027208349884275714,
+            "kineticEnergy": 0.006190873853989983,
+            "closure": 0,
+            "brakePhase": "engage-delay",
+            "powered": false,
+            "installed": true,
+            "running": false,
+            "targetRpm": -97
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.045],
+          "expected": {
+            "angle": -1.951459909410032,
+            "omega": -7.5846930649604,
+            "time": 0.245,
+            "dissipatedEnergy": 0.0030113032194532367,
+            "kineticEnergy": 0.0034516541333795034,
+            "closure": 0.49999999999999994,
+            "brakePhase": "engaging",
+            "powered": false,
+            "installed": true,
+            "running": false,
+            "targetRpm": -97
+          }
+        },
+        {
+          "method": "setPowered",
+          "args": [true],
+          "expected": {
+            "angle": -1.951459909410032,
+            "omega": -7.5846930649604,
+            "time": 0.245,
+            "dissipatedEnergy": 0.0030113032194532367,
+            "kineticEnergy": 0.0034516541333795034,
+            "closure": 0.49999999999999994,
+            "brakePhase": "release-delay",
+            "powered": true,
+            "installed": true,
+            "running": false,
+            "targetRpm": -97
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.03],
+          "expected": {
+            "angle": -2.0685000227889168,
+            "omega": -0.7794720936829682,
+            "time": 0.275,
+            "dissipatedEnergy": 0.00642650274814291,
+            "kineticEnergy": 0.0000364546046898306,
+            "closure": 0.2142857142857143,
+            "brakePhase": "releasing",
+            "powered": true,
+            "installed": true,
+            "running": false,
+            "targetRpm": -97
+          }
+        },
+        {
+          "method": "setPowered",
+          "args": [false],
+          "expected": {
+            "angle": -2.0685000227889168,
+            "omega": -0.7794720936829682,
+            "time": 0.275,
+            "dissipatedEnergy": 0.00642650274814291,
+            "kineticEnergy": 0.0000364546046898306,
+            "closure": 0.2142857142857143,
+            "brakePhase": "engage-delay",
+            "powered": false,
+            "installed": true,
+            "running": false,
+            "targetRpm": -97
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.2],
+          "expected": {
+            "angle": -2.071333091076234,
+            "omega": 0,
+            "time": 0.47500000000000003,
+            "dissipatedEnergy": 0.0064629573528327405,
+            "kineticEnergy": 0,
+            "closure": 1,
+            "brakePhase": "holding",
+            "powered": false,
+            "installed": true,
+            "running": false,
+            "targetRpm": -97
+          }
+        }
+      ]
+    },
+    {
+      "name": "long-frame-reversal-and-normal-stop",
+      "actions": [
+        {
+          "method": "setRpm",
+          "args": [60],
+          "expected": {
+            "angle": 0,
+            "omega": 0,
+            "time": 0,
+            "dissipatedEnergy": 0,
+            "kineticEnergy": 0,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": false,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "start",
+          "args": [],
+          "accepted": true,
+          "expected": {
+            "angle": 0,
+            "omega": 0,
+            "time": 0,
+            "dissipatedEnergy": 0,
+            "kineticEnergy": 0,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.2],
+          "expected": {
+            "angle": 1.0585523144717732,
+            "omega": 6.283185307179585,
+            "time": 0.2,
+            "dissipatedEnergy": 0.00012470969967511578,
+            "kineticEnergy": 0.002368705056261445,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": 60
+          }
+        },
+        {
+          "method": "setRpm",
+          "args": [-60],
+          "expected": {
+            "angle": 1.0585523144717732,
+            "omega": 6.283185307179585,
+            "time": 0.2,
+            "dissipatedEnergy": 0.00012470969967511578,
+            "kineticEnergy": 0.002368705056261445,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": -60
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.2],
+          "expected": {
+            "angle": 0.5887561741331948,
+            "omega": -6.283185307179585,
+            "time": 0.4,
+            "dissipatedEnergy": 0.0002164751956797307,
+            "kineticEnergy": 0.002368705056261445,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": -60
+          }
+        },
+        {
+          "method": "stop",
+          "args": [],
+          "expected": {
+            "angle": 0.5887561741331948,
+            "omega": -6.283185307179585,
+            "time": 0.4,
+            "dissipatedEnergy": 0.0002164751956797307,
+            "kineticEnergy": 0.002368705056261445,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": false,
+            "targetRpm": -60
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.2],
+          "expected": {
+            "angle": 0.3927314095086875,
+            "omega": 0,
+            "time": 0.6000000000000001,
+            "dissipatedEnergy": 0.00023288307644708816,
+            "kineticEnergy": 0,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": false,
+            "targetRpm": -60
+          }
+        }
+      ]
+    },
+    {
+      "name": "pause-and-slow-time",
+      "actions": [
+        {
+          "method": "start",
+          "args": [],
+          "accepted": true,
+          "expected": {
+            "angle": 0,
+            "omega": 0,
+            "time": 0,
+            "dissipatedEnergy": 0,
+            "kineticEnergy": 0,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": 6
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.2],
+          "expected": {
+            "angle": 0.12368909587400195,
+            "omega": 0.6283185307179586,
+            "time": 0.2,
+            "dissipatedEnergy": 0.0000015460503472446234,
+            "kineticEnergy": 0.000023687050562614458,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": 6
+          }
+        },
+        {
+          "method": "setPowered",
+          "args": [false],
+          "expected": {
+            "angle": 0.12368909587400195,
+            "omega": 0.6283185307179586,
+            "time": 0.2,
+            "dissipatedEnergy": 0.0000015460503472446234,
+            "kineticEnergy": 0.000023687050562614458,
+            "closure": 0,
+            "brakePhase": "engage-delay",
+            "powered": false,
+            "installed": true,
+            "running": false,
+            "targetRpm": 6
+          }
+        },
+        {
+          "method": "tick",
+          "args": [
+            10,
+            {
+              "paused": true
+            }
+          ],
+          "expected": {
+            "angle": 0.12368909587400195,
+            "omega": 0.6283185307179586,
+            "time": 0.2,
+            "dissipatedEnergy": 0.0000015460503472446234,
+            "kineticEnergy": 0.000023687050562614458,
+            "closure": 0,
+            "brakePhase": "engage-delay",
+            "powered": false,
+            "installed": true,
+            "running": false,
+            "targetRpm": 6
+          }
+        },
+        {
+          "method": "tick",
+          "args": [
+            0.5,
+            {
+              "timeScale": 0.05
+            }
+          ],
+          "expected": {
+            "angle": 0.13936437962245296,
+            "omega": 0.6257059834265501,
+            "time": 0.225,
+            "dissipatedEnergy": 0.0000017426222481119052,
+            "kineticEnergy": 0.000023490478661747178,
+            "closure": 0,
+            "brakePhase": "engaging",
+            "powered": false,
+            "installed": true,
+            "running": false,
+            "targetRpm": 6
+          }
+        },
+        {
+          "method": "tick",
+          "args": [
+            1,
+            {
+              "timeScale": 0.05
+            }
+          ],
+          "expected": {
+            "angle": 0.14353376256921263,
+            "omega": 0,
+            "time": 0.275,
+            "dissipatedEnergy": 0.000025233100909859083,
+            "kineticEnergy": 0,
+            "closure": 1,
+            "brakePhase": "holding",
+            "powered": false,
+            "installed": true,
+            "running": false,
+            "targetRpm": 6
+          }
+        }
+      ]
+    },
+    {
+      "name": "uninstalled-brake",
+      "actions": [
+        {
+          "method": "start",
+          "args": [],
+          "accepted": true,
+          "expected": {
+            "angle": 0,
+            "omega": 0,
+            "time": 0,
+            "dissipatedEnergy": 0,
+            "kineticEnergy": 0,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": 6
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.2],
+          "expected": {
+            "angle": 0.12368909587400195,
+            "omega": 0.6283185307179586,
+            "time": 0.2,
+            "dissipatedEnergy": 0.0000015460503472446234,
+            "kineticEnergy": 0.000023687050562614458,
+            "closure": 0,
+            "brakePhase": "released",
+            "powered": true,
+            "installed": true,
+            "running": true,
+            "targetRpm": 6
+          }
+        },
+        {
+          "method": "setInstalled",
+          "args": [false],
+          "expected": {
+            "angle": 0.12368909587400195,
+            "omega": 0.6283185307179586,
+            "time": 0.2,
+            "dissipatedEnergy": 0.0000015460503472446234,
+            "kineticEnergy": 0.000023687050562614458,
+            "closure": 0,
+            "brakePhase": "uninstalled",
+            "powered": true,
+            "installed": false,
+            "running": true,
+            "targetRpm": 6
+          }
+        },
+        {
+          "method": "setPowered",
+          "args": [false],
+          "expected": {
+            "angle": 0.12368909587400195,
+            "omega": 0.6283185307179586,
+            "time": 0.2,
+            "dissipatedEnergy": 0.0000015460503472446234,
+            "kineticEnergy": 0.000023687050562614458,
+            "closure": 0,
+            "brakePhase": "uninstalled",
+            "powered": false,
+            "installed": false,
+            "running": false,
+            "targetRpm": 6
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.1],
+          "expected": {
+            "angle": 0.18600024697223333,
+            "omega": 0.6179333388682534,
+            "time": 0.30000000000000004,
+            "dissipatedEnergy": 0.0000023226042327670185,
+            "kineticEnergy": 0.000022910496677092062,
+            "closure": 0,
+            "brakePhase": "uninstalled",
+            "powered": false,
+            "installed": false,
+            "running": false,
+            "targetRpm": 6
+          }
+        },
+        {
+          "method": "setPowered",
+          "args": [true],
+          "expected": {
+            "angle": 0.18600024697223333,
+            "omega": 0.6179333388682534,
+            "time": 0.30000000000000004,
+            "dissipatedEnergy": 0.0000023226042327670185,
+            "kineticEnergy": 0.000022910496677092062,
+            "closure": 0,
+            "brakePhase": "uninstalled",
+            "powered": true,
+            "installed": false,
+            "running": false,
+            "targetRpm": 6
+          }
+        },
+        {
+          "method": "start",
+          "args": [],
+          "accepted": true,
+          "expected": {
+            "angle": 0.18600024697223333,
+            "omega": 0.6179333388682534,
+            "time": 0.30000000000000004,
+            "dissipatedEnergy": 0.0000023226042327670185,
+            "kineticEnergy": 0.000022910496677092062,
+            "closure": 0,
+            "brakePhase": "uninstalled",
+            "powered": true,
+            "installed": false,
+            "running": true,
+            "targetRpm": 6
+          }
+        },
+        {
+          "method": "tick",
+          "args": [0.1],
+          "expected": {
+            "angle": 0.24883156022391115,
+            "omega": 0.6283185307179586,
+            "time": 0.4,
+            "dissipatedEnergy": 0.0000031121590924431967,
+            "kineticEnergy": 0.000023687050562614458,
+            "closure": 0,
+            "brakePhase": "uninstalled",
+            "powered": true,
+            "installed": false,
+            "running": true,
+            "targetRpm": 6
+          }
+        }
+      ]
+    }
+  ]
+}

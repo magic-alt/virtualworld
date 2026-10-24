@@ -98,7 +98,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "39",
+      "assetNode": "1",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -114,7 +114,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "42",
+      "assetNode": "2",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -130,7 +130,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "25",
+      "assetNode": "3",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -146,7 +146,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "17",
+      "assetNode": "4",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -162,7 +162,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "24",
+      "assetNode": "5",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -178,7 +178,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "23",
+      "assetNode": "6",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -194,7 +194,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "18",
+      "assetNode": "7",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -210,7 +210,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "20",
+      "assetNode": "8",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -226,7 +226,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "22",
+      "assetNode": "9",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -242,7 +242,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "19",
+      "assetNode": "10",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -258,7 +258,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "21",
+      "assetNode": "11",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -274,7 +274,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "4",
+      "assetNode": "12",
       "parentId": "joint-root",
       "explode": [0, 0.035, 0]
     },
@@ -290,7 +290,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "6",
+      "assetNode": "13",
       "parentId": "joint-root",
       "explode": [0, 0.035, 0]
     },
@@ -306,7 +306,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "10",
+      "assetNode": "14",
       "parentId": "joint-root",
       "explode": [0, 0.035, 0]
     },
@@ -322,7 +322,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "8",
+      "assetNode": "15",
       "parentId": "joint-root",
       "explode": [0, 0.035, 0]
     },
@@ -338,7 +338,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "9",
+      "assetNode": "16",
       "parentId": "joint-root",
       "explode": [0, 0.035, 0]
     },
@@ -354,7 +354,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "3",
+      "assetNode": "17",
       "parentId": "joint-root",
       "explode": [0, 0.035, 0]
     },
@@ -370,7 +370,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "7",
+      "assetNode": "18",
       "parentId": "joint-root",
       "explode": [0, 0.035, 0]
     },
@@ -386,7 +386,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "1",
+      "assetNode": "19",
       "parentId": "wave-input",
       "explode": [0, 0.035, 0]
     },
@@ -402,7 +402,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "2",
+      "assetNode": "20",
       "parentId": "wave-input",
       "explode": [0, 0.035, 0]
     },
@@ -418,7 +418,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "36",
+      "assetNode": "21",
       "parentId": "wave-input",
       "explode": [0, -0.025, 0]
     },
@@ -434,7 +434,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "44",
+      "assetNode": "22",
       "parentId": "joint-root",
       "explode": [0, -0.025, 0]
     },
@@ -450,7 +450,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "45",
+      "assetNode": "23",
       "parentId": "joint-root",
       "explode": [0, -0.025, 0]
     },
@@ -466,7 +466,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "47",
+      "assetNode": "24",
       "parentId": "wave-input",
       "explode": [0, -0.025, 0]
     },
@@ -482,7 +482,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "48",
+      "assetNode": "25",
       "parentId": "joint-root",
       "explode": [0, -0.025, 0]
     },
@@ -498,7 +498,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "43",
+      "assetNode": "26",
       "parentId": "joint-root",
       "explode": [0, -0.025, 0]
     },
@@ -514,7 +514,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "97",
+      "assetNode": "27",
       "parentId": "wave-input",
       "explode": [0, -0.025, 0]
     },
@@ -530,7 +530,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "98",
+      "assetNode": "28",
       "parentId": "joint-root",
       "explode": [0, -0.025, 0]
     },
@@ -546,7 +546,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "94",
+      "assetNode": "29",
       "parentId": "joint-root",
       "explode": [0, -0.025, 0]
     },
@@ -562,7 +562,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "95",
+      "assetNode": "30",
       "parentId": "joint-root",
       "explode": [0, -0.025, 0]
     },
@@ -578,7 +578,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "85",
+      "assetNode": "31",
       "parentId": "wave-input",
       "explode": [0, 0, 0]
     },
@@ -594,7 +594,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "88",
+      "assetNode": "32",
       "parentId": "wave-input",
       "explode": [0, 0, 0]
     },
@@ -610,7 +610,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "86",
+      "assetNode": "33",
       "parentId": "wave-input",
       "explode": [0, 0, 0]
     },
@@ -626,7 +626,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "87",
+      "assetNode": "34",
       "parentId": "wave-input",
       "explode": [0, 0, 0]
     },
@@ -642,7 +642,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "89",
+      "assetNode": "35",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -658,7 +658,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "91",
+      "assetNode": "36",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -674,7 +674,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "93",
+      "assetNode": "37",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -690,7 +690,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "11",
+      "assetNode": "38",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -706,7 +706,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "12",
+      "assetNode": "39",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -722,7 +722,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "27",
+      "assetNode": "40",
       "parentId": "joint-root",
       "explode": [0, 0.005, 0]
     },
@@ -738,7 +738,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "30",
+      "assetNode": "41",
       "parentId": "wave-input",
       "explode": [0, 0.005, 0]
     },
@@ -754,7 +754,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "31",
+      "assetNode": "42",
       "parentId": "joint-root",
       "explode": [0, 0.005, 0]
     },
@@ -770,7 +770,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "28",
+      "assetNode": "43",
       "parentId": "joint-root",
       "explode": [0, 0.005, 0]
     },
@@ -786,7 +786,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "32",
+      "assetNode": "44",
       "parentId": "joint-root",
       "explode": [0, 0.005, 0]
     },
@@ -802,7 +802,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "29",
+      "assetNode": "45",
       "parentId": "wave-input",
       "explode": [0, 0.005, 0]
     },
@@ -818,7 +818,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "35",
+      "assetNode": "46",
       "parentId": "flex-motion",
       "explode": [0, -0.085, 0]
     },
@@ -834,7 +834,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "33",
+      "assetNode": "47",
       "parentId": "joint-root",
       "explode": [0, -0.055, 0]
     },
@@ -850,7 +850,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "83",
+      "assetNode": "48",
       "parentId": "joint-root",
       "explode": [0, -0.055, 0]
     },
@@ -866,7 +866,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "84",
+      "assetNode": "49",
       "parentId": "joint-root",
       "explode": [0, -0.055, 0]
     },
@@ -882,7 +882,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "26",
+      "assetNode": "50",
       "parentId": "wave-input",
       "explode": [0, -0.055, 0]
     },
@@ -898,7 +898,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "100",
+      "assetNode": "51",
       "parentId": "wave-input",
       "explode": [0, -0.055, 0]
     },
@@ -914,7 +914,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "101",
+      "assetNode": "52",
       "parentId": "wave-input",
       "explode": [0, -0.055, 0]
     },
@@ -930,7 +930,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "99",
+      "assetNode": "53",
       "parentId": "wave-input",
       "explode": [0, -0.025, 0]
     },
@@ -946,7 +946,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "64",
+      "assetNode": "54",
       "parentId": "output-motion",
       "explode": [0, -0.135, 0]
     },
@@ -962,7 +962,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "52",
+      "assetNode": "55",
       "parentId": "joint-root",
       "explode": [0, -0.105, 0]
     },
@@ -978,7 +978,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "54",
+      "assetNode": "56",
       "parentId": "output-motion",
       "explode": [0, -0.105, 0]
     },
@@ -994,7 +994,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "55",
+      "assetNode": "57",
       "parentId": "joint-root",
       "explode": [0, -0.105, 0]
     },
@@ -1010,7 +1010,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "56",
+      "assetNode": "58",
       "parentId": "joint-root",
       "explode": [0, -0.105, 0]
     },
@@ -1026,7 +1026,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "49",
+      "assetNode": "59",
       "parentId": "joint-root",
       "explode": [0, -0.135, 0]
     },
@@ -1042,7 +1042,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "50",
+      "assetNode": "60",
       "parentId": "joint-root",
       "explode": [0, -0.135, 0]
     },
@@ -1058,7 +1058,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "53",
+      "assetNode": "61",
       "parentId": "output-motion",
       "explode": [0, -0.105, 0]
     },
@@ -1074,7 +1074,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "51",
+      "assetNode": "62",
       "parentId": "output-motion",
       "explode": [0, -0.135, 0]
     },
@@ -1090,7 +1090,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "13",
+      "assetNode": "63",
       "parentId": "output-motion",
       "explode": [0, -0.135, 0]
     },
@@ -1106,7 +1106,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "14",
+      "assetNode": "64",
       "parentId": "joint-root",
       "explode": [0, -0.135, 0]
     },
@@ -1122,7 +1122,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "16",
+      "assetNode": "65",
       "parentId": "joint-root",
       "explode": [0, -0.135, 0]
     },
@@ -1138,7 +1138,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "62",
+      "assetNode": "66",
       "parentId": "output-motion",
       "explode": [0, -0.135, 0]
     },
@@ -1154,7 +1154,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "57",
+      "assetNode": "67",
       "parentId": "output-motion",
       "explode": [0, -0.135, 0]
     },
@@ -1170,7 +1170,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "63",
+      "assetNode": "68",
       "parentId": "output-motion",
       "explode": [0, -0.135, 0]
     },
@@ -1186,7 +1186,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "68",
+      "assetNode": "69",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -1202,7 +1202,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "90",
+      "assetNode": "70",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -1218,7 +1218,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "92",
+      "assetNode": "71",
       "parentId": "joint-root",
       "explode": [0, 0, 0]
     },
@@ -1234,7 +1234,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "96",
+      "assetNode": "72",
       "parentId": "joint-root",
       "explode": [0, -0.025, 0]
     },
@@ -1250,7 +1250,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "46",
+      "assetNode": "73",
       "parentId": "joint-root",
       "explode": [0, -0.025, 0]
     },
@@ -1266,7 +1266,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "5",
+      "assetNode": "74",
       "parentId": "joint-root",
       "explode": [0, 0.035, 0]
     },
@@ -1282,7 +1282,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "34",
+      "assetNode": "75",
       "parentId": "joint-root",
       "explode": [0, -0.055, 0]
     },
@@ -1298,7 +1298,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "15",
+      "assetNode": "76",
       "parentId": "joint-root",
       "explode": [0, -0.135, 0]
     },
@@ -1314,7 +1314,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "58",
+      "assetNode": "77",
       "parentId": "joint-root",
       "explode": [0, -0.135, 0]
     },
@@ -1330,7 +1330,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "59",
+      "assetNode": "78",
       "parentId": "joint-root",
       "explode": [0, -0.135, 0]
     },
@@ -1346,7 +1346,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "60",
+      "assetNode": "79",
       "parentId": "joint-root",
       "explode": [0, -0.135, 0]
     },
@@ -1362,7 +1362,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "61",
+      "assetNode": "80",
       "parentId": "joint-root",
       "explode": [0, -0.135, 0]
     },
@@ -1410,7 +1410,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "37",
+      "assetNode": "83",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -1426,7 +1426,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "38",
+      "assetNode": "84",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -1442,7 +1442,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "40",
+      "assetNode": "85",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -1458,7 +1458,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "41",
+      "assetNode": "86",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -1474,7 +1474,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "72",
+      "assetNode": "87",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -1490,7 +1490,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "73",
+      "assetNode": "88",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -1506,7 +1506,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "75",
+      "assetNode": "89",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -1522,7 +1522,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "76",
+      "assetNode": "90",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -1538,7 +1538,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "66",
+      "assetNode": "91",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -1554,7 +1554,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "67",
+      "assetNode": "92",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -1570,7 +1570,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "80",
+      "assetNode": "93",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -1586,7 +1586,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "78",
+      "assetNode": "94",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -1602,7 +1602,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "77",
+      "assetNode": "95",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -1618,7 +1618,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "69",
+      "assetNode": "96",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -1634,7 +1634,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "74",
+      "assetNode": "97",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -1650,7 +1650,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "79",
+      "assetNode": "98",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -1666,7 +1666,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "65",
+      "assetNode": "99",
       "parentId": "joint-root",
       "explode": [0, 0.075, 0]
     },
@@ -1682,7 +1682,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "70",
+      "assetNode": "100",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     },
@@ -1698,7 +1698,7 @@
       "kind": "mesh",
       "shape": "glb",
       "assetId": "harmonic-joint-glb",
-      "assetNode": "71",
+      "assetNode": "101",
       "parentId": "joint-root",
       "explode": [0.1, 0, 0]
     }
@@ -1840,7 +1840,7 @@
       "totalHeight": 0.088111111,
       "boreDiameter": 0.018
     },
-    "referenceNotes": "参考零差云控官方外形 STEP、Harmonic Drive 结构手册、意优及泰科公开集成架构。内部为原创结构模拟；PCB 为布局示意，抱闸为理想保持演示。非制造图，无额定载荷、制动性能或电气确认。",
+    "referenceNotes": "参考零差云控官方外形 STEP、Harmonic Drive 结构手册、意优及泰科公开集成架构。内部为运动学示意；轴承滚动、齿面接触、转矩惯量及弹性受力未求解。PCB 为布局示意，抱闸为瞬时理想保持。非制造或载荷／制动验证。",
     "subsystems": [
       {
         "id": "housing",

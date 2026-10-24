@@ -1,5 +1,14 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -16,7 +25,8 @@ afterEach(async () => {
 });
 
 async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), 'unreal-local-验收 '));
+  // Discovery and Node's ESM loader canonicalize macOS /var aliases to /private/var.
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'unreal-local-验收 ')));
   temporary.push(root);
   await mkdir(join(root, 'Content/VirtualWorldData'), { recursive: true });
   await writeFile(
@@ -112,6 +122,9 @@ describe('Unreal local launcher contract (no native compilation)', () => {
       ['doctor', 'unexpected'],
       ['smoke', '--timeout', 'NaN'],
       ['run', '--engine'],
+      ['run', '--import', 'one.step', '--import', 'two.step'],
+      ['open', '--import', 'model.step'],
+      ['package', '--configuration', 'Shipping', '--configuration', 'Development'],
     ])
       expect(() => nativeCommand(args, root)).toThrow(/option|argument|value|timeout/i);
     expect(nativeCommand(['check', '--data-only'], root)).toMatchObject({
@@ -422,7 +435,7 @@ describe('Unreal local launcher contract (no native compilation)', () => {
     expect(openArgs).toContain(join(root, 'VirtualWorld.uproject'));
     expect(openArgs).not.toContain('-game');
     const played = await nativeCommand(
-      ['run', '--engine', installed, '--scene', 'test-scene'],
+      ['run', '--engine', installed, '--scene', 'test-scene', '--import', 'fixture model.step'],
       root,
       context,
     );
@@ -431,6 +444,58 @@ describe('Unreal local launcher contract (no native compilation)', () => {
       .split('\n');
     expect(runArgs).toContain('-game');
     expect(runArgs).toContain('-VirtualWorldScene=test-scene');
+    expect(runArgs).toContain(`-VirtualWorldImport=${resolve('fixture model.step')}`);
+  });
+
+  it('archives the requested package configuration after preparing the runtime and propagates Node', async () => {
+    const { nativeCommand } = await native();
+    const root = await fixture();
+    const installed = await engine(root, 'Engine', 6);
+    let preparedRoot: string | undefined;
+    let childEnvironment: NodeJS.ProcessEnv | undefined;
+    const context = {
+      ...verifiedDependencies,
+      platform: 'linux',
+      env: {},
+      preparePackageRuntime: (path: string) => {
+        preparedRoot = path;
+      },
+      spawn: (_program: string, args: string[], options: Parameters<typeof spawn>[2]) => {
+        expect(preparedRoot).toBe(root);
+        childEnvironment = options?.env;
+        return fixtureProcess(args, options);
+      },
+      stdout: () => {},
+      stderr: () => {},
+    };
+    const result = await nativeCommand(
+      [
+        'package',
+        '--engine',
+        installed,
+        '--configuration',
+        'Shipping',
+        '--output',
+        'release archive',
+      ],
+      root,
+      context,
+    );
+    const args = (await readFile(join(result.logDirectory, 'stdout.log'), 'utf8'))
+      .trim()
+      .split('\n');
+    expect(args).toContain('-clientconfig=Shipping');
+    expect(args).toContain('-archive');
+    expect(args).toContain(`-archivedirectory=${join(root, 'release archive')}`);
+    expect(args).toContain('-prereqs');
+    expect(childEnvironment?.VW_NODE_EXECUTABLE).toBe(process.execPath);
+    expect(context.env).toEqual({});
+    const preserved = '/installed/custom-node';
+    await nativeCommand(['run', '--engine', installed], root, {
+      ...context,
+      env: { VW_NODE_EXECUTABLE: preserved },
+    });
+    expect(childEnvironment?.VW_NODE_EXECUTABLE).toBe(preserved);
   });
 
   it('refuses stale or incomplete smoke report fixtures, even when the process exits zero', async () => {
@@ -556,6 +621,17 @@ describe('Unreal local launcher contract (no native compilation)', () => {
     ).toThrow(/inside|collected/i);
   });
 
+  it('runs the native CLI when invoked through a directory alias', async () => {
+    const root = await fixture();
+    const alias = join(root, 'ScriptsAlias');
+    await symlink(join(template, 'Scripts'), alias, 'junction');
+    const result = spawnSync(process.execPath, [join(alias, 'native.mjs'), '--help'], {
+      encoding: 'utf8',
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Usage: node Scripts/native.mjs');
+  });
+
   it('rejects misspelled direct plugin options before attempting dependency preparation', async () => {
     const root = await fixture();
     await mkdir(join(root, 'Scripts'));
@@ -563,13 +639,17 @@ describe('Unreal local launcher contract (no native compilation)', () => {
       await writeFile(join(root, 'Scripts', name), await readFile(join(template, 'Scripts', name)));
     await mkdir(join(root, 'Plugins/glTFRuntime'), { recursive: true });
     await writeFile(join(root, 'Plugins/glTFRuntime/keep.txt'), 'retained');
-    const result = spawnSync(
-      process.execPath,
-      [join(root, 'Scripts/prepare-plugin.mjs'), '--verfiy'],
-      { encoding: 'utf8' },
-    );
-    expect(result.status).toBe(1);
-    expect(result.stderr).toMatch(/Unknown option/);
+    const alias = join(root, 'ScriptsAlias');
+    await symlink(join(root, 'Scripts'), alias, 'junction');
+    for (const scripts of [join(root, 'Scripts'), alias]) {
+      const result = spawnSync(
+        process.execPath,
+        [join(scripts, 'prepare-plugin.mjs'), '--verfiy'],
+        { encoding: 'utf8' },
+      );
+      expect(result.status).toBe(1);
+      expect(result.stderr).toMatch(/Unknown option/);
+    }
     expect(await readFile(join(root, 'Plugins/glTFRuntime/keep.txt'), 'utf8')).toBe('retained');
   });
 

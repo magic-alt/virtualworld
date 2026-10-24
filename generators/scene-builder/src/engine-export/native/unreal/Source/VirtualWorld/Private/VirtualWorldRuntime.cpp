@@ -1,4 +1,6 @@
 #include "VirtualWorldRuntime.h"
+#include "Misc/App.h"
+#include "Misc/CoreDelegates.h"
 #include "VirtualWorldModel.h"
 #include "glTFRuntimeFunctionLibrary.h"
 #include "Camera/CameraActor.h"
@@ -49,6 +51,7 @@ void AVirtualWorldRuntime::OnImportError(const FString Context, const FString Me
 void AVirtualWorldRuntime::BeginPlay()
 {
     Super::BeginPlay();
+    BindJointClockLifecycle();
     DataDirectory = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir() / TEXT("VirtualWorldData"));
     ProgressPath = FPaths::ProjectSavedDir() / TEXT("VirtualWorld/progress.json");
     bSmokeRequested = FParse::Param(FCommandLine::Get(), TEXT("VirtualWorldSmoke"));
@@ -61,6 +64,8 @@ void AVirtualWorldRuntime::BeginPlay()
     LaunchSceneId=Requested;
     if (!bSmokeRequested) ReadProgress();
     LoadScene(bSmokeRequested ? 0 : Index, bSmokeRequested);
+    FString ImportPath;
+    if(!bSmokeRequested && FParse::Value(FCommandLine::Get(),TEXT("VirtualWorldImport="),ImportPath)) BeginCadImport(ImportPath);
     if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
     {
         PC->bShowMouseCursor = true;
@@ -122,9 +127,13 @@ bool AVirtualWorldRuntime::ReadCatalog()
 
 void AVirtualWorldRuntime::ClearScene()
 {
+    ReleaseCadSections();
     CancelStepImport();
     for (AActor* Actor : SpawnedActors) if (IsValid(Actor)) Actor->Destroy();
     SpawnedActors.Reset();
+    bPrincipleBuilt=false;
+    JointDynamics.Reset();CadBindings.Reset();CadModelRoot=nullptr;PrincipleMesh=nullptr;PrincipleArmature=nullptr;PrincipleBrakePole=nullptr;
+    bRollingMarkers=false;bPrinciple=false;bSectionCameraSaved=false;bSectionSavedPrinciple=false;JointTimeScale=1;KinematicOffset=0;
     for (int32 I=SceneComponents.Num()-1; I>=0; --I) if (IsValid(SceneComponents[I])) SceneComponents[I]->DestroyComponent();
     SceneComponents.Reset();
     AssetCache.Reset();Nodes.Reset();MorphComponents.Reset();
@@ -133,12 +142,15 @@ void AVirtualWorldRuntime::ClearScene()
     ColliderCount=0;InteractionRemaining=0;PlayerVerticalSpeed=0;bPlayerGrounded=false;
     LastGroundedFeet=FVector::ZeroVector;
     HiddenSubsystems.Reset();IsolatedNodes.Reset();IsolatedSubsystem.Empty();
+    bLastPointerValid=bPointerOrbit=bPointerPan=bRightWasDown=bMiddleWasDown=false;PendingPanelWheel=0;
     InputAngle=0;Rpm=6;Explosion=0;bRunning=false;bPaused=false;bSection=false;
     bImportedModule=false;bHasBrake=false;bBrakeInstalled=false;bBrakePowered=true;
 }
 
 bool AVirtualWorldRuntime::LoadScene(int32 Index, bool bSmoke)
 {
+    if(CadProcess.IsValid()) CancelCadImport(TEXT("Import cancelled: scene changed."));
+    ++SceneGeneration;
     if(!Scenes.IsValidIndex(Index)) return Fail(TEXT("Scene index is outside the catalog."));
     if(!bSmoke && !IsUnlocked(SceneOrder[Index])) { Notice=TEXT("Complete the prerequisite chapters first."); return false; }
     ClearScene();FatalError.Empty();SceneIndex=Index;Scene=Scenes[Index];Metadata=Metadatas[Index];Mechanism=VW::Object(Metadata,TEXT("mechanism"));
@@ -206,7 +218,8 @@ AVirtualWorldModel* AVirtualWorldRuntime::SpawnModel(const FString& ModelId,USce
     SpawnedActors.Add(Model);Model->Asset=Asset;
     Model->SkeletalAnimationConfig.bRemoveRootMotion=bPlayer;
     Model->StaticMeshConfig.bBuildComplexCollision=bMeshCollision;
-    Model->StaticMeshConfig.bAllowCPUAccess=bMeshCollision;
+    // Retain actual CPU buffers for derived CAD sections even without mesh collision.
+    Model->StaticMeshConfig.bAllowCPUAccess=bMeshCollision||VW::String(Mechanism,TEXT("kind"))==TEXT("cad-joint");
     Model->StaticMeshConfig.CollisionComplexity=bMeshCollision?CTF_UseComplexAsSimple:CTF_UseDefault;
     Model->OnNodeProcessed.AddLambda([this,bMeshCollision,ModelId](const FglTFRuntimeNode& Node,USceneComponent* Component)
     {
@@ -269,58 +282,91 @@ void AVirtualWorldRuntime::BuildCameraAndLight()
     ResetCamera();
     if(APlayerController* PC=GetWorld()->GetFirstPlayerController()) PC->SetViewTarget(Camera);
     const VW::Json Environment=VW::Object(Scene,TEXT("environment"));
-    ADirectionalLight* Sun=GetWorld()->SpawnActor<ADirectionalLight>();SpawnedActors.Add(Sun);
-    Cast<UDirectionalLightComponent>(Sun->GetLightComponent())->SetForwardShadingPriority(1);
-    Sun->SetActorRotation(FRotator(-45,-30,0));Sun->GetLightComponent()->SetMobility(EComponentMobility::Movable);
-    Sun->GetLightComponent()->SetIntensity(static_cast<float>(VW::Number(Environment,TEXT("lightIntensity"),1)*3.14159));
-    ADirectionalLight* Fill=GetWorld()->SpawnActor<ADirectionalLight>();SpawnedActors.Add(Fill);
-    Fill->SetActorRotation(FRotator(35,150,0));Fill->GetLightComponent()->SetMobility(EComponentMobility::Movable);
-    Fill->GetLightComponent()->SetCastShadows(false);Fill->GetLightComponent()->SetIntensity(static_cast<float>(VW::Number(Environment,TEXT("ambientIntensity"),0.5)));
-    AExponentialHeightFog* Fog=GetWorld()->SpawnActor<AExponentialHeightFog>();SpawnedActors.Add(Fog);
-    const FLinearColor Background=FLinearColor::FromSRGBColor(FColor::FromHex(VW::String(Environment,TEXT("background"),TEXT("17243A"))));
-    Fog->GetComponent()->SetFogInscatteringColor(Background);
-    Fog->GetComponent()->SetFogDensity(static_cast<float>(VW::Number(Environment,TEXT("fog"),0.0005)));
-    ASkyLight* Sky=GetWorld()->SpawnActor<ASkyLight>();SpawnedActors.Add(Sky);
-    Sky->GetLightComponent()->SetMobility(EComponentMobility::Movable);
-    Sky->GetLightComponent()->SetIntensity(static_cast<float>(VW::Number(Environment,TEXT("ambientIntensity"),0.5)));
-    if(IsModuleViewer())
+    // Set mobility BEFORE the transform: registered static lights reject runtime rotation.
+    const auto AddLight=[this](const FRotator& Rotation,float Intensity,bool bShadows,int32 Priority)
     {
-        // A captured empty Entry map is black: metallic glTF surfaces need a real reflection environment.
-        // A transient HDR studio cube remains self-contained in standalone runtime builds.
-        constexpr int32 Size=16;
-        UTextureCube* Studio=UTextureCube::CreateTransient(Size,Size,PF_FloatRGBA);
-        if(!Studio) {Fail(TEXT("Could not allocate studio reflection environment."));return;}
-        Studio->SRGB=false;Studio->NeverStream=true;
-        FTexture2DMipMap& Mip=Studio->GetPlatformData()->Mips[0];
-        FFloat16Color* Pixels=static_cast<FFloat16Color*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
-        const float Faces[6]={.55f,.1125f,.375f,.175f,.75f,.075f};
-        for(int32 Face=0;Face<6;++Face)
-            for(int32 Y=0;Y<Size;++Y)
-                for(int32 X=0;X<Size;++X)
-                {
-                    const float Level=Faces[Face]*(.8f+.2f*static_cast<float>(Y)/(Size-1));
-                    Pixels[Face*Size*Size+Y*Size+X]=FFloat16Color(FLinearColor(Level,Level,Level,1.f));
-                }
-        Mip.BulkData.Unlock();Studio->UpdateResource();
-        Sky->GetLightComponent()->SourceType=SLS_SpecifiedCubemap;
-        Sky->GetLightComponent()->bLowerHemisphereIsBlack=false;
-        Sky->GetLightComponent()->SetCubemap(Studio);
+        ADirectionalLight* Light=GetWorld()->SpawnActor<ADirectionalLight>();SpawnedActors.Add(Light);
+        UDirectionalLightComponent* Component=CastChecked<UDirectionalLightComponent>(Light->GetLightComponent());
+        Component->SetMobility(EComponentMobility::Movable);
+        Light->SetActorRotation(Rotation);
+        Component->SetIntensity(Intensity);Component->SetCastShadows(bShadows);
+        Component->SetForwardShadingPriority(Priority);
+        return Light;
+    };
+    const float Direct=FMath::Max(0.f,static_cast<float>(VW::Number(Environment,TEXT("lightIntensity"),1)));
+    const float Ambient=FMath::Max(0.f,static_cast<float>(VW::Number(Environment,TEXT("ambientIntensity"),.5)));
+    const bool bInspection=VW::String(Metadata,TEXT("mode"))==TEXT("industrial");
+    if(bInspection)
+    {
+        // Fixed exposure and persistent neutral studio lights; no adaptation, time-of-day or recapture loop.
+        FPostProcessSettings& Exposure=Camera->GetCameraComponent()->PostProcessSettings;
+        Exposure.bOverride_AutoExposureMethod=true;Exposure.AutoExposureMethod=AEM_Manual;
+        Exposure.bOverride_AutoExposureApplyPhysicalCameraExposure=true;Exposure.AutoExposureApplyPhysicalCameraExposure=false;
+        Exposure.bOverride_AutoExposureBias=true;Exposure.AutoExposureBias=0;
+        Exposure.bOverride_AutoExposureBiasCurve=true;Exposure.AutoExposureBiasCurve=nullptr;
+        Exposure.bOverride_BloomIntensity=true;Exposure.BloomIntensity=0;
+        ADirectionalLight* Key=AddLight(FRotator(-45,-35,0),Direct*6.f,true,10);
+        UDirectionalLightComponent* KeyComponent=CastChecked<UDirectionalLightComponent>(Key->GetLightComponent());
+        // CSM defaults span hundreds of metres; inspection geometry is only centimetres.
+        KeyComponent->SetDynamicShadowDistanceMovableLight(FMath::Max(50.f,static_cast<float>(CameraOffset.Size()*3)));
+        KeyComponent->SetLightSourceAngle(2.f);
+        AddLight(FRotator(-20,130,0),Ambient*6.f,false,0);
+        AddLight(FRotator(45,45,0),Ambient*4.f,false,0);
+        // A weak, shadow-free inspection fill keeps cut faces readable at every orbit angle.
+        ADirectionalLight* ViewFill=AddLight(FRotator::ZeroRotator,Ambient*4.f,false,0);
+        ViewFill->AttachToActor(Camera,FAttachmentTransformRules::SnapToTargetNotIncludingScale);
     }
-    Sky->GetLightComponent()->RecaptureSky();
+    else
+    {
+        AddLight(FRotator(-45,-30,0),Direct*PI,true,10);
+        AddLight(FRotator(35,150,0),Ambient,false,0);
+        AExponentialHeightFog* Fog=GetWorld()->SpawnActor<AExponentialHeightFog>();SpawnedActors.Add(Fog);
+        const FLinearColor Background=FLinearColor::FromSRGBColor(FColor::FromHex(VW::String(Environment,TEXT("background"),TEXT("17243A"))));
+        Fog->GetComponent()->SetFogInscatteringColor(Background);
+        Fog->GetComponent()->SetFogDensity(static_cast<float>(VW::Number(Environment,TEXT("fog"),.0005)));
+    }
+    ASkyLight* Sky=GetWorld()->SpawnActor<ASkyLight>();SpawnedActors.Add(Sky);
+    USkyLightComponent* SkyComponent=Sky->GetLightComponent();
+    SkyComponent->SetMobility(EComponentMobility::Movable);
+    SkyComponent->SetIntensity(bInspection?Ambient*2.f:Ambient);
+    if(bInspection)
+    {
+        UTextureCube* StudioEnvironment=LoadObject<UTextureCube>(nullptr,TEXT("/Engine/MapTemplates/Sky/DaylightAmbientCubemap.DaylightAmbientCubemap"));
+        if(!StudioEnvironment) {Fail(TEXT("Inspection environment cubemap is missing."));return;}
+        SkyComponent->SourceType=SLS_SpecifiedCubemap;
+        SkyComponent->SetRealTimeCapture(false);
+        SkyComponent->SetCubemap(StudioEnvironment);
+        // Down-facing metal must reflect a lit studio floor, rather than the default black hemisphere.
+        SkyComponent->bLowerHemisphereIsBlack=true;
+        SkyComponent->SetLowerHemisphereColor(FLinearColor(.30f,.32f,.35f));
+        SkyComponent->SetCastShadows(false);
+    }
+    SkyComponent->RecaptureSky();
 }
 
 void AVirtualWorldRuntime::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
+    TickCadImport();
     PollStepImport();
     if(bSmokeRequested) { RunSmokeStep();return; }
     if(!FatalError.IsEmpty()) return;
-    const float Delta=FMath::Clamp(DeltaSeconds,0.f,0.05f);
+    const float Elapsed=FMath::IsFinite(DeltaSeconds)?FMath::Max(0.f,DeltaSeconds):0.f;
+    const float Delta=FMath::Min(Elapsed,0.05f);
     HandleInput(Delta);
+    bool bJointFocused=FApp::HasFocus();
+#if WITH_DEV_AUTOMATION_TESTS
+    if(JointClockFocusOverride>=0)bJointFocused=JointClockFocusOverride==1;
+#endif
+    const bool bAdvanceJoint=JointDynamics?JointClock.advance(bPaused,bJointFocused):!bPaused;
     if(!bPaused)
     {
         StepPlayer(Delta);
-        StepMechanism(Delta);
+    }
+    if(bAdvanceJoint)
+    {
+        // Prescribed kinematics use full elapsed time, independent of render frame rate.
+        StepMechanism(Elapsed);
     }
     UpdateCamera();
 }
@@ -333,4 +379,22 @@ void AVirtualWorldGameMode::StartPlay()
 {
     Super::StartPlay();
     GetWorld()->SpawnActor<AVirtualWorldRuntime>();
+}
+
+
+void AVirtualWorldRuntime::BindJointClockLifecycle()
+{
+    if(JointDeactivateHandle.IsValid())return;
+    JointDeactivateHandle=FCoreDelegates::ApplicationWillDeactivateDelegate.AddWeakLambda(this,[this](){JointClock.suspend();});
+    JointReactivateHandle=FCoreDelegates::ApplicationHasReactivatedDelegate.AddWeakLambda(this,[this](){JointClock.resume();});
+    JointBackgroundHandle=FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddWeakLambda(this,[this](){JointClock.suspend();});
+    JointForegroundHandle=FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddWeakLambda(this,[this](){JointClock.resume();});
+}
+
+void AVirtualWorldRuntime::UnbindJointClockLifecycle()
+{
+    FCoreDelegates::ApplicationWillDeactivateDelegate.Remove(JointDeactivateHandle);JointDeactivateHandle.Reset();
+    FCoreDelegates::ApplicationHasReactivatedDelegate.Remove(JointReactivateHandle);JointReactivateHandle.Reset();
+    FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Remove(JointBackgroundHandle);JointBackgroundHandle.Reset();
+    FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Remove(JointForegroundHandle);JointForegroundHandle.Reset();
 }

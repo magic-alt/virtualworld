@@ -114,7 +114,7 @@ const scene = {
     sectionHousingIds,
     dimensions: report.dimensions,
     referenceNotes:
-      '参考零差云控官方外形 STEP、Harmonic Drive 结构手册、意优及泰科公开集成架构。内部为原创结构模拟；PCB 为布局示意，抱闸为理想保持演示。非制造图，无额定载荷、制动性能或电气确认。',
+      '参考零差云控官方外形 STEP、Harmonic Drive 结构手册、意优及泰科公开集成架构。内部为运动学示意；轴承滚动、齿面接触、转矩惯量及弹性受力未求解。PCB 为布局示意，抱闸为瞬时理想保持。非制造或载荷／制动验证。',
     subsystems: [
       [
         'housing',
@@ -167,7 +167,7 @@ const interactions = {
   },
   'harmonic-crossrollers-32-alternating-45deg': {
     title: '交叉滚子输出轴承',
-    text: '32 个滚子交替 ±45°，内圈随输出、外圈固定。滚道截面简化；本演示不证明载荷能力或预紧性能。',
+    text: '32 个滚子交替 ±45°，内圈随输出、外圈固定。滚道截面简化，滚子自转与保持架公转未模拟；本演示不证明载荷能力或预紧性能。',
   },
   'harmonic-hollow-input-shaft': {
     title: '中空输入及传力路径',

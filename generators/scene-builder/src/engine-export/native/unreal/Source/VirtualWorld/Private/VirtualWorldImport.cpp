@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/PlatformMisc.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Guid.h"
@@ -34,12 +35,6 @@ bool ArgumentSafe(const FString& Value)
 }
 }
 
-void AVirtualWorldRuntime::EndPlay(const EEndPlayReason::Type Reason)
-{
-    ClearScene();
-    Super::EndPlay(Reason);
-}
-
 void AVirtualWorldRuntime::CancelStepImport()
 {
     ImportGeneration.Cancel();
@@ -53,7 +48,7 @@ void AVirtualWorldRuntime::CancelStepImport()
 
 void AVirtualWorldRuntime::BeginStepImport()
 {
-    if(!IsModuleViewer()||ImportGeneration.bBusy) return;
+    if(!IsModuleViewer()||ImportGeneration.bBusy||CadProcess.IsValid()) return;
 #if PLATFORM_WINDOWS
     // A single file, no editor-only DesktopPlatform dependency: also works in desktop builds.
     WCHAR Filename[32768]={0};
@@ -72,7 +67,7 @@ void AVirtualWorldRuntime::BeginStepImport()
 
 void AVirtualWorldRuntime::StartStepImport(const FString& Source)
 {
-    if(!IsModuleViewer()||ImportGeneration.bBusy) return;
+    if(!IsModuleViewer()||ImportGeneration.bBusy||CadProcess.IsValid()) return;
     const FString Extension=FPaths::GetExtension(Source).ToLower();
     const int64 Size=IFileManager::Get().FileSize(*Source);
     if((Extension!=TEXT("stp")&&Extension!=TEXT("step"))||Size<=0||Size>100LL*1024*1024)
@@ -83,7 +78,19 @@ void AVirtualWorldRuntime::StartStepImport(const FString& Source)
     {Notice=TEXT("STEP converter unavailable. Re-export this project with its VirtualWorldTools directory.");return;}
     IFileManager::Get().MakeDirectory(*FPaths::GetPath(ImportDirectory),true);
     const FString Args=FString::Printf(TEXT("\"%s\" \"%s\" \"%s\""),*Tool,*Source,*ImportDirectory);
-    ImportProcess=FPlatformProcess::CreateProc(TEXT("node.exe"),*Args,false,true,true,nullptr,0,nullptr,nullptr);
+    // Use the same launcher-selected or bundled host runtime as the CAD pipeline.
+    FString Node=FPlatformMisc::GetEnvironmentVariable(TEXT("VW_NODE_EXECUTABLE"));
+#if PLATFORM_WINDOWS
+    const FString HostNode=TEXT("node.exe");
+#else
+    const FString HostNode=TEXT("node");
+#endif
+    if(Node.IsEmpty())
+    {
+        const FString Bundled=FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()/TEXT("VirtualWorldTools/Node")/HostNode);
+        Node=FPaths::FileExists(Bundled)?Bundled:HostNode;
+    }
+    ImportProcess=FPlatformProcess::CreateProc(*Node,*Args,false,true,true,nullptr,0,nullptr,nullptr);
     if(!ImportProcess.IsValid()) {Notice=TEXT("Cannot start STEP converter. Install Node.js 24+ on PATH, then restart UE. Current module retained.");return;}
     ImportGeneration.Begin(SceneOrder[SceneIndex]);ImportStart=FPlatformTime::Seconds();
     Notice=TEXT("Converting STEP locally... Current module remains visible. Cancel to stop.");
@@ -175,7 +182,9 @@ void AVirtualWorldRuntime::FitImportedCamera()
     const double Panel=FMath::Min(.8,static_cast<double>(VW::ControlPanelWidth(Width))/FMath::Max(1,Width));
     const double Distance=Radius*1.2/FMath::Sin(FMath::Atan(FMath::Tan(FMath::DegreesToRadians(25.))*FMath::Min(1.-Panel,1./Aspect)));
     CameraOffset=FVector(1,1,.7).GetSafeNormal()*Distance;CameraUp=FVector::UpVector;
-    const FVector Right=FVector::CrossProduct(CameraUp,-CameraOffset.GetSafeNormal()).GetSafeNormal();
-    CameraTarget=Bounds.GetCenter()-Right*(Distance*FMath::Tan(FMath::DegreesToRadians(25.))*Panel);
-    PointerDrag.Reset();UpdateCamera();
+    // UpdateCamera applies the industrial panel offset once for every module.
+    CameraTarget=Bounds.GetCenter();
+    PointerDrag.Reset();
+    bLastPointerValid=bPointerOrbit=bPointerPan=bRightWasDown=bMiddleWasDown=false;PendingPanelWheel=0;
+    InspectionZoomMin=.001f;InspectionZoomMax=1.e8f;UpdateCamera();
 }

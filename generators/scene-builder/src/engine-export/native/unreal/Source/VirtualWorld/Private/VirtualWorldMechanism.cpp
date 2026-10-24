@@ -3,6 +3,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/ShapeComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "ProceduralMeshComponent.h"
 
 bool AVirtualWorldRuntime::IsDescendant(const FString& Id,const FString& Ancestor) const
 {
@@ -17,6 +18,7 @@ bool AVirtualWorldRuntime::IsDescendant(const FString& Id,const FString& Ancesto
 
 bool AVirtualWorldRuntime::BindMechanism()
 {
+    if(VW::String(Mechanism,TEXT("kind"))==TEXT("cad-joint")) return BindCadJoint();
     if(VW::String(Mechanism,TEXT("kind"))!=TEXT("harmonic")) return Fail(TEXT("Unsupported mechanism kind."));
     for(const TCHAR* Key:{TEXT("waveNodeId"),TEXT("flexNodeId"),TEXT("outputNodeId")})
         if(!Nodes.Contains(VW::String(Mechanism,Key))) return Fail(TEXT("Missing harmonic node binding: ")+VW::String(Mechanism,Key));
@@ -51,6 +53,7 @@ bool AVirtualWorldRuntime::BindMechanism()
 void AVirtualWorldRuntime::ApplyMechanism()
 {
     if(!Mechanism) return;
+    if(JointDynamics) {ApplyCadJoint();return;}
     const VW::Harmonic State=VW::Transmission(InputAngle,VW::Number(Mechanism,TEXT("flexTeeth")),VW::Number(Mechanism,TEXT("ringTeeth")));
     for(auto& Pair:Nodes)
     {
@@ -78,12 +81,16 @@ void AVirtualWorldRuntime::ApplyMechanism()
 void AVirtualWorldRuntime::StepMechanism(float DeltaSeconds)
 {
     if(!Mechanism||bPaused) return;
+    if(JointDynamics) {JointDynamics->tick(DeltaSeconds,false,JointTimeScale);bRunning=JointDynamics->snapshot().running;InputAngle=JointDynamics->snapshot().angle+KinematicOffset;ApplyMechanism();return;}
     if(bRunning&&!(bBrakeInstalled&&!bBrakePowered)) InputAngle+=Rpm*2.*PI/60.*DeltaSeconds;
     ApplyMechanism();
 }
 
 void AVirtualWorldRuntime::ApplyVisibility()
 {
+    UpdateCadSections();UpdateCadTransparency();
+    if(bPrinciple)UpdateCadPrinciple();
+    if(PrincipleMesh) PrincipleMesh->SetVisibility(bPrinciple,true);
     TMap<FString,bool> Local;
     for(const auto& Pair:Nodes)
     {
@@ -91,8 +98,8 @@ void AVirtualWorldRuntime::ApplyVisibility()
         bool bVisible=VW::Bool(Node.Native,TEXT("visible"),true);
         if(Mechanism)
         {
-            if(VW::Contains(Mechanism,TEXT("fullHousingIds"),Node.Id)) bVisible=bVisible&&!bSection;
-            if(VW::Contains(Mechanism,TEXT("sectionHousingIds"),Node.Id)) bVisible=bSection;
+            if(!JointDynamics&&VW::Contains(Mechanism,TEXT("fullHousingIds"),Node.Id)) bVisible=bVisible&&!bSection;
+            if(!JointDynamics&&VW::Contains(Mechanism,TEXT("sectionHousingIds"),Node.Id)) bVisible=bSection;
             if(!IsolatedSubsystem.IsEmpty())
             {
                 bool bIncluded=IsolatedNodes.Contains(Node.Id);
@@ -120,4 +127,14 @@ void AVirtualWorldRuntime::ApplyVisibility()
         for(USceneComponent* Child:Node.Wrapper->GetAttachChildren())
             if(UShapeComponent* Shape=Cast<UShapeComponent>(Child)) Shape->SetCollisionEnabled(Node.bVisible?ECollisionEnabled::QueryOnly:ECollisionEnabled::NoCollision);
     }
+    const auto* CadNode=Nodes.Find(VW::String(Mechanism,TEXT("modelNodeId")));
+    const bool CadVisible=!CadNode||CadNode->bVisible;
+    for(auto& Binding:CadBindings)
+    {
+        const bool Visible=CadVisible&&Binding.bOriginalVisible&&!VW::Bool(Binding.Data,TEXT("displayHidden"))&&!(bSection&&VW::Bool(Binding.Data,TEXT("inspectionHidden")));
+        Binding.Component->SetVisibility(Visible&&!(bSection&&Binding.bInspectionBuilt),false);
+        if(Binding.InspectionMesh)Binding.InspectionMesh->SetVisibility(Visible&&bSection,false);
+        if(Binding.Marker) Binding.Marker->SetVisibility(Visible&&bRollingMarkers,false);
+    }
+
 }

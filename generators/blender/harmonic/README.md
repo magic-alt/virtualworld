@@ -46,3 +46,13 @@ Actual final-GLB checks cover envelope, independent mesh paths, teeth, morph amp
 Optional `render.py` produces a local Blender preview. Browser screenshots and raw receipts under `output/playwright/h100/` and `output/playwright/showcases/` are the acceptance evidence for the delivered frontend; no physical hardware, FEA, real mobile GPU or live paid provider validation is claimed.
 
 The home gallery uses the static cover `apps/web/src/assets/harmonic-cover.jpg`, captured from the current runtime canvas with the mechanism stopped and viewport insets cleared. Update it alongside model appearance changes; capture canvas pixels rather than a page screenshot so controls are excluded. `App.tsx` imports the cover through Vite, producing a content-hashed production URL that invalidates the previous image cache. The obsolete `public/world-previews/harmonic.jpg` is removed.
+
+## Reducer shading and motion audit (2026-10-24)
+
+Planar machined faces are explicitly flat shaded after smooth-by-angle; cylindrical walls stay smooth. This prevents boolean bolt bores from bending flange-cap normals into radial highlight fans. This rebuild used the installed Blender 5.1.2; the manifest records the actual version and final asset hash. Geometry dimensions and assembly bindings are checked again after serialization.
+
+With the circular spline fixed, the 200/202 tooth pair gives `ωoutput = -ωinput/100`: one positive input revolution yields -3.6° output. Tests reconstruct the real GLB's signed sparse morph displacements and compare the flex-mouth and cam principal axes across forward/reverse phases. Prescribed shaft motion uses full active elapsed time in both web and UE, independent of render FPS. Pause and the ideal power-off brake hold phase; the UE status reports actual speed separately from the speed setpoint.
+
+This is a kinematic teaching model. Bearing roller/ball self-spin, cage orbit and wave-bearing outer-race material transport are omitted. Tooth profiles and flex deformation are approximations; there is no contact, torque, inertia, elastic stress, backlash, efficiency or braking-distance solver. An instantaneous ideal lock is not a physically validated brake transient. Engineering parameters remain unconfirmed.
+
+UE inspection uses fixed exposure, no bloom, a non-black neutral lower reflection hemisphere, directional key/fill lights and a camera fill. Its shadow distance is fitted to inspection scale. The `VirtualWorld.Harmonic.InspectionViews` native automation case emits full/bottom/section captures for manual visual inspection when a harmonic scene is active; a successful capture command alone does not establish visual quality.

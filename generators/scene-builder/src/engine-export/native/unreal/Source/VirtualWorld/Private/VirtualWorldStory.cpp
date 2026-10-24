@@ -126,9 +126,10 @@ void AVirtualWorldRuntime::SaveProgress()
 
 void AVirtualWorldRuntime::Command(const FString& Action)
 {
+    if(Action==TEXT("import-cad")) {ChooseCadFile();return;}
+    if(Action==TEXT("cancel-import")) {CancelCadImport(TEXT("Import cancelled; current scene retained."));CancelStepImport();Notice=TEXT("Import cancelled; current scene retained.");return;}
     if(!FatalError.IsEmpty()||!Metadata) return;
     if(Action==TEXT("import-step")) {BeginStepImport();return;}
-    if(Action==TEXT("cancel-import")) {CancelStepImport();Notice=TEXT("Import cancelled; current module retained.");return;}
     if(Action==TEXT("restore-module")&&IsModuleViewer()) {CancelStepImport();LoadScene(SceneIndex);Notice=TEXT("H-100 restored.");return;}
     if(Action==TEXT("screenshot"))
     {
@@ -160,7 +161,8 @@ void AVirtualWorldRuntime::Command(const FString& Action)
     if(Action.StartsWith(TEXT("scene:"))) {LoadScene(SceneOrder.IndexOfByKey(Action.Mid(6)));return;}
     if(Action==TEXT("reset"))
     {
-        if(Mechanism) {InputAngle=0;bRunning=false;ApplyMechanism();}
+        if(Mechanism) {InputAngle=0;KinematicOffset=0;bRunning=false;if(JointDynamics){JointDynamics->reset();Rpm=VW::Number(Mechanism,TEXT("defaultRpm"),6);JointDynamics->setRpm(Rpm);bBrakeInstalled=bBrakePowered=true;JointTimeScale=1;}ApplyMechanism();ApplyVisibility();}
+        else if(!PlayerRoot) {LoadScene(SceneIndex);Notice=TEXT("Model view reset.");}
         else {for(auto& Pair:Progress) Pair.Value=FVirtualWorldProgress();SaveProgress();LoadScene(SceneOrder.IndexOfByKey(LaunchSceneId));Notice=TEXT("Campaign progress reset.");}
         return;
     }
@@ -171,6 +173,31 @@ void AVirtualWorldRuntime::Command(const FString& Action)
         return;
     }
     if(!Mechanism) return;
+    if(JointDynamics)
+    {
+        const auto State=JointDynamics->snapshot();
+        if(Action==TEXT("run")){if(State.running)JointDynamics->stop();else if(!JointDynamics->start())Notice=TEXT("Wait for complete brake release before starting.");}
+        else if(Action==TEXT("step")||Action==TEXT("step-back")){if(!bPaused&&!State.running&&State.omega==0&&State.closure==0&&State.powered)KinematicOffset+=(Action==TEXT("step")?1:-1)*PI/12.;}
+        else if(Action==TEXT("speed-up")||Action==TEXT("speed-down")){const float Limit=FMath::Min(100000.,FMath::Max(30.,FMath::Abs(VW::Number(Mechanism,TEXT("defaultRpm"),6))*2));Rpm=FMath::Clamp(Rpm+(Action==TEXT("speed-up")?1:-1),-Limit,Limit);JointDynamics->setRpm(Rpm);}
+        else if(Action==TEXT("brake-power")&&bBrakeInstalled){bBrakePowered=!bBrakePowered;JointDynamics->setPowered(bBrakePowered);}
+        else if(Action==TEXT("brake-install")){JointDynamics->stop();bBrakeInstalled=!bBrakeInstalled;JointDynamics->setInstalled(bBrakeInstalled);JointDynamics->setPowered(true);bBrakePowered=JointDynamics->snapshot().powered;}
+        else if(Action==TEXT("markers"))bRollingMarkers=!bRollingMarkers;
+        else if(Action==TEXT("principle")){bPrinciple=!bPrinciple;ApplyVisibility();if(bPrinciple)FrameCadPrincipleInspection();else if(bSection)SelectCadSectionCamera();else FrameCadInspection();}
+        else if(Action==TEXT("slow-motion"))JointTimeScale=JointTimeScale==1?.1:JointTimeScale==.1?.02:JointTimeScale==.02?10:JointTimeScale==10?50:1;
+        else if((Action==TEXT("focus-brake")||Action==TEXT("focus-principle"))&&PrincipleMesh)
+        {bPrinciple=true;ApplyMechanism();ApplyVisibility();if(Action==TEXT("focus-brake"))FrameCadBrakeInspection();else FrameCadPrincipleInspection();}
+        else if(Action==TEXT("frame-assembly"))
+        {
+            bPrinciple=false;bSection=false;bSectionCameraSaved=false;bSectionSavedPrinciple=false;ApplyVisibility();const auto C=VW::Object(Scene,TEXT("camera"));CameraOffset=VW::Position(VW::Vector(C,TEXT("position"))-VW::Vector(C,TEXT("target")));CameraUp=FVector::UpVector;FrameCadInspection();
+        }
+        else if(Action==TEXT("section"))
+        {
+            bSection=!bSection;
+            if(bSection){bSectionSavedPrinciple=bPrinciple;bPrinciple=false;SectionSavedTarget=CameraTarget;SectionSavedOffset=CameraOffset;SectionSavedUp=CameraUp;bSectionCameraSaved=true;ApplyMechanism();ApplyVisibility();SelectCadSectionCamera();}
+            else if(bSectionCameraSaved){bPrinciple=bSectionSavedPrinciple;CameraTarget=SectionSavedTarget;CameraOffset=SectionSavedOffset;CameraUp=SectionSavedUp;bSectionCameraSaved=false;UpdateCamera();}
+        }
+        bRunning=JointDynamics->snapshot().running;ApplyMechanism();ApplyVisibility();return;
+    }
     const bool bLocked=bBrakeInstalled&&!bBrakePowered;
     if(Action==TEXT("run")) bRunning=!bRunning&&!bLocked;
     else if(Action==TEXT("step")||Action==TEXT("step-back"))

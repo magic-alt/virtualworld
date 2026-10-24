@@ -25,7 +25,13 @@ export const CommandSchema = z.discriminatedUnion('type', [
   z
     .object({
       type: z.literal('configureScene'),
-      patch: SceneSchema.pick({ camera: true, spawn: true, tasks: true, description: true })
+      patch: SceneSchema.pick({
+        camera: true,
+        spawn: true,
+        tasks: true,
+        description: true,
+        mechanism: true,
+      })
         .partial()
         .strict(),
     })

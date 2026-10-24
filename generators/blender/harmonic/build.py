@@ -104,6 +104,12 @@ for ob in parts:
     bpy.context.view_layer.objects.active=ob;ob.select_set(True)
     bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.shade_smooth_by_angle(angle=math.radians(30));ob.select_set(False)
+    # Boolean bolt bores leave triangulated planar caps: smooth fans bend their normals
+    # into the bore walls even with sharp boundary edges. Preserve true machined planes.
+    for poly in ob.data.polygons:
+        if abs(poly.normal.z)>0.999999:
+            zs=[ob.data.vertices[i].co.z for i in poly.vertices]
+            if max(zs)-min(zs)<1e-8:poly.use_smooth=False
 # Boolean cutters can introduce slots; keep exactly one material/primitive per part.
 for ob in parts:
     for poly in ob.data.polygons:poly.material_index=0

@@ -159,29 +159,31 @@ export async function proceduralModel(object: THREE.Object3D): Promise<Uint8Arra
               materialIndex: 0,
             },
           ];
+      const attributes = new Map<string, ReturnType<Document['createAccessor']>>();
+      for (const [name, semantic] of Object.entries({
+        position: 'POSITION',
+        normal: 'NORMAL',
+        uv: 'TEXCOORD_0',
+        color: 'COLOR_0',
+      })) {
+        const attr = geometry.getAttribute(name);
+        if (!attr) continue;
+        const values = new Float32Array(attr.count * attr.itemSize);
+        for (let i = 0; i < attr.count; i++)
+          for (let c = 0; c < attr.itemSize; c++)
+            values[i * attr.itemSize + c] = attr.getComponent(i, c);
+        attributes.set(
+          semantic,
+          d
+            .createAccessor()
+            .setType((['', 'SCALAR', 'VEC2', 'VEC3', 'VEC4'] as const)[attr.itemSize] || 'VEC3')
+            .setArray(values)
+            .setBuffer(buffer),
+        );
+      }
       for (const group of groups) {
         const p = d.createPrimitive();
-        for (const [name, semantic] of Object.entries({
-          position: 'POSITION',
-          normal: 'NORMAL',
-          uv: 'TEXCOORD_0',
-          color: 'COLOR_0',
-        })) {
-          const attr = geometry.getAttribute(name);
-          if (!attr) continue;
-          const values = new Float32Array(attr.count * attr.itemSize);
-          for (let i = 0; i < attr.count; i++)
-            for (let c = 0; c < attr.itemSize; c++)
-              values[i * attr.itemSize + c] = attr.getComponent(i, c);
-          p.setAttribute(
-            semantic,
-            d
-              .createAccessor()
-              .setType((['', 'SCALAR', 'VEC2', 'VEC3', 'VEC4'] as const)[attr.itemSize] || 'VEC3')
-              .setArray(values)
-              .setBuffer(buffer),
-          );
-        }
+        for (const [semantic, accessor] of attributes) p.setAttribute(semantic, accessor);
         const indices = new Uint32Array(group.count);
         for (let i = 0; i < group.count; i++)
           indices[i] = geometry.index ? geometry.index.getX(group.start + i) : group.start + i;

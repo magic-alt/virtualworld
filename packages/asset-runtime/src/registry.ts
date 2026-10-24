@@ -260,7 +260,21 @@ export class AssetRegistry {
   }
 }
 export async function loadAnimatedGlb(url: string) {
-  const gltf = await new GLTFLoader().loadAsync(url);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`GLB load failed: ${response.status}`);
+  const bytes = await response.arrayBuffer();
+  const gltf = await new GLTFLoader().parseAsync(bytes, url.slice(0, url.lastIndexOf('/') + 1));
+  // Numeric bindings survive duplicate names and runtime cloning. Hash the actual bytes.
+  if (globalThis.crypto?.subtle) {
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+    gltf.scene.userData.glbSha256 = Array.from(digest, (value) =>
+      value.toString(16).padStart(2, '0'),
+    ).join('');
+  }
+  gltf.scene.traverse((object) => {
+    const association = gltf.parser.associations.get(object);
+    if (association?.nodes !== undefined) object.userData.gltfNodeIndex = association.nodes;
+  });
   gltf.scene.animations = gltf.animations;
   return gltf.scene;
 }

@@ -4,6 +4,7 @@ export { WebGLInitializationError, type GraphicsState } from './graphics';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { harmonicState, MechanismController, type MechanismState } from './mechanism';
 import { MechanismOrbitController } from './mechanism-orbit';
+import { CadJointView } from './cad-joint-view';
 export type MechanismViewState = MechanismState & {
   section: boolean;
   explosion: number;
@@ -102,6 +103,7 @@ export class StudioRuntime {
   private inputRpm = 6;
   private section = false;
   private mechanismController?: MechanismController;
+  private cadJointView?: CadJointView;
   private mechanismListeners = new Set<(state: MechanismViewState) => void>();
   private hiddenSubsystems = new Set<string>();
   private isolatedSubsystem?: string;
@@ -434,7 +436,9 @@ export class StudioRuntime {
     this.mechanismController = spec.mechanism
       ? new MechanismController({
           ...spec.mechanism,
-          hasBrake: !!spec.mechanism.subsystems?.some((s) => s.optional === 'brake'),
+          hasBrake:
+            spec.mechanism.kind === 'cad-joint' ||
+            !!spec.mechanism.subsystems?.some((s) => s.optional === 'brake'),
         })
       : undefined;
     this.mechanismController?.subscribe((state) => {
@@ -602,6 +606,17 @@ export class StudioRuntime {
     await Promise.all(loads);
     if (this.disposed || version !== this.generation) return;
     this.content.updateMatrixWorld(true);
+    if (spec.mechanism?.kind === 'cad-joint') {
+      const instance = this.objects.get(spec.mechanism.modelNodeId)?.children[0];
+      if (instance) {
+        try {
+          this.cadJointView = new CadJointView(instance, spec.mechanism, this.content);
+        } catch (error) {
+          this.reportError(error, version);
+        }
+      }
+    }
+    this.applyMechanism(true);
     this.setSection(false);
     // Fit shadows to visible scene geometry, including millimetre-scale imports.
     const bounds = new THREE.Box3();
@@ -967,7 +982,10 @@ export class StudioRuntime {
   private frame = (now: number) => this.renderFrame(now);
   private renderFrame(now: number) {
     if (this.activityBlocked || this.renderer.getContext().isContextLost()) return;
-    const dt = this.paused ? 0 : this.last ? Math.min((now - this.last) / 1000, 0.05) : 1 / 60;
+    const elapsed = this.last ? (now - this.last) / 1000 : 1 / 60;
+    const mechanismDt = this.paused || !Number.isFinite(elapsed) ? 0 : Math.max(0, elapsed);
+    // Prescribed shaft motion follows elapsed time; character integration stays bounded.
+    const dt = Math.min(mechanismDt, 0.05);
     this.last = now;
     this.metricFrames++;
     if (this.char && !this.paused) {
@@ -996,7 +1014,7 @@ export class StudioRuntime {
     }
     this.mixers.forEach((m) => m.update(dt));
     this.actorMixer?.update(dt);
-    this.mechanismController?.tick(dt, this.paused);
+    this.mechanismController?.tick(mechanismDt, this.paused);
     if (this.moving && !this.spec.mechanism && !this.paused)
       for (const node of this.spec.nodes)
         if (node.joint) {
@@ -1111,12 +1129,24 @@ export class StudioRuntime {
     this.actorAction?.fadeOut(0.18);
     this.actorAction = action;
   }
+  setMechanismTimeScale(scale: number) {
+    this.mechanismController?.setTimeScale(scale);
+  }
+  setRollingMarkers(enabled: boolean) {
+    this.cadJointView?.setMarkers(enabled);
+  }
+  setPrincipleLayer(enabled: boolean) {
+    this.cadJointView?.setPrinciple(enabled);
+    this.applyMechanism(true);
+    this.fitMechanismView();
+  }
   setTransmissionSpeed(inputRpm: number) {
     this.mechanismController?.setSpeed(inputRpm);
   }
   setSection(enabled: boolean) {
     this.section = enabled;
     this.isolate(this.isolatedId);
+    this.applyMechanism(true);
     this.notifyMechanism();
   }
   getMechanismState(): MechanismViewState | undefined {
@@ -1255,6 +1285,8 @@ export class StudioRuntime {
         }
       });
     }
+    if (this.cadJointView?.principleVisible && this.cadJointView.principleObject)
+      bounds.expandByObject(this.cadJointView.principleObject);
     if (bounds.isEmpty()) return;
     const { width, height } = this.container.getBoundingClientRect(),
       margin = this.mechanismInsets;
@@ -1327,6 +1359,14 @@ export class StudioRuntime {
   private applyMechanism(deform: boolean) {
     const m = this.spec.mechanism;
     if (!m) return;
+    if (m.kind === 'cad-joint') {
+      this.cadJointView?.update(
+        this.inputAngle,
+        this.mechanismController?.snapshot().dynamics?.closure ?? 0,
+        this.section,
+      );
+      return;
+    }
     const state = harmonicState(this.inputAngle, this.inputRpm, m.flexTeeth, m.ringTeeth);
     for (const [id, angle] of [
       [m.waveNodeId, state.inputAngle],
@@ -1353,6 +1393,8 @@ export class StudioRuntime {
     });
   }
   private clearContent() {
+    this.cadJointView?.dispose();
+    this.cadJointView = undefined;
     this.actorPreview = undefined;
     for (const mixer of this.mixers) {
       mixer.stopAllAction();

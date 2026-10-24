@@ -22,8 +22,41 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
     if(bImportedModule) Lines.Add(TEXT("Static STEP assembly | \u9759\u6001\u6a21\u7ec4 | \u6bcf\u6b21\u4ec5\u663e\u793a\u4e00\u4e2a\u6a21\u7ec4"));
     if(Mechanism)
     {
+        if(JointDynamics)
+        {
+            const auto State=JointDynamics->snapshot();
+            const auto Factors=CadTransmission();const auto Gear=VW::Object(Mechanism,TEXT("gear"));
+            Lines.Add(FString::Printf(TEXT("Input %.4f rpm | Output %+.6f rpm"),State.omega*30/PI,State.omega*30/PI*Factors.output));
+            Lines.Add(FString::Printf(TEXT("Angle: input %.5f rad | output %+.5f rad"),InputAngle,InputAngle*Factors.output));
+            if(Factors.resolved)
+            {
+                const bool Stated=VW::String(Gear,TEXT("status"))==TEXT("user-specified");
+                const FString Fixed=Stated?VW::String(Gear,TEXT("fixedMember")):TEXT("circular-spline");
+                const bool Inferred=Stated&&VW::String(Gear,TEXT("fixedMemberProvenance"))!=TEXT("user-specified");
+                Lines.Add(FString::Printf(TEXT("Reduction %.6g:1 | %s | fixed %s%s"),1/FMath::Abs(Factors.output),Stated?TEXT("user-provided"):TEXT("evidenced teeth"),*Fixed,Inferred?TEXT(" (inferred)"):TEXT("")));
+            }
+            else Lines.Add(TEXT("Transmission unresolved: output remains static."));
+            Lines.Add(FString::Printf(TEXT("Brake %s | Closure %.1f%% | t %.4f s"),UTF8_TO_TCHAR(State.brakePhase),State.closure*100,State.time));
+            Lines.Add(FString::Printf(TEXT("Whole clock %.2fx [T] | Setpoint %.1f rpm | P pauses"),JointTimeScale,Rpm));
+            const bool Markers=VW::Bool(Mechanism,TEXT("motionMarkers"),true);
+            Lines.Add(Markers?TEXT("M markers | C section | G principle | H assembly | T clock"):TEXT("C motor window | G principle | H assembly | T clock"));
+            if(Markers)Lines.Add(TEXT("Orange input / blue output."));
+            if(bSection){bool Transparent=false;for(const auto& B:CadBindings)Transparent|=B.Data->HasField(TEXT("inspectionOpacity"));if(Transparent)Lines.Add(TEXT("Harmonic inspection: transparent outer parts."));}
+            Lines.Add(TEXT("Demonstration dynamics; actual teeth and brake performance unmeasured."));
+            if(bPrinciple)
+            {
+                const auto P=VW::Object(Mechanism,TEXT("principle"));
+                Lines.Add(FString::Printf(TEXT("PRINCIPLE: hypothetical %.0f / %.0f teeth; not measured CAD teeth"),VW::Number(P,TEXT("flexTeeth")),VW::Number(P,TEXT("ringTeeth"))));
+                Lines.Add(FString::Printf(TEXT("Assumed brake gap %.4f mm | Profile minimum gap %.6f mm"),JointDynamics->config.armatureTravel*(1-State.closure)*1000,PrincipleMinGap*1000));
+            }
+        }
+        else
+        {
         const VW::Harmonic State=VW::Transmission(InputAngle,VW::Number(Mechanism,TEXT("flexTeeth")),VW::Number(Mechanism,TEXT("ringTeeth")));
-        Lines.Add(FString::Printf(TEXT("Input %.1f rpm | Output %.3f rpm | Ratio %.4f"),Rpm,Rpm*State.Ratio,State.Ratio));
+        const double ActualRpm=bRunning&&!bPaused&&!(bBrakeInstalled&&!bBrakePowered)?Rpm:0.;
+        const double OutputRpm=ActualRpm==0?0:ActualRpm*State.Ratio;
+        Lines.Add(FString::Printf(TEXT("Input %.1f rpm | Output %.3f rpm | Ratio %.4f"),ActualRpm,OutputRpm,State.Ratio));
+        Lines.Add(FString::Printf(TEXT("Setpoint %.1f rpm | Prescribed motion (no load solver)"),Rpm));
         Lines.Add(FString::Printf(TEXT("Angle %.2f rad | Output %.3f rad"),InputAngle,State.Output));
         Lines.Add(FString::Printf(TEXT("WaveCos %+.3f | WaveSin %+.3f | Explode %.0f%%"),State.Cos,State.Sin,Explosion*100));
         Lines.Add(bBrakeInstalled?(bBrakePowered?TEXT("Brake installed / powered / released"):TEXT("Brake installed / power off / LOCKED")):TEXT("Brake not installed"));
@@ -31,6 +64,7 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
         Lines.Add(TEXT("C section / \u5256\u5207 | X explode / \u7206\u70b8\u56fe"));
         Lines.Add(TEXT("B brake power | I install brake | Q/F roll | R zero"));
         Lines.Add(VW::String(Mechanism,TEXT("referenceNotes")));
+        }
     }
     else if(PlayerRoot)
     {
@@ -68,35 +102,47 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
 TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
 {
     TArray<FVirtualWorldAction> Result;
+    Result.Add({TEXT("import-cad"),TEXT("Import STEP / STP [O]"),!CadProcess.IsValid()&&!ImportGeneration.bBusy});
+    if(CadProcess.IsValid()||ImportGeneration.bBusy) Result.Add({TEXT("cancel-import"),TEXT("Cancel import"),true});
     if(!FatalError.IsEmpty()||!Metadata) return Result;
     if(IsModuleViewer())
     {
-        Result.Add({TEXT("import-step"),TEXT("\u5bfc\u5165 STEP / STP"),!ImportGeneration.bBusy});
+        Result.Add({TEXT("import-step"),TEXT("\u5bfc\u5165 STEP / STP"),!ImportGeneration.bBusy&&!CadProcess.IsValid()});
         Result.Add({TEXT("restore-module"),TEXT("\u6062\u590d H-100"),true});
-        if(ImportGeneration.bBusy) Result.Add({TEXT("cancel-import"),TEXT("\u53d6\u6d88\u5bfc\u5165"),true});
     }
     if(!bImportedModule)
     {
         Result.Add({TEXT("pause"),bPaused?TEXT("Resume [P]"):TEXT("Pause [P]"),true});
-        Result.Add({TEXT("reset"),Mechanism?TEXT("Zero input [R]"):TEXT("Reset campaign [R]"),true});
+        Result.Add({TEXT("reset"),Mechanism?TEXT("Zero input [R]"):(PlayerRoot?TEXT("Reset campaign [R]"):TEXT("Frame model [R]")),true});
     }
     Result.Add({TEXT("camera-reset"),TEXT("Reset view [Home]"),true});
     Result.Add({TEXT("screenshot"),TEXT("Screenshot [F9]"),true});
     if(Mechanism)
     {
-        const bool Locked=bBrakeInstalled&&!bBrakePowered;
-        Result.Add({TEXT("run"),bRunning?TEXT("Stop [Space]"):TEXT("Run [Space]"),!Locked});
-        Result.Add({TEXT("section"),bSection?TEXT("Full housing [C]"):TEXT("Section view [C]"),true});
-        Result.Add({TEXT("step-back"),TEXT("Step -15 degrees [ ]"),!Locked&&!bRunning&&!bPaused});
-        Result.Add({TEXT("step"),TEXT("Step +15 degrees [ ]"),!Locked&&!bRunning&&!bPaused});
+        const bool Locked=JointDynamics?(!JointDynamics->snapshot().powered||(JointDynamics->snapshot().installed&&(JointDynamics->snapshot().closure!=0||FString(UTF8_TO_TCHAR(JointDynamics->snapshot().brakePhase))!=TEXT("released")))):bBrakeInstalled&&!bBrakePowered;
+        Result.Add({TEXT("run"),bRunning?TEXT("Stop [Space]"):TEXT("Run [Space]"),!Locked||bRunning});
+        const bool MotorWindow=VW::String(Mechanism,TEXT("inspectionCutaway"))==TEXT("quarter-window");
+        bool Transparent=false;for(const auto& B:CadBindings)Transparent|=B.Data->HasField(TEXT("inspectionOpacity"));
+        Result.Add({TEXT("section"),bSection?TEXT("Full housing [C]"):(Transparent?TEXT("Motor / harmonic inspection [C]"):(MotorWindow?TEXT("Motor window [C]"):TEXT("Section view [C]"))),true});
+        Result.Add({TEXT("step-back"),TEXT("Step -15 degrees [ ]"),!Locked&&!bRunning&&!bPaused&&(!JointDynamics||JointDynamics->snapshot().omega==0)});
+        Result.Add({TEXT("step"),TEXT("Step +15 degrees [ ]"),!Locked&&!bRunning&&!bPaused&&(!JointDynamics||JointDynamics->snapshot().omega==0)});
         Result.Add({TEXT("speed-down"),TEXT("RPM -1 [-]"),true});Result.Add({TEXT("speed-up"),TEXT("RPM +1 [+]"),true});
-        Result.Add({TEXT("explode"),TEXT("Explode +25% / reset [X]"),true});
+        if(JointDynamics)
+        {
+            if(VW::Bool(Mechanism,TEXT("motionMarkers"),true))Result.Add({TEXT("markers"),bRollingMarkers?TEXT("Hide motion markers [M]"):TEXT("Show motion markers [M]"),true});
+            Result.Add({TEXT("principle"),bPrinciple?TEXT("Hide principle [G]"):TEXT("Show principle [G]"),PrincipleMesh!=nullptr});
+            Result.Add({TEXT("slow-motion"),FString::Printf(TEXT("Whole clock %.2fx [T]"),JointTimeScale),true});
+            Result.Add({TEXT("focus-brake"),TEXT("Brake close-up [K]"),PrincipleMesh!=nullptr});
+            Result.Add({TEXT("focus-principle"),TEXT("Principle overview [V]"),PrincipleMesh!=nullptr});
+            Result.Add({TEXT("frame-assembly"),TEXT("Frame assembly [H]"),true});
+        }
+        else Result.Add({TEXT("explode"),TEXT("Explode +25% / reset [X]"),true});
         if(bHasBrake)
         {
             Result.Add({TEXT("brake-install"),bBrakeInstalled?TEXT("Remove brake [I]"):TEXT("Install brake [I]"),true});
             Result.Add({TEXT("brake-power"),bBrakePowered?TEXT("Cut brake power [B]"):TEXT("Power brake [B]"),bBrakeInstalled});
         }
-        for(const auto& Value:VW::Array(Mechanism,TEXT("subsystems")))
+        if(!JointDynamics) for(const auto& Value:VW::Array(Mechanism,TEXT("subsystems")))
         {
             const VW::Json System=Value->AsObject();const FString Id=VW::String(System,TEXT("id")),Name=VW::String(System,TEXT("name"));
             Result.Add({TEXT("hide:")+Id,(HiddenSubsystems.Contains(Id)?TEXT("Show "):TEXT("Hide "))+Name,true});
@@ -120,7 +166,8 @@ TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
 
 AVirtualWorldRuntime* AVirtualWorldHUD::Runtime() const
 {
-    for(TActorIterator<AVirtualWorldRuntime> It(GetWorld());It;++It) return *It;
+    TActorIterator<AVirtualWorldRuntime> It(GetWorld());
+    if(It) return *It;
     return nullptr;
 }
 
@@ -162,12 +209,7 @@ void AVirtualWorldHUD::DrawHUD()
     const float Width=VW::ControlPanelWidth(Canvas->SizeX),Top=FontError.IsEmpty()?52.f:118.f,Bottom=Canvas->SizeY-FooterHeight-8.f;
     APlayerController* PC=GetOwningPlayerController();
     float MX=0,MY=0;if(PC)PC->GetMousePosition(MX,MY);
-    if(PC&&MX<Width)
-    {
-        float Wheel=PC->GetInputAnalogKeyState(EKeys::MouseWheelAxis);
-        if(FMath::IsNearlyZero(Wheel)) Wheel=(PC->WasInputKeyJustPressed(EKeys::MouseScrollUp)?1.f:0.f)-(PC->WasInputKeyJustPressed(EKeys::MouseScrollDown)?1.f:0.f);
-        PanelScroll-=Wheel*60.f;
-    }
+    PanelScroll-=Player->PendingPanelWheel*60;Player->PendingPanelWheel=0;
     PanelScroll=FMath::Clamp(PanelScroll,0.f,FMath::Max(0.f,ContentHeight-(Bottom-Top)));
     DrawRect(FLinearColor(.025f,.035f,.06f,.94f),0,0,Width,Canvas->SizeY);
     DrawText(TEXT("Unreal Engine | VirtualWorld"),FLinearColor(.85f,.92f,1),16,14,Font,1.f);
@@ -178,12 +220,19 @@ void AVirtualWorldHUD::DrawHUD()
     {
         FString Current;
         const auto Flush=[&]() {if(Y>=Top&&Y+LineHeight<=Bottom)DrawText(Current,Color,16,Y,Font,.8f);Current.Empty();Y+=LineHeight+2.f;};
-        for(TCHAR C:Text)
+        TArray<FString> Paragraphs;Text.ParseIntoArrayLines(Paragraphs,false);
+        for(int32 Paragraph=0;Paragraph<Paragraphs.Num();++Paragraph)
         {
-            if(C=='\n') {Flush();continue;}
-            FString Candidate=Current;Candidate.AppendChar(C);float W=0,H=0;GetTextSize(Candidate,W,H,Font,.8f);
-            if(W>Width-32&&!Current.IsEmpty()) Flush();
-            Current.AppendChar(C);
+            if(Paragraph>0)Flush();TArray<FString> Words;Paragraphs[Paragraph].ParseIntoArrayWS(Words);
+            for(const FString& Word:Words)
+            {
+                FString Candidate=Current.IsEmpty()?Word:Current+TEXT(" ")+Word;float W=0,H=0;GetTextSize(Candidate,W,H,Font,.8f);
+                if(W<=Width-32){Current=Candidate;continue;}
+                if(!Current.IsEmpty())Flush();GetTextSize(Word,W,H,Font,.8f);
+                if(W<=Width-32){Current=Word;continue;}
+                // Long unspaced words/CJK retain the glyph-by-glyph fallback.
+                for(TCHAR C:Word){Candidate=Current;Candidate.AppendChar(C);GetTextSize(Candidate,W,H,Font,.8f);if(W>Width-32&&!Current.IsEmpty())Flush();Current.AppendChar(C);}
+            }
         }
         if(!Current.IsEmpty()) Flush();
         Y+=6;
@@ -194,7 +243,8 @@ void AVirtualWorldHUD::DrawHUD()
     {
         const auto& Button=Buttons[I];const float X=16+(I%2)*(ButtonWidth+10),RowY=Y+(I/2)*RowHeight;
         if(RowY<Top||RowY+ButtonHeight>Bottom) continue;
-        DrawRect(Button.bEnabled?FLinearColor(.12f,.22f,.34f,1):FLinearColor(.09f,.11f,.14f,1),X,RowY,ButtonWidth,ButtonHeight);
+        const bool Hover=MX>=X&&MX<X+ButtonWidth&&MY>=RowY&&MY<RowY+ButtonHeight;
+        DrawRect(Button.bEnabled?(Hover?FLinearColor(.2f,.36f,.5f,1):FLinearColor(.12f,.22f,.34f,1)):FLinearColor(.09f,.11f,.14f,1),X,RowY,ButtonWidth,ButtonHeight);
         FString Label=Button.Label;float W=0,H=0;GetTextSize(Label,W,H,Font,.8f);
         while(W>ButtonWidth-14&&Label.Len()>3) {Label.LeftChopInline(1);GetTextSize(Label+TEXT("..."),W,H,Font,.8f);}
         if(Label!=Button.Label)Label+=TEXT("...");

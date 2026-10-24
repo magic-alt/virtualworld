@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MechanismSchema } from './cad-mechanism';
 
 export const Vec3 = z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]);
 const identifier = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/);
@@ -152,44 +153,7 @@ export const SceneSchema = z
       .object({ id: identifier, chapterId: identifier, index: z.number().int().min(0) })
       .strict()
       .optional(),
-    mechanism: z
-      .object({
-        kind: z.literal('harmonic'),
-        subsystems: z
-          .array(
-            z
-              .object({
-                id: identifier,
-                name: z.string().min(1).max(100),
-                description: z.string().min(1).max(2000),
-                nodeIds: z.array(identifier).min(1),
-                optional: z.literal('brake').optional(),
-              })
-              .strict(),
-          )
-          .optional(),
-        referenceNotes: z.string().max(6000).optional(),
-        waveNodeId: identifier,
-        flexNodeId: identifier,
-        outputNodeId: identifier,
-        fixedNodeIds: z.array(identifier),
-        flexTeeth: z.number().int().min(10),
-        ringTeeth: z.number().int().min(10),
-        cosMorph: z.string().min(1),
-        sinMorph: z.string().min(1),
-        fullHousingIds: z.array(identifier),
-        sectionHousingIds: z.array(identifier),
-        dimensions: z
-          .object({
-            baseDiameter: z.number().positive(),
-            housingDiameter: z.number().positive(),
-            totalHeight: z.number().positive(),
-            boreDiameter: z.number().positive(),
-          })
-          .strict(),
-      })
-      .strict()
-      .optional(),
+    mechanism: MechanismSchema.optional(),
   })
   .strict();
 export type SceneSpec = z.infer<typeof SceneSchema>;
@@ -285,31 +249,33 @@ export function validateScene(input: unknown): string[] {
         members.add(id);
       }
     }
-    for (const id of [
-      m.waveNodeId,
-      m.flexNodeId,
-      m.outputNodeId,
-      ...m.fixedNodeIds,
-      ...m.fullHousingIds,
-      ...m.sectionHousingIds,
-    ])
+    for (const id of [...m.fixedNodeIds, ...m.fullHousingIds, ...m.sectionHousingIds])
       if (!nodes.has(id)) errors.push(`机构引用不存在: ${id}`);
-    if (m.ringTeeth - m.flexTeeth !== 2) errors.push('双波谐波传动要求刚轮比柔轮多两齿');
-    if (new Set([m.waveNodeId, m.flexNodeId, m.outputNodeId]).size !== 3)
-      errors.push('机构运动件必须独立');
-    if (m.fixedNodeIds.some((id) => [m.waveNodeId, m.flexNodeId, m.outputNodeId].includes(id)))
-      errors.push('机构固定件不能同时是运动件');
-    const moving = new Set([m.waveNodeId, m.flexNodeId, m.outputNodeId]);
-    for (const id of [...moving, ...m.fixedNodeIds]) {
-      const visited = new Set<string>();
-      let parent = nodes.get(id)?.parentId;
-      while (parent && !visited.has(parent)) {
-        if (moving.has(parent)) {
-          errors.push('机构运动根节点必须独立，固定件不能处于运动件下');
-          break;
+    if (m.kind === 'cad-joint') {
+      const model = nodes.get(m.modelNodeId);
+      if (!model) errors.push(`机构引用不存在: ${m.modelNodeId}`);
+      else if (model.shape !== 'glb' && model.kind !== 'group')
+        errors.push('CAD model must be a GLB or assembly group');
+    } else {
+      for (const id of [m.waveNodeId, m.flexNodeId, m.outputNodeId, ...m.fixedNodeIds])
+        if (!nodes.has(id)) errors.push(`机构引用不存在: ${id}`);
+      if (m.ringTeeth - m.flexTeeth !== 2) errors.push('双波谐波传动要求刚轮比柔轮多两齿');
+      if (new Set([m.waveNodeId, m.flexNodeId, m.outputNodeId]).size !== 3)
+        errors.push('机构运动件必须独立');
+      if (m.fixedNodeIds.some((id) => [m.waveNodeId, m.flexNodeId, m.outputNodeId].includes(id)))
+        errors.push('机构固定件不能同时是运动件');
+      const moving = new Set([m.waveNodeId, m.flexNodeId, m.outputNodeId]);
+      for (const id of [...moving, ...m.fixedNodeIds]) {
+        const visited = new Set<string>();
+        let parent = nodes.get(id)?.parentId;
+        while (parent && !visited.has(parent)) {
+          if (moving.has(parent)) {
+            errors.push('机构运动根节点必须独立，固定件不能处于运动件下');
+            break;
+          }
+          visited.add(parent);
+          parent = nodes.get(parent)?.parentId;
         }
-        visited.add(parent);
-        parent = nodes.get(parent)?.parentId;
       }
     }
     const d = m.dimensions;

@@ -6,6 +6,7 @@ import { unzipSync } from 'fflate';
 import { listCampaigns, listWorlds } from '@virtualworld/scene-builder/io';
 import { createExport } from '../apps/web/server/export';
 import { unityRunner } from './native-unity-runner';
+import { prepareCadBundle } from './native-cad-bundle';
 
 export async function prepareNativeProject(options: {
   target: 'unity' | 'unreal';
@@ -59,6 +60,8 @@ export async function prepareNativeProject(options: {
       await mkdir(dirname(destination), { recursive: true });
       await writeFile(destination, bytes, { flag: 'wx' });
     }
+    if (options.target === 'unreal')
+      await prepareCadBundle(join(projectPath, 'Content/VirtualWorldTools/Cad'));
     if (options.target === 'unity') {
       await mkdir(join(projectPath, 'Packages'));
       await mkdir(join(projectPath, 'ProjectSettings'));

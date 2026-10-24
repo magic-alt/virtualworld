@@ -6,12 +6,14 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { checkData } from './check-data.mjs';
+import { packageOptions, preparePackageRuntime } from './package-runtime.mjs';
 import { installPlugin, verifyPlugin } from './prepare-plugin.mjs';
 import { prepareFont, verifyFont } from './prepare-font.mjs';
 import { pluginRevision } from './pin.mjs';
@@ -28,9 +30,9 @@ const commands = {
   generate: ['engine'],
   build: ['engine'],
   open: ['engine', 'scene'],
-  run: ['engine', 'scene'],
+  run: ['engine', 'scene', 'import'],
   smoke: ['engine', 'timeout'],
-  package: ['engine'],
+  package: ['engine', 'platform', 'configuration', 'output'],
   evidence: ['engine', 'out', 'json'],
 };
 const usage = `Usage: node Scripts/native.mjs <command> [options]
@@ -41,9 +43,11 @@ prepare [--font-source FILE]         Explicitly prepare pinned glTFRuntime and N
 generate [--engine PATH]             Generate IDE project files using the selected engine.
 build [--engine PATH]                Build VirtualWorldEditor Development for this platform.
 open [--engine PATH] [--scene ID]     Open the project in Unreal Editor (then press Play).
-run [--engine PATH] [--scene ID]      Launch the native game renderer; close it to return.
+run [--engine PATH] [--scene ID] [--import FILE]
+                                    Launch the native renderer and optionally import a local CAD file.
 smoke [--engine PATH] [--timeout N]   Check every exported scene; timeout N is seconds (default 300).
-package [--engine PATH]              Run the native desktop BuildCookRun pipeline.
+package [--engine PATH] [--platform Mac|Win64|Linux] [--configuration Development|Shipping] [--output DIR]
+                                    Archive a native desktop build with the offline CAD runtime.
 evidence [--engine PATH] [--out DIR]  Copy existing logs/reports into a fresh evidence directory.
 
 Engine priority: --engine, UE_ROOT, local Launcher/registry/default installations.
@@ -269,6 +273,12 @@ function launch(command, options, projectRoot, data, engine, context) {
         '-NoHotReloadFromIDE',
       ];
     } else {
+      const packaging = packageOptions(
+        Object.entries(options).flatMap(([name, value]) => [`--${name}`, value]),
+        context.platform,
+        projectRoot,
+      );
+      context.preparePackageRuntime(projectRoot);
       script = engine.uat;
       args = [
         'BuildCookRun',
@@ -280,7 +290,10 @@ function launch(command, options, projectRoot, data, engine, context) {
         '-pak',
         '-package',
         `-platform=${engine.target}`,
-        '-clientconfig=Development',
+        `-clientconfig=${packaging.configuration}`,
+        '-archive',
+        `-archivedirectory=${packaging.archive}`,
+        '-prereqs',
         '-map=/Engine/Maps/Entry',
         '-utf8output',
       ];
@@ -307,7 +320,11 @@ function launch(command, options, projectRoot, data, engine, context) {
           join(logDirectory, 'prior-smoke-report.json'),
           constants.COPYFILE_EXCL,
         );
-    } else args.push(`-VirtualWorldScene=${data.sceneId}`);
+    } else {
+      args.push(`-VirtualWorldScene=${data.sceneId}`);
+      if (command === 'run' && options.import)
+        args.push(`-VirtualWorldImport=${resolve(options.import)}`);
+    }
     invocation = { program: engine.editor, args, options: {} };
   }
   context.stdout(
@@ -372,10 +389,15 @@ export function nativeCommand(argv, projectRoot = project, overrides = {}) {
     verifyFont,
     prepareFont,
     installPlugin,
+    preparePackageRuntime,
     stdout: (chunk) => process.stdout.write(chunk),
     stderr: (chunk) => process.stderr.write(chunk),
     ...overrides,
   });
+  context.env = {
+    ...context.env,
+    VW_NODE_EXECUTABLE: context.env.VW_NODE_EXECUTABLE ?? process.execPath,
+  };
   projectRoot = resolve(projectRoot);
   if (command === 'doctor') return diagnose(projectRoot, options, context);
   if (command === 'evidence')
@@ -406,7 +428,11 @@ export function nativeCommand(argv, projectRoot = project, overrides = {}) {
   return launch(command, options, projectRoot, data, engine, context);
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  existsSync(process.argv[1]) &&
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+) {
   try {
     const argv = process.argv.slice(2);
     const result = await nativeCommand(argv);

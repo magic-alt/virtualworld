@@ -6,7 +6,9 @@
   "exports": {
     ".": "./src/runtime.ts",
     "./geometry": "./src/geometry.ts",
-    "./transforms": "./src/transforms.ts"
+    "./transforms": "./src/transforms.ts",
+    "./joint-dynamics": "./src/joint-dynamics.ts",
+    "./joint-geometry": "./src/joint-geometry.ts"
   },
   "dependencies": {
     "@virtualworld/asset-runtime": "*",

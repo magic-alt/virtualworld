@@ -56,10 +56,55 @@ export function mountMechanismControls(
     if (el.textContent !== value) el.textContent = value;
   };
   const m = runtime.spec.mechanism!;
+  const cadRatioLabel =
+    m.kind === 'cad-joint'
+      ? m.gear.status === 'user-specified'
+        ? `${m.gear.reductionRatio}:1 · 用户指定 · ${m.gear.fixedMember === 'flexspline' ? '同向输出' : '反向输出'}`
+        : m.gear.status === 'evidenced'
+          ? `${(m.gear.flexTeeth / (m.gear.ringTeeth - m.gear.flexTeeth)).toFixed(2)}:1 · 齿数证据 · 反向输出`
+          : '减速比待核验'
+      : '';
   text(
     'small',
-    `HARMONIC / ${(m.flexTeeth / (m.ringTeeth - m.flexTeeth)).toFixed(0)}:1 · 反向输出`,
+    m.kind === 'harmonic'
+      ? `HARMONIC / ${(m.flexTeeth / (m.ringTeeth - m.flexTeeth)).toFixed(0)}:1 · 反向输出`
+      : `真实 CAD · ${cadRatioLabel} · 制动参数为演示假设`,
   );
+  let timeScaleSelect: HTMLSelectElement | undefined;
+  if (m.kind === 'cad-joint') {
+    if (m.motionMarkers !== false) {
+      const markers = input('显示滚动标记', 'checkbox');
+      markers.addEventListener('change', () => runtime.setRollingMarkers(markers.checked), {
+        signal: listeners.signal,
+      });
+    }
+    if (m.principle) {
+      const principle = input('独立原理层（演示假设）', 'checkbox');
+      principle.addEventListener('change', () => runtime.setPrincipleLayer(principle.checked), {
+        signal: listeners.signal,
+      });
+      text('p', m.principle.label);
+    }
+    const scale = document.createElement('select');
+    timeScaleSelect = scale;
+    scale.setAttribute('aria-label', '仿真时间倍率');
+    for (const [v, label] of [
+      ['1', '实时 1×'],
+      ['0.1', '慢放 0.1×'],
+      ['0.02', '慢放 0.02×'],
+      ['10', '快速观察 10×（整机时钟）'],
+      ['50', '快速观察 50×（整机时钟）'],
+    ]) {
+      const option = document.createElement('option');
+      option.value = v;
+      option.textContent = label;
+      scale.append(option);
+    }
+    body.append(scale);
+    scale.addEventListener('change', () => runtime.setMechanismTimeScale(Number(scale.value)), {
+      signal: listeners.signal,
+    });
+  }
   const status = text('p', '停止 · 通电释放');
   status.className = 'joint-status';
   status.setAttribute('role', 'status');
@@ -74,9 +119,22 @@ export function mountMechanismControls(
   const back = button('输入 −15°', () => runtime.stepMechanism(-Math.PI / 12), transport);
   const forward = button('输入 +15°', () => runtime.stepMechanism(Math.PI / 12), transport);
   const rpm = input('输入 RPM', 'range');
-  Object.assign(rpm, { min: '-30', max: '30', step: '1', value: '6' });
+  const defaultRpm = m.kind === 'cad-joint' ? (m.defaultRpm ?? 6) : 6;
+  const rpmLimit =
+    m.kind === 'cad-joint' ? Math.min(100000, Math.max(30, Math.abs(defaultRpm) * 2)) : 30;
+  Object.assign(rpm, {
+    min: String(-rpmLimit),
+    max: String(rpmLimit),
+    step: '1',
+    value: String(defaultRpm),
+  });
   const number = input('输入转速数值', 'number');
-  Object.assign(number, { min: '-30', max: '30', step: '1', value: '6' });
+  Object.assign(number, {
+    min: String(-rpmLimit),
+    max: String(rpmLimit),
+    step: '1',
+    value: String(defaultRpm),
+  });
   rpm.addEventListener('input', () => runtime.setTransmissionSpeed(Number(rpm.value)), {
     signal: listeners.signal,
   });
@@ -105,7 +163,16 @@ export function mountMechanismControls(
     },
     { signal: listeners.signal },
   );
-  const section = input('剖视', 'checkbox');
+  const transparentInspection =
+    m.kind === 'cad-joint' && m.bindings.some((b) => b.inspectionOpacity !== undefined);
+  const section = input(transparentInspection ? '电机剖口／谐波透明' : '剖视', 'checkbox');
+  if (m.kind === 'cad-joint' && m.bindings.some((binding) => binding.inspectionCut))
+    text(
+      'p',
+      transparentInspection
+        ? '谐波外层遮挡件半透明；原生电机视图保留局部剖口。'
+        : '浏览器剖视隐藏选定遮挡件；原生版保留切面。',
+    ).className = 'joint-note';
   section.addEventListener(
     'change',
     () => {
@@ -127,8 +194,11 @@ export function mountMechanismControls(
     button(label, () => runtime.fitMechanismView(view), views);
   button('适配当前模型', () => fit(), views);
   const brake = runtime.spec.mechanism?.subsystems?.find((s) => s.optional === 'brake');
-  const installed = brake ? input('安装可选抱闸', 'checkbox') : undefined;
-  const power = brake ? input('抱闸线圈掉电', 'checkbox') : undefined;
+  const installed =
+    m.kind === 'cad-joint' || brake
+      ? input(m.kind === 'cad-joint' ? '启用演示抱闸' : '安装可选抱闸', 'checkbox')
+      : undefined;
+  const power = m.kind === 'cad-joint' || brake ? input('抱闸线圈掉电', 'checkbox') : undefined;
   installed?.addEventListener(
     'change',
     () => {
@@ -226,7 +296,9 @@ export function mountMechanismControls(
   body.append(references);
 
   function update(state: MechanismViewState) {
-    const locked = state.brakeInstalled && !state.brakePowered;
+    const locked =
+      state.brakeInstalled &&
+      (!state.brakePowered || (!!state.dynamics && state.dynamics.brakePhase !== 'released'));
     const label = state.moving ? '暂停机构' : '播放机构';
     setText(play, label);
     play.setAttribute('aria-label', label);
@@ -236,12 +308,21 @@ export function mountMechanismControls(
       status,
       `${state.paused ? '体验已暂停' : locked ? '抱闸保持' : state.moving ? '运动中' : '停止'} · ${!state.brakeInstalled ? '无抱闸' : state.brakePowered ? '通电释放' : '掉电抱紧'}`,
     );
+    if (state.dynamics)
+      setText(
+        status,
+        `${state.paused ? '已暂停 · ' : ''}${state.dynamics.brakePhase} · ${state.timeScale}× · 耗散 ${state.dynamics.dissipatedEnergy.toExponential(3)} J · 演示假设`,
+      );
+    if (timeScaleSelect) timeScaleSelect.value = String(state.timeScale);
     if (document.activeElement !== rpm) rpm.value = String(state.inputRpm);
     if (document.activeElement !== number) number.value = String(state.inputRpm);
     setText(inputAngle, `${((state.inputAngle * 180) / Math.PI).toFixed(1)}°`);
-    setText(outputAngle, `${((state.outputAngle * 180) / Math.PI).toFixed(2)}°`);
+    setText(
+      outputAngle,
+      state.ratioKnown ? `${((state.outputAngle * 180) / Math.PI).toFixed(2)}°` : '待核验',
+    );
     setText(actual, state.actualInputRpm.toFixed(1));
-    setText(outputRpm, state.actualOutputRpm.toFixed(3));
+    setText(outputRpm, state.ratioKnown ? state.actualOutputRpm.toFixed(3) : '待核验');
     if (document.activeElement !== explosion) explosion.value = String(state.explosion);
     setText(
       explosionValue,
