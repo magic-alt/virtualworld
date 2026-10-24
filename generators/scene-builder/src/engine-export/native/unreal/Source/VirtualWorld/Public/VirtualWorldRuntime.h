@@ -83,6 +83,7 @@ private:
     void BuildCadPrinciple();
     void UpdateCadPrinciple();
     void FrameCadInspection(bool bPrincipleOnly = false);
+    void FrameCadBrakeInspection();
     void BuildCameraAndLight();
     void ChooseCadFile();
     void BeginCadImport(const FString& Path);
@@ -157,6 +158,7 @@ private:
     USceneComponent* CadModelRoot = nullptr;
     UProceduralMeshComponent* PrincipleMesh = nullptr;
     USceneComponent* PrincipleArmature = nullptr;
+    USceneComponent* PrincipleBrakePole = nullptr;
     bool bRollingMarkers = false;
     bool bPrinciple = false;
     double JointTimeScale = 1;

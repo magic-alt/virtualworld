@@ -24,7 +24,7 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
             Lines.Add(FString::Printf(TEXT("Simulation clock %.2fx | P freezes time | Focus loss freezes time"),JointTimeScale));
             Lines.Add(TEXT("SI demonstration assumptions; no measured braking performance. Unknown CAD parts stay static."));
             Lines.Add(TEXT("CAD brake internals unresolved; no real armature identified. Separate principle layer illustrates closure only."));
-            if(bPrinciple){Lines.Add(VW::String(VW::Object(Mechanism,TEXT("principle")),TEXT("label")));Lines.Add(FString::Printf(TEXT("Illustrative profile sampled minimum gap %.6f mm (8192 points at this phase)"),PrincipleMinGap*1000));}
+            if(bPrinciple){Lines.Add(FString::Printf(TEXT("PRINCIPLE brake: movable armature / fixed pole; assumed air gap %.4f mm"),JointDynamics->config.armatureTravel*(1-State.closure)*1000));Lines.Add(VW::String(VW::Object(Mechanism,TEXT("principle")),TEXT("label")));Lines.Add(FString::Printf(TEXT("Illustrative profile sampled minimum gap %.6f mm (8192 points at this phase)"),PrincipleMinGap*1000));}
             Lines.Add(VW::String(VW::Object(Mechanism,TEXT("dynamics")),TEXT("notes")));
         }
         else

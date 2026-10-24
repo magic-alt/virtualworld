@@ -128,6 +128,11 @@ void AVirtualWorldRuntime::BuildCadPrinciple()
     for(int I=0;I<2;++I)if(Base){auto* M=UMaterialInstanceDynamic::Create(Base,this);M->SetVectorParameterValue(TEXT("Color"),I==0?FLinearColor(.1,.55,.95):FLinearColor(.95,.6,.12));PrincipleMesh->SetMaterial(I,M);}
     auto* Armature=NewObject<UStaticMeshComponent>(this);AddInstanceComponent(Armature);Armature->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cylinder.Cylinder")));Armature->SetupAttachment(PrincipleMesh);Armature->RegisterComponent();SceneComponents.Add(Armature);Armature->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Armature->SetRelativeTransform(FTransform(FRotationMatrix::MakeFromZ(VW::Position(FVector(0,0,1)).GetSafeNormal()).ToQuat(),VW::Position(FVector(0,-VW::Number(P,TEXT("radius"))*1.7,0)),FVector(.012,.012,.0004)));PrincipleArmature=Armature;
+    if(Base){auto* M=UMaterialInstanceDynamic::Create(Base,this);M->SetVectorParameterValue(TEXT("Color"),FLinearColor(.95,.6,.12));Armature->SetMaterial(0,M);}
+    auto* Pole=NewObject<UStaticMeshComponent>(this);AddInstanceComponent(Pole);Pole->SetStaticMesh(Armature->GetStaticMesh());Pole->SetupAttachment(PrincipleMesh);Pole->RegisterComponent();SceneComponents.Add(Pole);Pole->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    // Both disks are 0.4 mm thick. At closure=1 their opposing faces touch; at zero closure the air gap is exactly armatureTravel.
+    Pole->SetRelativeTransform(FTransform(FRotationMatrix::MakeFromZ(VW::Position(FVector(0,0,1)).GetSafeNormal()).ToQuat(),VW::Position(FVector(0,-VW::Number(P,TEXT("radius"))*1.7,JointDynamics->config.armatureTravel+.0004)),FVector(.012,.012,.0004)));PrincipleBrakePole=Pole;
+    if(Base){auto* M=UMaterialInstanceDynamic::Create(Base,this);M->SetVectorParameterValue(TEXT("Color"),FLinearColor(.2,.35,.5));Pole->SetMaterial(0,M);}
     UpdateCadPrinciple();PrincipleMesh->SetVisibility(false,true);
 }
 
@@ -177,6 +182,7 @@ void AVirtualWorldRuntime::FrameCadInspection(bool bPrincipleOnly)
     {
         Bounds+=PrincipleMesh->Bounds.GetBox();
         if(auto* Primitive=Cast<UPrimitiveComponent>(PrincipleArmature))Bounds+=Primitive->Bounds.GetBox();
+        if(auto* Primitive=Cast<UPrimitiveComponent>(PrincipleBrakePole))Bounds+=Primitive->Bounds.GetBox();
     }
     if(!Bounds.IsValid)return;
     int32 Width=1280,Height=720;if(auto* PC=GetWorld()->GetFirstPlayerController()){int32 W=0,H=0;PC->GetViewportSize(W,H);if(W>0&&H>0){Width=W;Height=H;}}
@@ -185,4 +191,15 @@ void AVirtualWorldRuntime::FrameCadInspection(bool bPrincipleOnly)
     const double Distance=Bounds.GetExtent().Size()/FMath::Sin(FMath::Atan(AvailableTan)) * 1.18;
     CameraTarget=Bounds.GetCenter();CameraOffset=CameraOffset.GetSafeNormal()*FMath::Max(.1,Distance);
     InspectionZoomMax=FMath::Max(InspectionZoomMax,static_cast<float>(Distance*50));UpdateCamera();
+}
+
+
+void AVirtualWorldRuntime::FrameCadBrakeInspection()
+{
+    if(!Camera||!PrincipleArmature||!PrincipleBrakePole)return;
+    FBox Bounds(ForceInit);for(auto* Part:{PrincipleArmature,PrincipleBrakePole})if(auto* Primitive=Cast<UPrimitiveComponent>(Part))Bounds+=Primitive->Bounds.GetBox();
+    int32 Width=1280,Height=720;if(auto* PC=GetWorld()->GetFirstPlayerController()){int32 W=0,H=0;PC->GetViewportSize(W,H);if(W>0&&H>0){Width=W;Height=H;}}
+    const double TanHorizontal=FMath::Tan(FMath::DegreesToRadians(Camera->GetCameraComponent()->FieldOfView*.5)),Panel=FMath::Min(450.,Width*.48);
+    const double Distance=Bounds.GetExtent().Size()/FMath::Sin(FMath::Atan(FMath::Min(TanHorizontal*(Width-Panel)/Width,TanHorizontal*Height/Width)))*1.18;
+    CameraTarget=Bounds.GetCenter();CameraOffset=VW::Position(FVector(1,.3,.025)).GetSafeNormal()*Distance;CameraUp=VW::Position(FVector(0,0,1)).GetSafeNormal();UpdateCamera();
 }

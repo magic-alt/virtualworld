@@ -75,7 +75,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadJointSuspensionTest,"VirtualWor
 bool FVirtualWorldCadJointSuspensionTest::RunTest(const FString& Parameters)
 {
     UWorld* World=UWorld::CreateWorld(EWorldType::Game,false);if(!TestNotNull(TEXT("Clock test world"),World))return false;
-    auto* R=World->SpawnActor<AVirtualWorldRuntime>();R->JointDynamics=MakeUnique<VWJoint::Dynamics>();R->JointDynamics->start();R->bRunning=true;R->JointClockFocusOverride=1;R->BindJointClockLifecycle();
+    auto* R=World->SpawnActor<AVirtualWorldRuntime>();VW::Parse(TEXT(R"({"kind":"cad-joint"})"),R->Mechanism);R->JointDynamics=MakeUnique<VWJoint::Dynamics>();R->JointDynamics->start();R->bRunning=true;R->JointClockFocusOverride=1;R->BindJointClockLifecycle();
     const auto Cycle=[this,R](FSimpleMulticastDelegate& Suspend,FSimpleMulticastDelegate& Resume)
     {
         const double Before=R->JointDynamics->snapshot().time;Suspend.Broadcast();
@@ -140,11 +140,24 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
                 TestTrue(TEXT("Actual closed gear strips contain vertices and triangles"),Flex&&Ring&&Flex->ProcVertexBuffer.Num()>=1536&&Flex->ProcIndexBuffer.Num()>=1536&&Ring->ProcVertexBuffer.Num()>=1536);
                 const VW::Json Layer=MakeShared<FJsonObject>();Layer->SetNumberField(TEXT("flexVertices"),Flex?Flex->ProcVertexBuffer.Num():0);Layer->SetNumberField(TEXT("ringVertices"),Ring?Ring->ProcVertexBuffer.Num():0);
                 if(R->PrincipleArmature){const FVector Actual=R->PrincipleArmature->GetRelativeLocation();const auto P=VW::Object(R->Mechanism,TEXT("principle"));const FVector Expected=VW::Position(FVector(0,-VW::Number(P,TEXT("radius"))*1.7,State.closure*R->JointDynamics->config.armatureTravel));TestTrue(TEXT("Illustrative armature actual transform follows closure"),Actual.Equals(Expected,1e-8));Layer->SetArrayField(TEXT("armatureTranslationCm"),{MakeShared<FJsonValueNumber>(Actual.X),MakeShared<FJsonValueNumber>(Actual.Y),MakeShared<FJsonValueNumber>(Actual.Z)});}
+                if(TestNotNull(TEXT("Fixed illustrative brake pole"),R->PrincipleBrakePole)&&R->PrincipleArmature)
+                {
+                    const FVector Axis=VW::Position(FVector(0,0,1)).GetSafeNormal();const double GapCm=FVector::DotProduct(R->PrincipleBrakePole->GetRelativeLocation()-R->PrincipleArmature->GetRelativeLocation(),Axis)-.04;
+                    TestTrue(TEXT("Actual illustrative air gap closes to contact"),FMath::Abs(GapCm-R->JointDynamics->config.armatureTravel*(1-State.closure)*100)<1e-8);Layer->SetNumberField(TEXT("brakeGapMetres"),GapCm/100);
+                    for(auto* Part:{R->PrincipleArmature,R->PrincipleBrakePole})if(auto* Primitive=Cast<UPrimitiveComponent>(Part))TestNotNull(TEXT("Brake principle uses explicit material"),Primitive->GetMaterial(0));
+                }
                 Report->SetObjectField(TEXT("principleReadback"),Layer);
             }
             Report->SetArrayField(TEXT("components"),Readbacks);FFileHelper::SaveStringToFile(VW::Serialize(Report),*(Directory/(Name+TEXT(".json"))));
         },.1f));
         AddCommand(new FDelayedFunctionLatentCommand([Directory,Name](){FScreenshotRequest::RequestScreenshot(Directory/(Name+TEXT(".png")),false,false);},.3f));AddCommand(new FDelayedFunctionLatentCommand([](){},.3f));
+        if(Name.StartsWith(TEXT("brake-")))
+        {
+            const TSharedPtr<FVector> OffsetBefore=MakeShared<FVector>(),UpBefore=MakeShared<FVector>(),TargetBefore=MakeShared<FVector>();
+            AddCommand(new FDelayedFunctionLatentCommand([R,OffsetBefore,UpBefore,TargetBefore](){*OffsetBefore=R->CameraOffset;*UpBefore=R->CameraUp;*TargetBefore=R->CameraTarget;R->FrameCadBrakeInspection();},.1f));
+            AddCommand(new FDelayedFunctionLatentCommand([Directory,Name](){FScreenshotRequest::RequestScreenshot(Directory/(Name+TEXT("-principle-brake.png")),false,false);},.3f));
+            AddCommand(new FDelayedFunctionLatentCommand([R,OffsetBefore,UpBefore,TargetBefore](){R->CameraOffset=*OffsetBefore;R->CameraUp=*UpBefore;R->CameraTarget=*TargetBefore;R->UpdateCamera();},.3f));
+        }
     };
     Stage(TEXT("phase-a-released"),.2,-1);Stage(TEXT("phase-b-released"),.13,-1);Stage(TEXT("brake-delay"),.0125,0);Stage(TEXT("brake-engaging"),.025,-1);Stage(TEXT("brake-holding"),.1,-1);Stage(TEXT("brake-release-delay"),.01,1);Stage(TEXT("brake-releasing"),.025,-1);Stage(TEXT("brake-released-no-autostart"),.1,-1);
     AddCommand(new FDelayedFunctionLatentCommand([R](){R->CameraOffset=VW::Position(FVector(0,0,1)).GetSafeNormal()*R->CameraOffset.Size();R->CameraUp=VW::Position(FVector(0,1,0)).GetSafeNormal();R->FrameCadInspection(true);R->UpdateCamera();},.1f));
