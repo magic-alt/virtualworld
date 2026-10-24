@@ -37,7 +37,25 @@ export class CadJointView {
         throw new Error('Missing fitted ball geometry');
       this.entries.push({ object, binding, initial: inverse.clone().multiply(object.matrixWorld) });
     }
-    // Flatten only the runtime instance after all original world transforms are captured.
+    const configured = new Set(config.bindings.map((binding) => binding.gltfNodeIndex));
+    // A tagged glTF node is a mechanical identity. Untagged primitive children
+    // remain attached to their node so multi-material bodies still move together.
+    for (const [gltfNodeIndex, object] of objects) {
+      if (configured.has(gltfNodeIndex)) continue;
+      this.entries.push({
+        object,
+        initial: inverse.clone().multiply(object.matrixWorld),
+        binding: {
+          gltfNodeIndex,
+          originalPath: `/node/${gltfNodeIndex}`,
+          role: 'unknown',
+          pivot: [0, 0, 0],
+          axis: [0, 0, 1],
+        },
+      });
+    }
+    // Flatten only the runtime instance after every binding is validated and
+    // all original model-frame transforms (including omitted nodes) are captured.
     for (const e of this.entries) {
       model.attach(e.object);
       e.object.matrixAutoUpdate = false;
@@ -82,9 +100,19 @@ export class CadJointView {
         new T.CylinderGeometry(0.006, 0.006, 0.0004, 32),
         new T.MeshBasicMaterial({ color: '#d5dded' }),
       );
+      this.armature.name = 'illustrative-brake-armature';
       this.armature.rotation.x = Math.PI / 2;
       this.armature.position.y = -config.principle.radius * 1.7;
-      this.principle.add(this.armature);
+      // Independent assumed surfaces, each 0.4 mm thick. Their facing
+      // planes touch at full closure; the released gap is armatureTravel.
+      const pole = new T.Mesh(
+        new T.CylinderGeometry(0.006, 0.006, 0.0004, 32),
+        new T.MeshBasicMaterial({ color: '#335980' }),
+      );
+      pole.name = 'illustrative-brake-pole';
+      pole.rotation.copy(this.armature.rotation);
+      pole.position.set(0, this.armature.position.y, config.dynamics.armatureTravel + 0.0004);
+      this.principle.add(this.armature, pole);
     }
   }
   get principleVisible() {

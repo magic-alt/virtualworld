@@ -169,7 +169,7 @@ void AVirtualWorldRuntime::Command(const FString& Action)
         else if(Action==TEXT("step")||Action==TEXT("step-back")){if(!bPaused&&!State.running&&State.omega==0&&State.closure==0&&State.powered)KinematicOffset+=(Action==TEXT("step")?1:-1)*PI/12.;}
         else if(Action==TEXT("speed-up")||Action==TEXT("speed-down")){Rpm=FMath::Clamp(Rpm+(Action==TEXT("speed-up")?1:-1),-30.f,30.f);JointDynamics->setRpm(Rpm);}
         else if(Action==TEXT("brake-power")&&bBrakeInstalled){bBrakePowered=!bBrakePowered;JointDynamics->setPowered(bBrakePowered);}
-        else if(Action==TEXT("brake-install")){bBrakeInstalled=!bBrakeInstalled;JointDynamics->setInstalled(bBrakeInstalled);}
+        else if(Action==TEXT("brake-install")){JointDynamics->stop();bBrakeInstalled=!bBrakeInstalled;JointDynamics->setInstalled(bBrakeInstalled);JointDynamics->setPowered(true);bBrakePowered=JointDynamics->snapshot().powered;}
         else if(Action==TEXT("markers"))bRollingMarkers=!bRollingMarkers;
         else if(Action==TEXT("principle"))bPrinciple=!bPrinciple;
         else if(Action==TEXT("slow-motion"))JointTimeScale=JointTimeScale==1?.1:JointTimeScale==.1?.02:1;

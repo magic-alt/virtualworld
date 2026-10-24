@@ -153,8 +153,11 @@ export class MechanismController {
   }
   resetMotion() {
     this.angle = 0;
-    this.dynamics?.reset();
-    this.dynamics?.setRpm(this.speed);
+    if (this.dynamics) {
+      this.dynamics.reset();
+      this.speed = 6;
+      this.timeScale = 1;
+    }
     this.moving = false;
     this.emit();
   }

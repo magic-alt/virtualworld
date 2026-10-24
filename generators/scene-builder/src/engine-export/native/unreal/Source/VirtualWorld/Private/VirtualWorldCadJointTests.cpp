@@ -71,6 +71,31 @@ bool FVirtualWorldCadJointPivotTest::RunTest(const FString& Parameters)
     World->DestroyWorld(false);return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadJointInspectionTest,"VirtualWorld.CadJoint.InstallationControls",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldCadJointInspectionTest::RunTest(const FString& Parameters)
+{
+    UWorld* World=UWorld::CreateWorld(EWorldType::Game,false);if(!TestNotNull(TEXT("Installation test world"),World))return false;
+    auto* R=World->SpawnActor<AVirtualWorldRuntime>();VW::Parse(TEXT(R"({"kind":"cad-joint"})"),R->Mechanism);VW::Parse(TEXT("{}"),R->Metadata);
+    R->JointDynamics=MakeUnique<VWJoint::Dynamics>();R->bHasBrake=true;R->bBrakeInstalled=R->bBrakePowered=true;R->bPaused=false;
+    const auto RunEnabled=[R](){for(const auto& A:R->Actions())if(A.Id==TEXT("run"))return A.bEnabled;return false;};
+    R->Command(TEXT("run"));R->JointDynamics->tick(.1);R->Command(TEXT("brake-power"));R->JointDynamics->tick(1);
+    TestEqual(TEXT("Power-off setup reaches holding"),FString(UTF8_TO_TCHAR(R->JointDynamics->snapshot().brakePhase)),FString(TEXT("holding")));
+    TestFalse(TEXT("Run disabled while installed and held"),RunEnabled());R->Command(TEXT("brake-install"));
+    TestFalse(TEXT("Removal clears installed cache"),R->bBrakeInstalled);TestTrue(TEXT("Removal resets powered cache"),R->bBrakePowered);TestFalse(TEXT("Removal does not auto-start"),R->bRunning);
+    TestTrue(TEXT("No-brake Run action is available after holding"),RunEnabled());R->Command(TEXT("run"));TestTrue(TEXT("Fresh no-brake Run starts solver"),R->JointDynamics->snapshot().running);R->JointDynamics->tick(.1);
+    const double BeforeInstall=R->JointDynamics->snapshot().omega;R->Command(TEXT("brake-install"));TestFalse(TEXT("Reinstallation does not auto-start"),R->bRunning);TestEqual(TEXT("Reinstallation preserves instantaneous velocity"),R->JointDynamics->snapshot().omega,BeforeInstall);R->JointDynamics->tick(1);
+    R->Command(TEXT("run"));R->JointDynamics->tick(.1);const double BeforeRemoval=R->JointDynamics->snapshot().omega;R->Command(TEXT("brake-install"));
+    TestFalse(TEXT("Running removal clears drive intent"),R->bRunning);TestEqual(TEXT("Running removal preserves instantaneous velocity"),R->JointDynamics->snapshot().omega,BeforeRemoval);
+    R->JointDynamics->tick(.001);TestTrue(TEXT("Running removal uses bounded ordinary deceleration"),R->JointDynamics->snapshot().omega>0&&R->JointDynamics->snapshot().omega<BeforeRemoval);R->JointDynamics->tick(1);TestEqual(TEXT("Ordinary removal stop completes"),R->JointDynamics->snapshot().omega,0.);
+    R->Command(TEXT("brake-install"));R->Command(TEXT("brake-power"));R->JointDynamics->tick(1);R->Command(TEXT("brake-power"));R->JointDynamics->tick(.03);
+    TestTrue(TEXT("Removal during release setup"),R->JointDynamics->snapshot().closure>0&&R->JointDynamics->snapshot().closure<1);R->Command(TEXT("brake-install"));
+    TestFalse(TEXT("Release removal does not auto-start"),R->bRunning);TestTrue(TEXT("Release removal exposes Run"),RunEnabled());R->Command(TEXT("run"));TestTrue(TEXT("Release removal accepts fresh explicit start"),R->bRunning);
+    R->Command(TEXT("speed-down"));R->Command(TEXT("slow-motion"));R->Command(TEXT("slow-motion"));R->Command(TEXT("reset"));
+    TestEqual(TEXT("Native reset restores 6 RPM setpoint"),R->Rpm,6.f);TestEqual(TEXT("Native reset restores real-time clock"),R->JointTimeScale,1.);TestFalse(TEXT("Native reset clears running intent"),R->bRunning);
+    TestTrue(TEXT("Solver and cached installation/power flags agree"),R->JointDynamics->snapshot().installed==R->bBrakeInstalled&&R->JointDynamics->snapshot().powered==R->bBrakePowered);
+    World->DestroyWorld(false);return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadJointSuspensionTest,"VirtualWorld.CadJoint.SuspensionFreezesClock",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldCadJointSuspensionTest::RunTest(const FString& Parameters)
 {
