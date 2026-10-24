@@ -17,7 +17,10 @@ it('accepts optional subsystem descriptions and rejects dangling or ambiguous me
   scene.mechanism!.subsystems = [subsystem];
   expect(assertScene(scene).mechanism!.subsystems).toHaveLength(1);
   const groupMember = structuredClone(scene);
-  groupMember.mechanism!.subsystems![0].nodeIds = [scene.mechanism!.waveNodeId];
+  groupMember.mechanism!.subsystems![0].nodeIds = [
+    (scene.mechanism as Extract<NonNullable<typeof scene.mechanism>, { kind: 'harmonic' }>)
+      .waveNodeId,
+  ];
   expect(() => assertScene(groupMember)).toThrow('叶子网格');
   const nestedMember = structuredClone(scene);
   nestedMember.nodes.push(
@@ -28,7 +31,16 @@ it('accepts optional subsystem descriptions and rejects dangling or ambiguous me
   expect(() => assertScene(nestedMember)).toThrow('叶子网格');
   for (const subsystems of [
     [{ ...subsystem, nodeIds: ['missing'] }],
-    [subsystem, { ...subsystem, nodeIds: [scene.mechanism!.waveNodeId] }],
+    [
+      subsystem,
+      {
+        ...subsystem,
+        nodeIds: [
+          (scene.mechanism as Extract<NonNullable<typeof scene.mechanism>, { kind: 'harmonic' }>)
+            .waveNodeId,
+        ],
+      },
+    ],
     [subsystem, { ...subsystem, id: 'another' }],
   ]) {
     expect(() =>
@@ -79,12 +91,19 @@ it('accepts legacy scenes but rejects invalid sphere/actor/mechanism references'
 it('rejects moving/fixed ancestry overlaps and impossible mechanism envelopes', async () => {
   const scene = await readWorld('worlds/demo-harmonic-joint');
   const nested = structuredClone(scene);
-  nested.nodes.find((n) => n.id === nested.mechanism!.fixedNodeIds[0])!.parentId =
-    nested.mechanism!.waveNodeId;
+  nested.nodes.find((n) => n.id === nested.mechanism!.fixedNodeIds[0])!.parentId = (
+    nested.mechanism as Extract<NonNullable<typeof nested.mechanism>, { kind: 'harmonic' }>
+  ).waveNodeId;
   expect(() => assertScene(nested)).toThrow();
   const doubled = structuredClone(scene);
-  doubled.nodes.find((n) => n.id === doubled.mechanism!.outputNodeId)!.parentId =
-    doubled.mechanism!.flexNodeId;
+  doubled.nodes.find(
+    (n) =>
+      n.id ===
+      (doubled.mechanism as Extract<NonNullable<typeof doubled.mechanism>, { kind: 'harmonic' }>)
+        .outputNodeId,
+  )!.parentId = (
+    doubled.mechanism as Extract<NonNullable<typeof doubled.mechanism>, { kind: 'harmonic' }>
+  ).flexNodeId;
   expect(() => assertScene(doubled)).toThrow();
   const envelope = structuredClone(scene);
   envelope.mechanism!.dimensions.boreDiameter = 1;
