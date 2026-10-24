@@ -10,8 +10,35 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PlayerController.h"
 
+// Optional explicit final-node chain. Check before mutating or reparenting imported components.
+bool AVirtualWorldRuntime::CheckCadDriveChain(FString& Reason) const
+{
+    const auto Chain=VW::Object(Mechanism,TEXT("driveChain"));if(!Chain)return true;
+    const TCHAR* Stages[]={TEXT("rotor"),TEXT("shaft"),TEXT("waveGenerator"),TEXT("flexspline"),TEXT("circularSpline"),TEXT("output")};
+    const TCHAR* Roles[]={TEXT("input"),TEXT("input"),TEXT("input"),TEXT("flexspline"),TEXT("circular-spline"),TEXT("output")};
+    TSet<int32> Seen;FVector Axis,Pivot;
+    if(!CadTransmission().resolved){Reason=TEXT("Drive chain requires a resolved transmission.");return false;}
+    for(int I=0;I<6;++I)
+    {
+        double Index=-1;VW::Json Binding;
+        if(!Chain->TryGetNumberField(Stages[I],Index)||!FMath::IsFinite(Index)||Index<0||Index>MAX_int32||Index!=FMath::FloorToDouble(Index)||Seen.Contains(static_cast<int32>(Index)))
+        {Reason=TEXT("Drive chain requires six distinct final node identities.");return false;}
+        Seen.Add(static_cast<int32>(Index));int Matches=0;
+        for(const auto& Value:VW::Array(Mechanism,TEXT("bindings")))if(VW::Number(Value->AsObject(),TEXT("gltfNodeIndex"),-1)==Index){Binding=Value->AsObject();++Matches;}
+        if(Matches!=1||VW::String(Binding,TEXT("role"))!=Roles[I]){Reason=TEXT("Drive chain has a missing or incompatible role: ")+FString(Stages[I]);return false;}
+        const FVector BAxis=VW::Vector(Binding,TEXT("axis")),BPivot=VW::Vector(Binding,TEXT("pivot"));
+        if(VW::Array(Binding,TEXT("axis")).Num()!=3||VW::Array(Binding,TEXT("pivot")).Num()!=3||BAxis.ContainsNaN()||BPivot.ContainsNaN()||!BAxis.IsUnit(1e-6))
+        {Reason=TEXT("Drive chain axis or pivot is invalid.");return false;}
+        if(I==0){Axis=BAxis;Pivot=BPivot;}
+        if(FVector::DotProduct(Axis,BAxis)<1-1e-8||FVector::CrossProduct(BPivot-Pivot,Axis).Size()>1e-6)
+        {Reason=TEXT("Drive chain must share the directed rotor axis: ")+FString(Stages[I]);return false;}
+    }
+    return true;
+}
+
 bool AVirtualWorldRuntime::BindCadJoint()
 {
+    FString ChainError;if(!CheckCadDriveChain(ChainError))return Fail(ChainError);
     FVirtualWorldNode* ModelNode=Nodes.Find(VW::String(Mechanism,TEXT("modelNodeId")));
     if(!ModelNode||!ModelNode->Model) return Fail(TEXT("CAD joint model node is unavailable."));
     const FString ModelId=VW::String(ModelNode->Native,TEXT("model"));
@@ -243,7 +270,7 @@ void AVirtualWorldRuntime::BuildCadPrinciple()
     PrincipleMesh=NewObject<UProceduralMeshComponent>(this);AddInstanceComponent(PrincipleMesh);PrincipleMesh->SetupAttachment(RootComponent);PrincipleMesh->RegisterComponent();SceneComponents.Add(PrincipleMesh);
     PrincipleMesh->SetRelativeLocation(VW::Position(VW::Vector(P,TEXT("position"))));PrincipleMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     UMaterialInterface* Base=LoadObject<UMaterialInterface>(nullptr,TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-    for(int I=0;I<2;++I)if(Base){auto* M=UMaterialInstanceDynamic::Create(Base,this);M->SetVectorParameterValue(TEXT("Color"),I==0?FLinearColor(.1,.55,.95):FLinearColor(.95,.6,.12));PrincipleMesh->SetMaterial(I,M);}
+    for(int I=0;I<3;++I)if(Base){auto* M=UMaterialInstanceDynamic::Create(Base,this);M->SetVectorParameterValue(TEXT("Color"),I==0?FLinearColor(.1,.55,.95):I==1?FLinearColor(.95,.6,.12):FLinearColor(.35,.85,.7));PrincipleMesh->SetMaterial(I,M);}
     auto* Armature=NewObject<UStaticMeshComponent>(this);AddInstanceComponent(Armature);Armature->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cylinder.Cylinder")));Armature->SetupAttachment(PrincipleMesh);Armature->RegisterComponent();SceneComponents.Add(Armature);Armature->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Armature->SetRelativeTransform(FTransform(FRotationMatrix::MakeFromZ(VW::Position(FVector(0,0,1)).GetSafeNormal()).ToQuat(),VW::Position(FVector(0,-VW::Number(P,TEXT("radius"))*1.7,0)),FVector(.012,.012,.0004)));PrincipleArmature=Armature;
     if(Base){auto* M=UMaterialInstanceDynamic::Create(Base,this);M->SetVectorParameterValue(TEXT("Color"),FLinearColor(.95,.6,.12));Armature->SetMaterial(0,M);}
@@ -266,21 +293,26 @@ void AVirtualWorldRuntime::UpdateCadPrinciple()
     const auto Flex=[&](double Phi){const double U=Phi-ThetaF+(Nc-Nf)/(2*Nf)*FMath::Sin(2*(Phi-ThetaW));return R+A*FMath::Cos(2*(Phi-ThetaW))+H*FMath::Cos(Nf*U);};
     const auto Ring=[&](double Phi){return R+A+Clearance+H*FMath::Cos(Nc*(Phi-ThetaC));};
     PrincipleMinGap=TNumericLimits<double>::Max();
-    for(int I=0;I<8192;++I){const double Phi=2*PI*I/8192;PrincipleMinGap=FMath::Min(PrincipleMinGap,Ring(Phi)-Flex(Phi));}
+    for(int I=0;I<8192;++I){const double Phi=2*VWJoint::Pi*I/8192;PrincipleMinGap=FMath::Min(PrincipleMinGap,Ring(Phi)-Flex(Phi));}
     constexpr int Samples=1536;
-    for(int Strip=0;Strip<2;++Strip)
+    const bool HasCam=R-A-FMath::Max(.0004,H*3)-H-Clearance>R*.25;
+    if(!HasCam&&PrincipleMesh->GetNumSections()>2)PrincipleMesh->ClearMeshSection(2);
+    for(int Strip=0;Strip<(HasCam?3:2);++Strip)
     {
         TArray<FVector> Vertices,Normals;TArray<int32> Indices;TArray<FVector2D> UV;TArray<FLinearColor> Colors;TArray<FProcMeshTangent> Tangents;
         for(int I=0;I<Samples;++I)
         {
-            double Phi=2*PI*I/Samples;
+            double Phi=2*VWJoint::Pi*I/Samples;const double U=Phi;
             if(Strip==0)
             {
-                const double U=Phi;Phi=U+ThetaF;
+                Phi=U+ThetaF;
                 for(int Iteration=0;Iteration<12;++Iteration)Phi-=(Phi-ThetaF+(Nc-Nf)/(2*Nf)*FMath::Sin(2*(Phi-ThetaW))-U)/(1+(Nc-Nf)/Nf*FMath::Cos(2*(Phi-ThetaW)));
             }
-            else Phi+=ThetaC;
-            const double Edge=Strip==0?Flex(Phi):Ring(Phi),Width=FMath::Max(.0004,H*3),Inner=Strip==0?Edge-Width:Edge,Outer=Strip==0?Edge:Edge+Width;
+            else Phi+=Strip==1?ThetaC:ThetaW;
+            const double Width=FMath::Max(.0004,H*3);
+            // Third strip is a hollow explanatory two-wave cam, with clearance at flex tooth roots.
+            const double Edge=Strip==0?Flex(Phi):Strip==1?Ring(Phi):R+A*FMath::Cos(2*U)-Width-H-Clearance;
+            const double Inner=Strip==2?R*.25:Strip==0?Edge-Width:Edge,Outer=Strip==1?Edge+Width:Edge;
             for(int Corner=0;Corner<4;++Corner){const double Radius=(Corner==0||Corner==3)?Inner:Outer,Z=Corner<2?-.0006:.0006;Vertices.Add(VW::Position(FVector(Radius*FMath::Cos(Phi),Radius*FMath::Sin(Phi),Z)));UV.Add(FVector2D(double(I)/Samples,double(Corner)/3));}
         }
         // Four walls, closed at the periodic seam; no holes, no collision on explanatory geometry.

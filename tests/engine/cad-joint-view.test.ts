@@ -321,6 +321,19 @@ it('closes the illustrative brake face gap through intermediate and release phas
   const view = new CadJointView(model, config, content);
   view.setPrinciple(true);
   const layer = view.principleObject!;
+  view.update(0, 0, false);
+  const cam = layer.getObjectByName('illustrative-wave-cam') as T.Mesh;
+  expect(cam).toBeInstanceOf(T.Mesh);
+  const initial = cam.geometry.getAttribute('position').array.slice();
+  view.update(Math.PI / 4, 0, false);
+  expect(Array.from(cam.geometry.getAttribute('position').array)).not.toEqual(Array.from(initial));
+  view.update(0, 0, false);
+  expect(Array.from(cam.geometry.getAttribute('position').array)).toEqual(Array.from(initial));
+  const positions = cam.geometry.getAttribute('position');
+  for (let i = 0; i < positions.count; i++)
+    expect(Math.hypot(positions.getX(i), positions.getY(i))).toBeGreaterThanOrEqual(
+      config.principle.radius * 0.24999,
+    );
   const disks = layer.children.filter(
     (o): o is T.Mesh<T.CylinderGeometry, T.MeshBasicMaterial> =>
       o instanceof T.Mesh && o.geometry instanceof T.CylinderGeometry,
@@ -368,4 +381,79 @@ it('closes the illustrative brake face gap through intermediate and release phas
   expect(layer.parent).toBeNull();
   expect(disposedGeometry).toBe(geometries.size);
   expect(disposedMaterial).toBe(materials.size);
+});
+
+it('validates the complete directed coaxial drive chain before changing runtime CAD', () => {
+  const roles = ['input', 'input', 'input', 'flexspline', 'circular-spline', 'output'] as const;
+  const bindings = roles.map((role, i) => ({
+    ...inputBinding(i + 1),
+    role,
+    pivot: [0, 0, i * 0.01] as [number, number, number],
+  }));
+  const config = {
+    ...inspectionConfig(bindings),
+    gear: {
+      status: 'user-specified' as const,
+      reductionRatio: 101,
+      fixedMember: 'flexspline' as const,
+      evidence: 'User specifies topology',
+    },
+    driveChain: {
+      rotor: 1,
+      shaft: 2,
+      waveGenerator: 3,
+      flexspline: 4,
+      circularSpline: 5,
+      output: 6,
+    },
+  };
+  expect(CadMechanismSchema.safeParse(config).success).toBe(true);
+  for (const patch of [{ shaft: 1 }, { waveGenerator: 99 }])
+    expect(
+      CadMechanismSchema.safeParse({ ...config, driveChain: { ...config.driveChain, ...patch } })
+        .success,
+    ).toBe(false);
+  for (const patch of [
+    { role: 'fixed' as const },
+    { axis: [0, 0, -1] },
+    { pivot: [0.001, 0, 0] },
+  ]) {
+    const invalid = {
+      ...config,
+      bindings: bindings.map((b, i) => (i === 2 ? { ...b, ...patch } : b)),
+    };
+    expect(CadMechanismSchema.safeParse(invalid).success).toBe(false);
+  }
+  const { model } = nestedCad(),
+    before = model.children.slice();
+  expect(
+    () =>
+      new CadJointView(
+        model,
+        { ...config, modelSha256: 'b'.repeat(64), driveChain: { ...config.driveChain, shaft: 1 } },
+        new T.Group(),
+      ),
+  ).toThrow(/chain/i);
+  expect(model.children).toEqual(before);
+});
+
+it('omits the illustrative cam when legacy principle dimensions leave no room for a bore', () => {
+  const { model } = nestedCad(),
+    config = inspectionConfig();
+  config.principle = {
+    kind: 'illustrative-harmonic',
+    flexTeeth: 60,
+    ringTeeth: 62,
+    radius: 0.0001,
+    amplitude: 0.00001,
+    toothHeight: 0.000001,
+    clearance: 0.000001,
+    position: [0.1, 0, 0],
+    label: 'Legacy small principle',
+  };
+  const view = new CadJointView(model, config, new T.Group());
+  view.setPrinciple(true);
+  view.update(0.5, 0, false);
+  expect(view.principleObject!.getObjectByName('illustrative-wave-cam')).toBeUndefined();
+  view.dispose();
 });

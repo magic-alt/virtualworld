@@ -1,9 +1,10 @@
 import * as T from 'three';
-import type { CadMechanism } from '@virtualworld/scene-schema';
+import { CadMechanismSchema, type CadMechanism } from '@virtualworld/scene-schema';
 import {
   cadBindingPose,
   cadTransmission,
   principlePoint,
+  principleCamPoint,
   principleRingRadius,
 } from './joint-geometry';
 
@@ -19,6 +20,7 @@ export class CadJointView {
   private markers: T.Mesh[] = [];
   private principle?: T.Group;
   private flex?: T.Mesh<T.BufferGeometry>;
+  private cam?: T.Mesh<T.BufferGeometry>;
   private ring?: T.Mesh<T.BufferGeometry>;
   private armature?: T.Mesh;
   private principleEnabled = false;
@@ -28,6 +30,7 @@ export class CadJointView {
     private config: CadMechanism,
     private content: T.Object3D,
   ) {
+    if (config.driveChain) CadMechanismSchema.parse(config);
     if (model.userData.glbSha256 !== config.modelSha256)
       throw new Error('CAD model hash does not match motion bindings');
     model.updateWorldMatrix(true, true);
@@ -112,6 +115,18 @@ export class CadJointView {
         new T.MeshBasicMaterial({ color: '#e8b25d', side: T.DoubleSide }),
       );
       this.principle.add(this.flex, this.ring);
+      // Legacy tiny profiles may have no room for a hollow cam; never generate inverted geometry.
+      if (
+        principleCamPoint(config.principle, Math.PI / 2, 0).radius >
+        config.principle.radius * 0.25
+      ) {
+        this.cam = new T.Mesh(
+          new T.BufferGeometry(),
+          new T.MeshBasicMaterial({ color: '#75d7c4', side: T.DoubleSide }),
+        );
+        this.cam.name = 'illustrative-wave-cam';
+        this.principle.add(this.cam);
+      }
       this.armature = new T.Mesh(
         new T.CylinderGeometry(0.006, 0.006, 0.0004, 32),
         new T.MeshBasicMaterial({ color: '#d5dded' }),
@@ -171,26 +186,35 @@ export class CadJointView {
         !(section && (e.binding.inspectionHidden || e.binding.inspectionCut));
     }
     if (this.principleEnabled && this.config.principle && this.flex && this.ring) {
-      this.strip(this.flex, false, angle);
-      this.strip(this.ring, true, angle);
+      this.strip(this.flex, 0, angle);
+      this.strip(this.ring, 1, angle);
+      if (this.cam) this.strip(this.cam, 2, angle);
       if (this.armature) this.armature.position.z = closure * this.config.dynamics.armatureTravel;
     }
   }
-  private strip(mesh: T.Mesh<T.BufferGeometry>, ring: boolean, theta: number) {
+  private strip(mesh: T.Mesh<T.BufferGeometry>, kind: 0 | 1 | 2, theta: number) {
     const p = this.config.principle!,
       count = 1536,
       vertices = new Float32Array(count * 4 * 3),
       indices: number[] = [];
     for (let i = 0; i < count; i++) {
       const u = (i * 2 * Math.PI) / count,
-        v = principlePoint(p, u, theta),
-        phi = ring ? u : v.phi,
-        edge = ring ? principleRingRadius(p, phi, theta) : v.radius,
+        v = kind === 2 ? principleCamPoint(p, u, theta) : principlePoint(p, u, theta),
+        circularPhase =
+          p.fixedMember === 'flexspline' ? ((p.ringTeeth - p.flexTeeth) / p.ringTeeth) * theta : 0,
+        phi = kind === 1 ? u + circularPhase : v.phi,
+        edge = kind === 1 ? principleRingRadius(p, phi, theta) : v.radius,
         width = Math.max(0.0004, p.toothHeight * 3);
       for (let c = 0; c < 4; c++) {
-        const radius = ring
-            ? edge + (c === 1 || c === 2 ? width : 0)
-            : edge - (c === 0 || c === 3 ? width : 0),
+        const outer = c === 1 || c === 2,
+          radius =
+            kind === 2
+              ? outer
+                ? edge
+                : p.radius * 0.25
+              : kind === 1
+                ? edge + (outer ? width : 0)
+                : edge - (outer ? 0 : width),
           offset = (4 * i + c) * 3;
         vertices[offset] = radius * Math.cos(phi);
         vertices[offset + 1] = radius * Math.sin(phi);

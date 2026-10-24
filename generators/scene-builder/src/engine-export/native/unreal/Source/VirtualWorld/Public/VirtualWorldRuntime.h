@@ -88,6 +88,7 @@ private:
     bool BuildPlayer();
     bool BindMechanism();
     bool BindCadJoint();
+    bool CheckCadDriveChain(FString& Reason) const;
     void ApplyCadJoint();
     VWJoint::Transmission CadTransmission() const;
     void UpdateCadSections();

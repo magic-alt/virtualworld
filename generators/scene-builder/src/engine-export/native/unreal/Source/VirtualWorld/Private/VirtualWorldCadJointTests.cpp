@@ -110,6 +110,21 @@ bool FVirtualWorldCadJointTransmissionTest::RunTest(const FString& Parameters)
     }
     VW::Parse(TEXT(R"({"gear":{"status":"evidenced","fixedRing":true,"flexTeeth":200,"ringTeeth":202}})"),R->Mechanism);
     TestTrue(TEXT("Legacy evidenced output remains -1/100"),FMath::Abs(R->CadTransmission().output+.01)<1e-12);
+    VW::Parse(TEXT(R"({"gear":{"status":"user-specified","reductionRatio":101,"fixedMember":"flexspline","evidence":"User topology"},"driveChain":{"rotor":1,"shaft":2,"waveGenerator":3,"flexspline":4,"circularSpline":5,"output":6}})"),R->Mechanism);
+    TArray<TSharedPtr<FJsonValue>> ChainBindings;
+    const TCHAR* ChainRoles[]={TEXT("input"),TEXT("input"),TEXT("input"),TEXT("flexspline"),TEXT("circular-spline"),TEXT("output")};
+    for(int I=0;I<6;++I){VW::Json B;VW::Parse(FString::Printf(TEXT("{\"gltfNodeIndex\":%d,\"role\":\"%s\",\"axis\":[0,0,1],\"pivot\":[0,0,%.6f]}"),I+1,ChainRoles[I],I*.01),B);ChainBindings.Add(MakeShared<FJsonValueObject>(B));}
+    R->Mechanism->SetArrayField(TEXT("bindings"),ChainBindings);FString Reason;
+    TestTrue(TEXT("Complete directed coaxial chain accepts axial pivot displacement"),R->CheckCadDriveChain(Reason));
+    auto Chain=VW::Object(R->Mechanism,TEXT("driveChain"));Chain->SetNumberField(TEXT("shaft"),1);
+    TestFalse(TEXT("Duplicate chain identity rejected"),R->CheckCadDriveChain(Reason));Chain->SetNumberField(TEXT("shaft"),2);
+    auto Wave=ChainBindings[2]->AsObject();Wave->SetStringField(TEXT("role"),TEXT("fixed"));
+    TestFalse(TEXT("Stationary wave generator rejected"),R->CheckCadDriveChain(Reason));Wave->SetStringField(TEXT("role"),TEXT("input"));
+    Wave->SetArrayField(TEXT("axis"),{MakeShared<FJsonValueNumber>(0),MakeShared<FJsonValueNumber>(0),MakeShared<FJsonValueNumber>(-1)});
+    TestFalse(TEXT("Reversed input axis rejected"),R->CheckCadDriveChain(Reason));
+    Wave->SetArrayField(TEXT("axis"),{MakeShared<FJsonValueNumber>(0),MakeShared<FJsonValueNumber>(0),MakeShared<FJsonValueNumber>(1)});
+    Wave->SetArrayField(TEXT("pivot"),{MakeShared<FJsonValueNumber>(.001),MakeShared<FJsonValueNumber>(0),MakeShared<FJsonValueNumber>(.02)});
+    TestFalse(TEXT("Offset input shaft rejected"),R->CheckCadDriveChain(Reason));
     World->DestroyWorld(false);return true;
 }
 
@@ -285,6 +300,12 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
     for(const FWorldContext& Context:GEngine->GetWorldContexts())if(Context.World()&&Context.World()->IsGameWorld())for(TActorIterator<AVirtualWorldRuntime> It(Context.World());It;++It)if(It->JointDynamics)R=*It;
     if(!TestNotNull(TEXT("Active real CAD scene required for rendered component evidence"),R))return false;
     TestTrue(TEXT("Fresh scene load uses its authored motor default"),FMath::IsNearlyEqual(double(R->Rpm),VW::Number(R->Mechanism,TEXT("defaultRpm"),6),1e-6));
+    if(const auto Chain=VW::Object(R->Mechanism,TEXT("driveChain")))
+    {
+        FString Reason;TestTrue(TEXT("Actual final GLB drive chain validates"),R->CheckCadDriveChain(Reason));
+        for(const TCHAR* Stage:{TEXT("rotor"),TEXT("shaft"),TEXT("waveGenerator"),TEXT("flexspline"),TEXT("circularSpline"),TEXT("output")})
+        {int Matches=0;for(const auto& B:R->CadBindings)if(VW::Number(B.Data,TEXT("gltfNodeIndex"),-1)==VW::Number(Chain,Stage)){++Matches;TestNotNull(TEXT("Each real drive stage has an imported component"),Cast<UStaticMeshComponent>(B.Component));}TestTrue(TEXT("Every declared actual drive stage resolves"),Matches>0);}
+    }
     const TSharedPtr<VWJoint::Dynamics> Saved=MakeShared<VWJoint::Dynamics>(*R->JointDynamics);const FVector SavedTarget=R->CameraTarget,SavedOffset=R->CameraOffset,SavedUp=R->CameraUp;const float SavedRpm=R->Rpm;
     const bool Paused=R->bPaused,Markers=R->bRollingMarkers,Section=R->bSection,Principle=R->bPrinciple;const double Offset=R->KinematicOffset;
     R->bPaused=true;R->bRollingMarkers=true;R->bSection=true;R->bPrinciple=false;R->KinematicOffset=0;R->JointDynamics->reset();R->JointDynamics->setRpm(30);R->Rpm=30;R->JointDynamics->start();
@@ -369,6 +390,12 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
             if(TestNotNull(TEXT("Actual principle procedural component"),R->PrincipleMesh))
             {
                 const auto* Flex=R->PrincipleMesh->GetProcMeshSection(0);const auto* Ring=R->PrincipleMesh->GetProcMeshSection(1);
+                const auto* Cam=R->PrincipleMesh->GetProcMeshSection(2);
+                TestTrue(TEXT("Illustrative wave generator has a hollow actual procedural cam"),Cam&&Cam->ProcVertexBuffer.Num()==1536*4);
+                if(Cam){const auto P=VW::Object(R->Mechanism,TEXT("principle"));const double Radius=VW::Number(P,TEXT("radius")),Amplitude=VW::Number(P,TEXT("amplitude")),Height=VW::Number(P,TEXT("toothHeight")),Clearance=VW::Number(P,TEXT("clearance"));
+                for(int I=0;I<1536;++I){const double U=2*VWJoint::Pi*I/1536,Phi=U+R->InputAngle,Edge=Radius+Amplitude*FMath::Cos(2*U)-FMath::Max(.0004,Height*3)-Height-Clearance;
+                const FVector Expected=VW::Position(FVector(Edge*FMath::Cos(Phi),Edge*FMath::Sin(Phi),-.0006));TestTrue(TEXT("Cam surface is synchronous with actual signed input and clears flex"),Cam->ProcVertexBuffer[I*4+1].Position.Equals(Expected,1e-7));
+                TestTrue(TEXT("Cam leaves an open central bore"),FMath::IsNearlyEqual(VW::SourcePosition(Cam->ProcVertexBuffer[I*4].Position).Size2D(),Radius*.25,1e-8));}}
                 TestTrue(TEXT("Actual closed gear strips contain vertices and triangles"),Flex&&Ring&&Flex->ProcVertexBuffer.Num()>=1536&&Flex->ProcIndexBuffer.Num()>=1536&&Ring->ProcVertexBuffer.Num()>=1536);
                 const VW::Json Layer=MakeShared<FJsonObject>();Layer->SetNumberField(TEXT("flexVertices"),Flex?Flex->ProcVertexBuffer.Num():0);Layer->SetNumberField(TEXT("ringVertices"),Ring?Ring->ProcVertexBuffer.Num():0);
                 if(R->PrincipleArmature){const FVector Actual=R->PrincipleArmature->GetRelativeLocation();const auto P=VW::Object(R->Mechanism,TEXT("principle"));const FVector Expected=VW::Position(FVector(0,-VW::Number(P,TEXT("radius"))*1.7,State.closure*R->JointDynamics->config.armatureTravel));TestTrue(TEXT("Illustrative armature actual transform follows closure"),Actual.Equals(Expected,1e-8));Layer->SetArrayField(TEXT("armatureTranslationCm"),{MakeShared<FJsonValueNumber>(Actual.X),MakeShared<FJsonValueNumber>(Actual.Y),MakeShared<FJsonValueNumber>(Actual.Z)});}

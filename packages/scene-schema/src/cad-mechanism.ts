@@ -130,6 +130,18 @@ export const CadMechanismObjectSchema = z
     sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
     modelSha256: z.string().regex(/^[a-f0-9]{64}$/),
     motionMarkers: z.boolean().optional(),
+    /** Final GLB node identities; attachment identification remains geometric inference. */
+    driveChain: z
+      .object({
+        rotor: z.number().int().nonnegative(),
+        shaft: z.number().int().nonnegative(),
+        waveGenerator: z.number().int().nonnegative(),
+        flexspline: z.number().int().nonnegative(),
+        circularSpline: z.number().int().nonnegative(),
+        output: z.number().int().nonnegative(),
+      })
+      .strict()
+      .optional(),
     defaultRpm: z.number().finite().min(-100000).max(100000).optional(),
     inspectionCutaway: z.enum(['half', 'quarter-window']).optional(),
     principle: z
@@ -182,6 +194,49 @@ export function validateCadMechanism(
       ctx.addIssue({ code: 'custom', message: `Missing bearing: ${binding.bearingId}` });
     if (['ball', 'inner-race', 'outer-race'].includes(binding.role) && !binding.bearingId)
       ctx.addIssue({ code: 'custom', message: 'Bearing roles require a bearingId' });
+  }
+  if (value.driveChain) {
+    const chain = value.driveChain;
+    const stages = [
+      'rotor',
+      'shaft',
+      'waveGenerator',
+      'flexspline',
+      'circularSpline',
+      'output',
+    ] as const;
+    const roles = ['input', 'input', 'input', 'flexspline', 'circular-spline', 'output'];
+    const byIndex = new Map(value.bindings.map((b) => [b.gltfNodeIndex, b]));
+    const reference = byIndex.get(chain.rotor);
+    if (new Set(Object.values(chain)).size !== stages.length || value.gear.status === 'unresolved')
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Drive chain requires six distinct nodes and a resolved transmission',
+      });
+    for (let i = 0; i < stages.length; i++) {
+      const b = byIndex.get(chain[stages[i]]);
+      if (!b || b.role !== roles[i]) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `Drive chain ${stages[i]} requires a bound ${roles[i]} node`,
+        });
+        continue;
+      }
+      if (reference) {
+        const alignment = b.axis.reduce((sum, v, j) => sum + v * reference.axis[j], 0);
+        const d = b.pivot.map((v, j) => v - reference.pivot[j]);
+        const cross = [
+          d[1] * reference.axis[2] - d[2] * reference.axis[1],
+          d[2] * reference.axis[0] - d[0] * reference.axis[2],
+          d[0] * reference.axis[1] - d[1] * reference.axis[0],
+        ];
+        if (alignment < 1 - 1e-8 || Math.hypot(...cross) > 1e-6)
+          ctx.addIssue({
+            code: 'custom',
+            message: `Drive chain ${stages[i]} must share the directed rotor axis`,
+          });
+      }
+    }
   }
   if (value.gear.status === 'evidenced' && value.gear.ringTeeth <= value.gear.flexTeeth)
     ctx.addIssue({ code: 'custom', message: 'Ring teeth must exceed flex teeth' });

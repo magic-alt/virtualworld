@@ -4,6 +4,7 @@ import {
   cadBindingPose,
   cadTransmission,
   principlePoint,
+  principleCamPoint,
   principleRingRadius,
 } from '@virtualworld/engine/joint-geometry';
 const p = {
@@ -190,5 +191,23 @@ it('illustrates tangential transport and two finite engagement zones without sam
       const u = phi + (2 / 60) * theta;
       const v = principlePoint(p, u, theta);
       expect(principleRingRadius(p, v.phi) - v.radius).toBeCloseTo(p.clearance, 10);
+    }
+});
+
+it('keeps the hollow two-lobe cam inside the flex strip across signed input phases', () => {
+  for (const theta of [-1000, -Math.PI / 2, 0, 0.7, 1000])
+    for (let i = 0; i < 256; i++) {
+      const u = (i * 2 * Math.PI) / 256,
+        cam = principleCamPoint(p, u, theta),
+        width = Math.max(0.0004, 3 * p.toothHeight);
+      expect(cam.phi).toBeCloseTo(u + theta, 10);
+      expect(cam.radius).toBeCloseTo(
+        p.radius + p.amplitude * Math.cos(2 * u) - width - p.toothHeight - p.clearance,
+        10,
+      );
+      expect(cam.radius).toBeGreaterThan(p.radius * 0.25);
+      const flexMin =
+        p.radius + p.amplitude * Math.cos(2 * (cam.phi - theta)) - p.toothHeight - width;
+      expect(flexMin - cam.radius).toBeCloseTo(p.clearance, 10);
     }
 });

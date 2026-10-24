@@ -100,3 +100,15 @@ export function principleRingRadius(p: Principle, phi: number, theta = 0) {
     p.toothHeight * Math.cos(p.ringTeeth * (phi - circularPhase))
   );
 }
+
+/** Illustrative hollow cam contour, inside the flex strip even at a tooth root. Not vendor CAD. */
+export function principleCamPoint(p: Principle, u: number, theta: number) {
+  const phi = u + theta,
+    radius =
+      p.radius +
+      p.amplitude * Math.cos(2 * u) -
+      Math.max(0.0004, p.toothHeight * 3) -
+      p.toothHeight -
+      p.clearance;
+  return { phi, radius, x: radius * Math.cos(phi), y: radius * Math.sin(phi) };
+}
