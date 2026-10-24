@@ -62,6 +62,7 @@ export function mountMechanismControls(
       ? `HARMONIC / ${(m.flexTeeth / (m.ringTeeth - m.flexTeeth)).toFixed(0)}:1 · 反向输出`
       : '真实 CAD · 减速比待核验 · 制动参数为演示假设',
   );
+  let timeScaleSelect: HTMLSelectElement | undefined;
   if (m.kind === 'cad-joint') {
     const markers = input('显示滚动标记', 'checkbox');
     markers.addEventListener('change', () => runtime.setRollingMarkers(markers.checked), {
@@ -75,6 +76,7 @@ export function mountMechanismControls(
       text('p', m.principle.label);
     }
     const scale = document.createElement('select');
+    timeScaleSelect = scale;
     scale.setAttribute('aria-label', '仿真时间倍率');
     for (const [v, label] of [
       ['1', '实时 1×'],
@@ -277,6 +279,7 @@ export function mountMechanismControls(
         status,
         `${state.paused ? '已暂停 · ' : ''}${state.dynamics.brakePhase} · ${state.timeScale}× · 耗散 ${state.dynamics.dissipatedEnergy.toExponential(3)} J · 演示假设`,
       );
+    if (timeScaleSelect) timeScaleSelect.value = String(state.timeScale);
     if (document.activeElement !== rpm) rpm.value = String(state.inputRpm);
     if (document.activeElement !== number) number.value = String(state.inputRpm);
     setText(inputAngle, `${((state.inputAngle * 180) / Math.PI).toFixed(1)}°`);

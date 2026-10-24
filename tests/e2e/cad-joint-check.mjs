@@ -163,6 +163,11 @@ try {
     await page.evaluate(() => window.virtualworld.getMechanismState().dynamics.time),
     before,
   );
+  await page.getByRole('button', { name: '运动归零', exact: true }).click();
+  assert.equal(await page.getByLabel('仿真时间倍率').inputValue(), '1');
+  assert.equal(await page.evaluate(() => window.virtualworld.getMechanismState().timeScale), 1);
+  await page.getByLabel('仿真时间倍率').selectOption('0.02');
+  assert.equal(await page.evaluate(() => window.virtualworld.getMechanismState().timeScale), 0.02);
   await page.screenshot({ path: output + '/principle-and-rolling.png' });
   assert.deepEqual(errors, []);
   await writeFile(
