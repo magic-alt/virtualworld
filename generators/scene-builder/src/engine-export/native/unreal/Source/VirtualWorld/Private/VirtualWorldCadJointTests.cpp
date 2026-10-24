@@ -3,12 +3,17 @@
 #include "VirtualWorldModel.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "ProceduralMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
+#include "GameFramework/PlayerController.h"
 #include "EngineUtils.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Misc/CoreDelegates.h"
 #include "HAL/FileManager.h"
 #include "UnrealClient.h"
 
@@ -66,15 +71,41 @@ bool FVirtualWorldCadJointPivotTest::RunTest(const FString& Parameters)
     World->DestroyWorld(false);return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadJointSuspensionTest,"VirtualWorld.CadJoint.SuspensionFreezesClock",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldCadJointSuspensionTest::RunTest(const FString& Parameters)
+{
+    UWorld* World=UWorld::CreateWorld(EWorldType::Game,false);if(!TestNotNull(TEXT("Clock test world"),World))return false;
+    auto* R=World->SpawnActor<AVirtualWorldRuntime>();R->JointDynamics=MakeUnique<VWJoint::Dynamics>();R->JointDynamics->start();R->bRunning=true;R->JointClockFocusOverride=1;R->BindJointClockLifecycle();
+    const auto Cycle=[this,R](FSimpleMulticastDelegate& Suspend,FSimpleMulticastDelegate& Resume)
+    {
+        const double Before=R->JointDynamics->snapshot().time;Suspend.Broadcast();
+        R->Tick(.1f);TestEqual(TEXT("Suspended frames freeze physical clock"),R->JointDynamics->snapshot().time,Before);
+        Resume.Broadcast();R->Tick(10.f);TestEqual(TEXT("First resume frame discards entire inactive elapsed time"),R->JointDynamics->snapshot().time,Before);
+        R->Tick(.01f);TestTrue(TEXT("Next foreground frame advances normally"),FMath::Abs(R->JointDynamics->snapshot().time-Before-.01)<1e-8);
+    };
+    Cycle(FCoreDelegates::ApplicationWillDeactivateDelegate,FCoreDelegates::ApplicationHasReactivatedDelegate);
+    Cycle(FCoreDelegates::ApplicationWillEnterBackgroundDelegate,FCoreDelegates::ApplicationHasEnteredForegroundDelegate);
+    R->bPaused=true;const double Paused=R->JointDynamics->snapshot().time;FCoreDelegates::ApplicationWillDeactivateDelegate.Broadcast();FCoreDelegates::ApplicationHasReactivatedDelegate.Broadcast();R->Tick(10.f);R->Tick(.01f);TestEqual(TEXT("Application resume preserves explicit P pause"),R->JointDynamics->snapshot().time,Paused);
+    R->UnbindJointClockLifecycle();TestFalse(TEXT("Deactivation delegate removed"),R->JointDeactivateHandle.IsValid());TestFalse(TEXT("Reactivation delegate removed"),R->JointReactivateHandle.IsValid());
+    World->DestroyWorld(false);return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadJointComponentTest,"VirtualWorld.CadJoint.ActualComponentsAndBrakeStages",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
 {
     AVirtualWorldRuntime* R=nullptr;
     for(const FWorldContext& Context:GEngine->GetWorldContexts())if(Context.World()&&Context.World()->IsGameWorld())for(TActorIterator<AVirtualWorldRuntime> It(Context.World());It;++It)if(It->JointDynamics)R=*It;
     if(!TestNotNull(TEXT("Active real CAD scene required for rendered component evidence"),R))return false;
-    const TSharedPtr<VWJoint::Dynamics> Saved=MakeShared<VWJoint::Dynamics>(*R->JointDynamics);const bool Paused=R->bPaused,Markers=R->bRollingMarkers,Section=R->bSection,Principle=R->bPrinciple;const double Offset=R->KinematicOffset;
-    R->bPaused=true;R->bRollingMarkers=true;R->bSection=true;R->bPrinciple=true;R->KinematicOffset=0;R->JointDynamics->reset();R->JointDynamics->setRpm(30);R->JointDynamics->start();
+    const TSharedPtr<VWJoint::Dynamics> Saved=MakeShared<VWJoint::Dynamics>(*R->JointDynamics);const FVector SavedTarget=R->CameraTarget,SavedOffset=R->CameraOffset,SavedUp=R->CameraUp;const float SavedRpm=R->Rpm;
+    const bool Paused=R->bPaused,Markers=R->bRollingMarkers,Section=R->bSection,Principle=R->bPrinciple;const double Offset=R->KinematicOffset;
+    R->bPaused=true;R->bRollingMarkers=true;R->bSection=true;R->bPrinciple=true;R->KinematicOffset=0;R->JointDynamics->reset();R->JointDynamics->setRpm(30);R->Rpm=30;R->JointDynamics->start();
     const FString Directory=FPaths::ProjectSavedDir()/TEXT("Automation/CadJointMotion");IFileManager::Get().MakeDirectory(*Directory,true);
+    AddCommand(new FDelayedFunctionLatentCommand([this,R](){R->ApplyMechanism();R->ApplyVisibility();R->FrameCadInspection();R->UpdateCamera();},.1f));
+    AddCommand(new FDelayedFunctionLatentCommand([this,R](){
+        auto* PC=R->GetWorld()->GetFirstPlayerController();int32 Width=0,Height=0;if(PC)PC->GetViewportSize(Width,Height);TestTrue(TEXT("Renderable viewport exists"),PC&&Width>0&&Height>0);
+        const auto ProjectBounds=[this,PC,Width,Height](const FBox& Bounds){for(int I=0;I<8;++I){const FVector Point((I&1)?Bounds.Max.X:Bounds.Min.X,(I&2)?Bounds.Max.Y:Bounds.Min.Y,(I&4)?Bounds.Max.Z:Bounds.Min.Z);FVector2D Pixel;TestTrue(TEXT("Actual and principle bounds fit usable viewport outside HUD"),PC&&PC->ProjectWorldLocationToScreen(Point,Pixel)&&Pixel.X>FMath::Min(450.,Width*.48)&&Pixel.X<Width&&Pixel.Y>0&&Pixel.Y<Height);}};
+        for(const auto& Entry:R->CadBindings)ProjectBounds(Entry.Component->Bounds.GetBox());if(R->PrincipleMesh)ProjectBounds(R->PrincipleMesh->Bounds.GetBox());
+    },.1f));
     const auto Stage=[this,R,Directory](FString Name,double Dt,int Power)
     {
         AddCommand(new FDelayedFunctionLatentCommand([this,R,Directory,Name,Dt,Power]()
@@ -102,11 +133,22 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
                 }
                 const VW::Json Record=MakeShared<FJsonObject>();Record->SetNumberField(TEXT("nodeIndex"),VW::Number(B,TEXT("gltfNodeIndex")));Record->SetNumberField(TEXT("centerResidualCm"),Error);Record->SetNumberField(TEXT("worldBallAngle"),Rolling.worldBallAngle);Record->SetNumberField(TEXT("cageAngle"),Rolling.cageAngle);const FVector P=Actual.GetTranslation();Record->SetArrayField(TEXT("translationCm"),{MakeShared<FJsonValueNumber>(P.X),MakeShared<FJsonValueNumber>(P.Y),MakeShared<FJsonValueNumber>(P.Z)});Readbacks.Add(MakeShared<FJsonValueObject>(Record));
             }
-            TestTrue(TEXT("Actual imported balls were read"),Balls>0);TestTrue(TEXT("Principle sampled gap nonnegative"),R->PrincipleMinGap>=-1e-10);Report->SetArrayField(TEXT("components"),Readbacks);FFileHelper::SaveStringToFile(VW::Serialize(Report),*(Directory/(Name+TEXT(".json"))));
+            TestTrue(TEXT("Actual imported balls were read"),Balls>0);TestTrue(TEXT("Principle sampled gap finite and nonnegative"),FMath::IsFinite(R->PrincipleMinGap)&&R->PrincipleMinGap>=-1e-10);
+            if(TestNotNull(TEXT("Actual principle procedural component"),R->PrincipleMesh))
+            {
+                const auto* Flex=R->PrincipleMesh->GetProcMeshSection(0);const auto* Ring=R->PrincipleMesh->GetProcMeshSection(1);
+                TestTrue(TEXT("Actual closed gear strips contain vertices and triangles"),Flex&&Ring&&Flex->ProcVertexBuffer.Num()>=1536&&Flex->ProcIndexBuffer.Num()>=1536&&Ring->ProcVertexBuffer.Num()>=1536);
+                const VW::Json Layer=MakeShared<FJsonObject>();Layer->SetNumberField(TEXT("flexVertices"),Flex?Flex->ProcVertexBuffer.Num():0);Layer->SetNumberField(TEXT("ringVertices"),Ring?Ring->ProcVertexBuffer.Num():0);
+                if(R->PrincipleArmature){const FVector Actual=R->PrincipleArmature->GetRelativeLocation();const auto P=VW::Object(R->Mechanism,TEXT("principle"));const FVector Expected=VW::Position(FVector(0,-VW::Number(P,TEXT("radius"))*1.7,State.closure*R->JointDynamics->config.armatureTravel));TestTrue(TEXT("Illustrative armature actual transform follows closure"),Actual.Equals(Expected,1e-8));Layer->SetArrayField(TEXT("armatureTranslationCm"),{MakeShared<FJsonValueNumber>(Actual.X),MakeShared<FJsonValueNumber>(Actual.Y),MakeShared<FJsonValueNumber>(Actual.Z)});}
+                Report->SetObjectField(TEXT("principleReadback"),Layer);
+            }
+            Report->SetArrayField(TEXT("components"),Readbacks);FFileHelper::SaveStringToFile(VW::Serialize(Report),*(Directory/(Name+TEXT(".json"))));
         },.1f));
         AddCommand(new FDelayedFunctionLatentCommand([Directory,Name](){FScreenshotRequest::RequestScreenshot(Directory/(Name+TEXT(".png")),false,false);},.3f));AddCommand(new FDelayedFunctionLatentCommand([](){},.3f));
     };
     Stage(TEXT("phase-a-released"),.2,-1);Stage(TEXT("phase-b-released"),.13,-1);Stage(TEXT("brake-delay"),.0125,0);Stage(TEXT("brake-engaging"),.025,-1);Stage(TEXT("brake-holding"),.1,-1);Stage(TEXT("brake-release-delay"),.01,1);Stage(TEXT("brake-releasing"),.025,-1);Stage(TEXT("brake-released-no-autostart"),.1,-1);
-    AddCommand(new FDelayedFunctionLatentCommand([R,Saved,Paused,Markers,Section,Principle,Offset](){R->JointDynamics=MakeUnique<VWJoint::Dynamics>(*Saved);R->bPaused=Paused;R->bRollingMarkers=Markers;R->bSection=Section;R->bPrinciple=Principle;R->KinematicOffset=Offset;R->bRunning=Saved->snapshot().running;R->ApplyMechanism();R->ApplyVisibility();},.1f));return true;
+    AddCommand(new FDelayedFunctionLatentCommand([R](){R->CameraOffset=VW::Position(FVector(0,0,1)).GetSafeNormal()*R->CameraOffset.Size();R->CameraUp=VW::Position(FVector(0,1,0)).GetSafeNormal();R->FrameCadInspection(true);R->UpdateCamera();},.1f));
+    AddCommand(new FDelayedFunctionLatentCommand([Directory](){FScreenshotRequest::RequestScreenshot(Directory/TEXT("principle-closeup.png"),false,false);},.3f));AddCommand(new FDelayedFunctionLatentCommand([](){},.3f));
+    AddCommand(new FDelayedFunctionLatentCommand([R,Saved,Paused,Markers,Section,Principle,Offset,SavedTarget,SavedOffset,SavedUp,SavedRpm](){R->JointDynamics=MakeUnique<VWJoint::Dynamics>(*Saved);R->bPaused=Paused;R->bRollingMarkers=Markers;R->bSection=Section;R->bPrinciple=Principle;R->KinematicOffset=Offset;R->Rpm=SavedRpm;R->CameraTarget=SavedTarget;R->CameraOffset=SavedOffset;R->CameraUp=SavedUp;R->UpdateCamera();R->bRunning=Saved->snapshot().running;R->ApplyMechanism();R->ApplyVisibility();},.1f));return true;
 }
 #endif

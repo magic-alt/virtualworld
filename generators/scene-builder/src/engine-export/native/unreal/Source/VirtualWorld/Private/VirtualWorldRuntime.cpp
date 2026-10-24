@@ -1,5 +1,6 @@
 #include "VirtualWorldRuntime.h"
 #include "Misc/App.h"
+#include "Misc/CoreDelegates.h"
 #include "VirtualWorldModel.h"
 #include "glTFRuntimeFunctionLibrary.h"
 #include "Camera/CameraActor.h"
@@ -48,6 +49,7 @@ void AVirtualWorldRuntime::OnImportError(const FString Context, const FString Me
 void AVirtualWorldRuntime::BeginPlay()
 {
     Super::BeginPlay();
+    BindJointClockLifecycle();
     DataDirectory = FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir() / TEXT("VirtualWorldData"));
     ProgressPath = FPaths::ProjectSavedDir() / TEXT("VirtualWorld/progress.json");
     bSmokeRequested = FParse::Param(FCommandLine::Get(), TEXT("VirtualWorldSmoke"));
@@ -354,9 +356,17 @@ void AVirtualWorldRuntime::Tick(float DeltaSeconds)
     const float Elapsed=FMath::IsFinite(DeltaSeconds)?FMath::Max(0.f,DeltaSeconds):0.f;
     const float Delta=FMath::Min(Elapsed,0.05f);
     HandleInput(Delta);
-    if(!bPaused && (!JointDynamics || FApp::HasFocus()))
+    bool bJointFocused=FApp::HasFocus();
+#if WITH_DEV_AUTOMATION_TESTS
+    if(JointClockFocusOverride>=0)bJointFocused=JointClockFocusOverride==1;
+#endif
+    const bool bAdvanceJoint=JointDynamics?JointClock.advance(bPaused,bJointFocused):!bPaused;
+    if(!bPaused)
     {
         StepPlayer(Delta);
+    }
+    if(bAdvanceJoint)
+    {
         // Prescribed kinematics use full elapsed time, independent of render frame rate.
         StepMechanism(Elapsed);
     }
@@ -371,4 +381,22 @@ void AVirtualWorldGameMode::StartPlay()
 {
     Super::StartPlay();
     GetWorld()->SpawnActor<AVirtualWorldRuntime>();
+}
+
+
+void AVirtualWorldRuntime::BindJointClockLifecycle()
+{
+    if(JointDeactivateHandle.IsValid())return;
+    JointDeactivateHandle=FCoreDelegates::ApplicationWillDeactivateDelegate.AddWeakLambda(this,[this](){JointClock.suspend();});
+    JointReactivateHandle=FCoreDelegates::ApplicationHasReactivatedDelegate.AddWeakLambda(this,[this](){JointClock.resume();});
+    JointBackgroundHandle=FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddWeakLambda(this,[this](){JointClock.suspend();});
+    JointForegroundHandle=FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddWeakLambda(this,[this](){JointClock.resume();});
+}
+
+void AVirtualWorldRuntime::UnbindJointClockLifecycle()
+{
+    FCoreDelegates::ApplicationWillDeactivateDelegate.Remove(JointDeactivateHandle);JointDeactivateHandle.Reset();
+    FCoreDelegates::ApplicationHasReactivatedDelegate.Remove(JointReactivateHandle);JointReactivateHandle.Reset();
+    FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Remove(JointBackgroundHandle);JointBackgroundHandle.Reset();
+    FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Remove(JointForegroundHandle);JointForegroundHandle.Reset();
 }

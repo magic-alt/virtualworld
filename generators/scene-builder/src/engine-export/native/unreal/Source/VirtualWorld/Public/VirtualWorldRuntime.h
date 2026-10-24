@@ -69,6 +69,7 @@ private:
     friend class FVirtualWorldInspectionTest;
     friend class FVirtualWorldCadJointComponentTest;
     friend class FVirtualWorldCadJointPivotTest;
+    friend class FVirtualWorldCadJointSuspensionTest;
     friend class FVirtualWorldCadJointInspectionTest;
     bool Fail(const FString& Message);
     bool ReadCatalog();
@@ -81,6 +82,7 @@ private:
     void ApplyCadJoint();
     void BuildCadPrinciple();
     void UpdateCadPrinciple();
+    void FrameCadInspection(bool bPrincipleOnly = false);
     void BuildCameraAndLight();
     void ChooseCadFile();
     void BeginCadImport(const FString& Path);
@@ -103,6 +105,8 @@ private:
     void PlayPlayerClip(const FString& State);
     void ApplyMechanism();
     void StepMechanism(float DeltaSeconds);
+    void BindJointClockLifecycle();
+    void UnbindJointClockLifecycle();
     void ApplyVisibility();
     bool IsDescendant(const FString& Id, const FString& Ancestor) const;
     bool IsUnlocked(const FString& SceneId) const;
@@ -143,6 +147,11 @@ private:
     int32 ColliderCount = 0;
     int32 SmokeFrame = 0;
     int32 SmokeIndex = 0;
+    VWJoint::ClockGate JointClock;
+    FDelegateHandle JointDeactivateHandle,JointReactivateHandle,JointBackgroundHandle,JointForegroundHandle;
+#if WITH_DEV_AUTOMATION_TESTS
+    int32 JointClockFocusOverride = -1;
+#endif
     TUniquePtr<VWJoint::Dynamics> JointDynamics;
     TArray<FVirtualWorldCadBinding> CadBindings;
     USceneComponent* CadModelRoot = nullptr;

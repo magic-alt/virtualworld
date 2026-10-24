@@ -16,6 +16,19 @@ namespace VWJoint {
 }
 constexpr double Pi=3.1415926535897932384626433832795;
 inline double sign(double x) { return (x>0)-(x<0); }
+// Active-time gate consumes the first resume frame, even if the app produced no suspended ticks.
+class ClockGate {
+    bool suspended=false,resumePending=false;
+public:
+    void suspend() {suspended=true;resumePending=true;}
+    void resume() {suspended=false;resumePending=true;}
+    bool advance(bool paused,bool focused) {
+        if(suspended)return false;
+        if(!focused){resumePending=true;return false;}
+        if(resumePending){resumePending=false;return false;}
+        return !paused;
+    }
+};
 struct Config {
     double inertia=.00012,driveTorque=.012,brakeTorque=.06,holdTorque=.08,viscousDrag=.00002;
     double engageDelay=.025,engageRamp=.04,releaseDelay=.02,releaseRamp=.035,armatureTravel=.00015;

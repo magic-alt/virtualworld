@@ -174,7 +174,7 @@ void AVirtualWorldRuntime::Command(const FString& Action)
         else if(Action==TEXT("principle"))bPrinciple=!bPrinciple;
         else if(Action==TEXT("slow-motion"))JointTimeScale=JointTimeScale==1?.1:JointTimeScale==.1?.02:1;
         else if(Action==TEXT("section"))bSection=!bSection;
-        bRunning=JointDynamics->snapshot().running;ApplyMechanism();ApplyVisibility();return;
+        bRunning=JointDynamics->snapshot().running;ApplyMechanism();ApplyVisibility();if(Action==TEXT("principle"))FrameCadInspection();return;
     }
     const bool bLocked=bBrakeInstalled&&!bBrakePowered;
     if(Action==TEXT("run")) bRunning=!bRunning&&!bLocked;

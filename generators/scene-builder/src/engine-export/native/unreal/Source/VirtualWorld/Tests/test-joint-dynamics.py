@@ -25,6 +25,7 @@ for scenario in fixture['scenarios']:
         code += ['++checks;}']
     code += ['}']
 code += ['for(double direction:{-1.,1.}) for(bool poweroff:{false,true}) { VWJoint::Config c; c.viscousDrag=0; VWJoint::Dynamics d(c);d.setRpm(direction*1e-12);d.start();d.tick(.1);if(poweroff)d.setPowered(false);else d.stop();d.tick(.1);if(d.snapshot().omega!=0)throw std::runtime_error("tiny speed reversed");}']
+code += ['{VWJoint::ClockGate clock;clock.suspend();if(clock.advance(false,true))throw std::runtime_error("suspended");clock.resume();if(clock.advance(false,true))throw std::runtime_error("resume catchup");if(!clock.advance(false,true))throw std::runtime_error("resume next frame");clock.suspend();clock.resume();if(clock.advance(true,true)||clock.advance(true,true))throw std::runtime_error("pause lost");if(!clock.advance(false,true))throw std::runtime_error("pause remains stuck");if(clock.advance(false,false)||clock.advance(false,true)||!clock.advance(false,true))throw std::runtime_error("focus transition");}']
 code += ['auto r=VWJoint::rollingState(2.3,-.8,.02,.003); near(r.cageAngle*.02-r.worldBallAngle*.003,2.3*.017); near(r.cageAngle*.02+r.worldBallAngle*.003,-.8*.023);', 'std::cout<<checks<<" JSON checkpoints passed; rolling contact residuals passed\\n"; }']
 with tempfile.TemporaryDirectory() as tmp:
     source=pathlib.Path(tmp)/'joint.cpp'; source.write_text('\n'.join(code))

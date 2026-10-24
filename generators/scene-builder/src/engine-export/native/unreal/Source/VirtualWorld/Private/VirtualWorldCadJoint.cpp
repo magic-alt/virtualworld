@@ -5,6 +5,9 @@
 #include "KismetProceduralMeshLibrary.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/StaticMesh.h"
+#include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
+#include "GameFramework/PlayerController.h"
 
 bool AVirtualWorldRuntime::BindCadJoint()
 {
@@ -124,7 +127,7 @@ void AVirtualWorldRuntime::BuildCadPrinciple()
     UMaterialInterface* Base=LoadObject<UMaterialInterface>(nullptr,TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
     for(int I=0;I<2;++I)if(Base){auto* M=UMaterialInstanceDynamic::Create(Base,this);M->SetVectorParameterValue(TEXT("Color"),I==0?FLinearColor(.1,.55,.95):FLinearColor(.95,.6,.12));PrincipleMesh->SetMaterial(I,M);}
     auto* Armature=NewObject<UStaticMeshComponent>(this);AddInstanceComponent(Armature);Armature->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cylinder.Cylinder")));Armature->SetupAttachment(PrincipleMesh);Armature->RegisterComponent();SceneComponents.Add(Armature);Armature->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    Armature->SetRelativeTransform(VW::Transform(FVector(0,-VW::Number(P,TEXT("radius"))*1.7,0),FQuat::Identity,FVector(.012,.012,.0004)));PrincipleArmature=Armature;
+    Armature->SetRelativeTransform(FTransform(FRotationMatrix::MakeFromZ(VW::Position(FVector(0,0,1)).GetSafeNormal()).ToQuat(),VW::Position(FVector(0,-VW::Number(P,TEXT("radius"))*1.7,0)),FVector(.012,.012,.0004)));PrincipleArmature=Armature;
     UpdateCadPrinciple();PrincipleMesh->SetVisibility(false,true);
 }
 
@@ -162,4 +165,24 @@ void AVirtualWorldRuntime::UpdateCadPrinciple()
         PrincipleMesh->CreateMeshSection_LinearColor(Strip,Vertices,Indices,Normals,UV,Colors,Tangents,false);
     }
     if(PrincipleArmature)PrincipleArmature->SetRelativeLocation(VW::Position(FVector(0,-R*1.7,JointDynamics->snapshot().closure*JointDynamics->config.armatureTravel)));
+}
+
+
+void AVirtualWorldRuntime::FrameCadInspection(bool bPrincipleOnly)
+{
+    if(!Camera||!JointDynamics)return;
+    FBox Bounds(ForceInit);
+    if(!bPrincipleOnly)for(const auto& Entry:CadBindings)Bounds+=Entry.Component->Bounds.GetBox();
+    if(bPrinciple&&PrincipleMesh)
+    {
+        Bounds+=PrincipleMesh->Bounds.GetBox();
+        if(auto* Primitive=Cast<UPrimitiveComponent>(PrincipleArmature))Bounds+=Primitive->Bounds.GetBox();
+    }
+    if(!Bounds.IsValid)return;
+    int32 Width=1280,Height=720;if(auto* PC=GetWorld()->GetFirstPlayerController()){int32 W=0,H=0;PC->GetViewportSize(W,H);if(W>0&&H>0){Width=W;Height=H;}}
+    const double Panel=FMath::Min(450.,Width*.48),TanHorizontal=FMath::Tan(FMath::DegreesToRadians(Camera->GetCameraComponent()->FieldOfView*.5));
+    const double AvailableTan=FMath::Min(TanHorizontal*(Width-Panel)/Width,TanHorizontal*Height/Width);
+    const double Distance=Bounds.GetExtent().Size()/FMath::Sin(FMath::Atan(AvailableTan)) * 1.18;
+    CameraTarget=Bounds.GetCenter();CameraOffset=CameraOffset.GetSafeNormal()*FMath::Max(.1,Distance);
+    InspectionZoomMax=FMath::Max(InspectionZoomMax,static_cast<float>(Distance*50));UpdateCamera();
 }

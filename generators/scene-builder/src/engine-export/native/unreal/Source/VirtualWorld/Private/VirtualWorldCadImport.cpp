@@ -166,6 +166,7 @@ void AVirtualWorldRuntime::WriteCadReport(bool bSuccess,const FString& Message)
 
 void AVirtualWorldRuntime::EndPlay(const EEndPlayReason::Type Reason)
 {
+    UnbindJointClockLifecycle();
     CancelCadImport(TEXT("Import cancelled: player closed."));
     ClearScene();Super::EndPlay(Reason);
 }
