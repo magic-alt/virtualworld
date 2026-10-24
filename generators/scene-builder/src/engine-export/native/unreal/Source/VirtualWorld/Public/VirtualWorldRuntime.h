@@ -79,6 +79,7 @@ private:
     friend class FVirtualWorldCadJointInspectionTest;
     friend class FVirtualWorldCadJointTransmissionTest;
     friend class FVirtualWorldCadJointSectionTest;
+    friend class FVirtualWorldCadJointSectionVisibilityTest;
     bool Fail(const FString& Message);
     bool ReadCatalog();
     void ClearScene();
@@ -96,6 +97,7 @@ private:
     void UpdateCadPrinciple();
     void FrameCadInspection(bool bPrincipleOnly = false);
     void FrameCadBrakeInspection();
+    void FrameCadPrincipleInspection();
     void BuildCameraAndLight();
     void ChooseCadFile();
     void BeginCadImport(const FString& Path);
@@ -200,6 +202,7 @@ private:
     FVector SectionSavedOffset = FVector::ZeroVector;
     FVector SectionSavedUp = FVector::UpVector;
     bool bSectionCameraSaved = false;
+    bool bSectionSavedPrinciple = false;
     float InspectionZoomMin = .02f;
     float InspectionZoomMax = 5000.f;
     UPROPERTY() TArray<TObjectPtr<AActor>> SpawnedActors;

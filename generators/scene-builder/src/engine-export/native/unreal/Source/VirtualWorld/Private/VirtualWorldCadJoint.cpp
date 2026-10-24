@@ -297,6 +297,13 @@ void AVirtualWorldRuntime::FrameCadInspection(bool bPrincipleOnly)
 }
 
 
+void AVirtualWorldRuntime::FrameCadPrincipleInspection()
+{
+    CameraOffset=VW::Position(FVector(0,0,1)).GetSafeNormal()*FMath::Max(1.,CameraOffset.Size());
+    CameraUp=VW::Position(FVector(0,1,0)).GetSafeNormal();FrameCadInspection(true);
+}
+
+
 void AVirtualWorldRuntime::FrameCadBrakeInspection()
 {
     if(!Camera||!PrincipleArmature||!PrincipleBrakePole)return;

@@ -89,13 +89,6 @@ void AVirtualWorldRuntime::StepMechanism(float DeltaSeconds)
 void AVirtualWorldRuntime::ApplyVisibility()
 {
     UpdateCadSections();
-    for(auto& Binding:CadBindings)
-    {
-        const bool Visible=Binding.bOriginalVisible&&!(bSection&&VW::Bool(Binding.Data,TEXT("inspectionHidden")));
-        Binding.Component->SetVisibility(Visible&&!(bSection&&Binding.bInspectionBuilt),false);
-        if(Binding.InspectionMesh)Binding.InspectionMesh->SetVisibility(Visible&&bSection,false);
-        if(Binding.Marker) Binding.Marker->SetVisibility(Visible&&bRollingMarkers,false);
-    }
     if(PrincipleMesh) PrincipleMesh->SetVisibility(bPrinciple,true);
     TMap<FString,bool> Local;
     for(const auto& Pair:Nodes)
@@ -128,4 +121,14 @@ void AVirtualWorldRuntime::ApplyVisibility()
         for(USceneComponent* Child:Node.Wrapper->GetAttachChildren())
             if(UShapeComponent* Shape=Cast<UShapeComponent>(Child)) Shape->SetCollisionEnabled(Node.bVisible?ECollisionEnabled::QueryOnly:ECollisionEnabled::NoCollision);
     }
+    const auto* CadNode=Nodes.Find(VW::String(Mechanism,TEXT("modelNodeId")));
+    const bool CadVisible=!CadNode||CadNode->bVisible;
+    for(auto& Binding:CadBindings)
+    {
+        const bool Visible=CadVisible&&Binding.bOriginalVisible&&!(bSection&&VW::Bool(Binding.Data,TEXT("inspectionHidden")));
+        Binding.Component->SetVisibility(Visible&&!(bSection&&Binding.bInspectionBuilt),false);
+        if(Binding.InspectionMesh)Binding.InspectionMesh->SetVisibility(Visible&&bSection,false);
+        if(Binding.Marker) Binding.Marker->SetVisibility(Visible&&bRollingMarkers,false);
+    }
+
 }

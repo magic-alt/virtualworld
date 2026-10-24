@@ -15,6 +15,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/ScopeExit.h"
 #include "HAL/FileManager.h"
 #include "UnrealClient.h"
 
@@ -88,7 +89,7 @@ bool FVirtualWorldCadJointTransmissionTest::RunTest(const FString& Parameters)
         VW::Parse(FString::Printf(TEXT("{\"kind\":\"cad-joint\",\"gear\":{\"status\":\"user-specified\",\"reductionRatio\":101,\"fixedMember\":\"%s\",\"evidence\":\"User specified 101\"}}"),FlexFixed?TEXT("flexspline"):TEXT("circular-spline")),R->Mechanism);
         const auto Factors=R->CadTransmission();TestTrue(TEXT("Stated ratio resolves"),Factors.resolved);
         R->JointDynamics->setRpm(6);R->JointDynamics->start();R->JointDynamics->tick(.1);R->JointDynamics->reset();
-        const FString Status=FString::Join(R->StatusLines(),TEXT("\n"));TestTrue(TEXT("HUD reports resolved 101 and source"),Status.Contains(TEXT("101:1"))&&Status.Contains(TEXT("User specified 101"))&&!Status.Contains(TEXT("ratio unresolved")));
+        const FString Status=FString::Join(R->StatusLines(),TEXT("\n"));TestTrue(TEXT("HUD reports resolved 101 and source"),Status.Contains(TEXT("101:1"))&&Status.Contains(TEXT("user-provided"))&&!Status.Contains(TEXT("User specified 101"))&&!Status.Contains(TEXT("ratio unresolved")));
 
         for(double Turns:{-101.,-25.25,0.,25.25,101.})
         {
@@ -113,10 +114,17 @@ bool FVirtualWorldCadJointSectionTest::RunTest(const FString& Parameters)
     auto* R=World->SpawnActor<AVirtualWorldRuntime>();VW::Parse(TEXT(R"({"kind":"cad-joint","gear":{"status":"user-specified","reductionRatio":101,"fixedMember":"flexspline","evidence":"User ratio"}})"),R->Mechanism);VW::Parse(TEXT("{}"),R->Metadata);
     R->JointDynamics=MakeUnique<VWJoint::Dynamics>();R->CadModelRoot=R->GetRootComponent();
     R->CadModelRoot->SetWorldTransform(FTransform(FRotator(10,20,30),FVector(20,30,40),FVector(1.2,.8,1.1)));
-    auto* Original=NewObject<UStaticMeshComponent>(R);R->AddInstanceComponent(Original);Original->SetupAttachment(R->CadModelRoot);Original->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube")));Original->RegisterComponent();Original->SetRelativeScale3D(FVector(.1));
+    UStaticMesh* Cube=LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube"));
+    if(!TestNotNull(TEXT("Known editor cube fixture"),Cube)){World->DestroyWorld(false);return false;}
+#if WITH_EDITOR
+    // The editor fixture already retains its tested vertex/index arrays. Restore this
+    // temporary policy flag; imported CAD instead reserves buffers before mesh creation.
+    const bool bFixtureCPUAccess=Cube->bAllowCPUAccess;ON_SCOPE_EXIT{Cube->bAllowCPUAccess=bFixtureCPUAccess;};Cube->bAllowCPUAccess=true;
+#endif
+    auto* Original=NewObject<UStaticMeshComponent>(R);R->AddInstanceComponent(Original);Original->SetupAttachment(R->CadModelRoot);Original->SetStaticMesh(Cube);Original->RegisterComponent();Original->SetRelativeScale3D(FVector(.1));
     FVirtualWorldCadBinding B;B.Component=Original;B.Original=Original->GetRelativeTransform();VW::Parse(TEXT(R"({"role":"output","axis":[0,0,1],"pivot":[0,0,0],"inspectionCut":true})"),B.Data);R->CadBindings.Add(B);
     const UStaticMesh* SourceMesh=Original->GetStaticMesh();const FBoxSphereBounds SourceBounds=Original->Bounds;auto* Material=Original->GetMaterial(0);
-    R->Camera=World->SpawnActor<ACameraActor>();const FVector CameraBefore=R->CameraOffset;R->Command(TEXT("section"));
+    R->Camera=World->SpawnActor<ACameraActor>();const FVector CameraBefore=R->CameraOffset;R->bPrinciple=true;R->Command(TEXT("section"));TestFalse(TEXT("Section entry shows actual CAD without principle overlay"),R->bPrinciple);
     auto& Binding=R->CadBindings[0];if(!TestNotNull(TEXT("Section uses derived procedural geometry"),Binding.InspectionMesh)){World->DestroyWorld(false);return false;}
     auto* Derived=Binding.InspectionMesh;TestFalse(TEXT("Original hidden while display copy is cut"),Original->IsVisible());TestTrue(TEXT("Cut display visible"),Derived->IsVisible());
     const FVector ExpectedCamera=R->CadModelRoot->GetComponentTransform().TransformVectorNoScale(VW::Position(FVector(1,.2,.1))).GetSafeNormal();
@@ -140,7 +148,50 @@ bool FVirtualWorldCadJointSectionTest::RunTest(const FString& Parameters)
     }
     R->Command(TEXT("section"));TestTrue(TEXT("Leaving section restores assembly camera"),R->CameraOffset.Equals(CameraBefore,1e-7));TestNull(TEXT("Leaving section releases derived component"),Binding.InspectionMesh);TestFalse(TEXT("Old derived component is unregistered"),Derived->IsRegistered());TestTrue(TEXT("Full original visible again"),Original->IsVisible());TestTrue(TEXT("Source mesh pointer unchanged"),SourceMesh==Original->GetStaticMesh());TestTrue(TEXT("Source material unchanged"),Material==Original->GetMaterial(0));
     R->Command(TEXT("reset"));TestTrue(TEXT("Full bounds restored at zero"),Original->Bounds.BoxExtent.Equals(SourceBounds.BoxExtent,1e-6));
+    VW::Json Principle;VW::Parse(TEXT(R"({"flexTeeth":200,"ringTeeth":202,"radius":0.032,"amplitude":0.002,"toothHeight":0.0003,"clearance":0.0001,"position":[0.12,0.025,0]})"),Principle);R->Mechanism->SetObjectField(TEXT("principle"),Principle);R->BuildCadPrinciple();
+    R->bPrinciple=false;R->Command(TEXT("principle"));const FVector PrincipleTarget=R->CameraTarget,PrincipleOffset=R->CameraOffset,PrincipleUp=R->CameraUp;
+    TestTrue(TEXT("G opens visible face-on principle view"),R->bPrinciple&&R->PrincipleMesh->IsVisible()&&PrincipleOffset.GetSafeNormal().Equals(VW::Position(FVector(0,0,1)).GetSafeNormal(),1e-7));
+    R->Command(TEXT("section"));TestFalse(TEXT("C temporarily hides previously focused principle"),R->bPrinciple||R->PrincipleMesh->IsVisible());R->Command(TEXT("section"));
+    TestTrue(TEXT("G then C then C restores visible principle with its camera"),R->bPrinciple&&R->PrincipleMesh->IsVisible()&&R->CameraTarget.Equals(PrincipleTarget,1e-7)&&R->CameraOffset.Equals(PrincipleOffset,1e-7)&&R->CameraUp.Equals(PrincipleUp,1e-7));
+    VW::Parse(TEXT(R"({"camera":{"position":[0.4,0.4,0.3],"target":[0,0,0]}})"),R->Scene);R->Command(TEXT("frame-assembly"));
+    TestFalse(TEXT("H clears section, principle visibility, and the saved principle camera intent"),R->bSection||R->bPrinciple||R->bSectionCameraSaved||R->bSectionSavedPrinciple);
+
     World->DestroyWorld(false);return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadJointSectionVisibilityTest,"VirtualWorld.CadJoint.SectionObeysModelAndAncestorVisibility",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldCadJointSectionVisibilityTest::RunTest(const FString& Parameters)
+{
+    UWorld* World=UWorld::CreateWorld(EWorldType::Game,false);if(!TestNotNull(TEXT("Section visibility test world"),World))return false;
+    auto* R=World->SpawnActor<AVirtualWorldRuntime>();auto* Model=World->SpawnActor<AVirtualWorldModel>();R->CadModelRoot=Model->GetRootComponent();
+    VW::Parse(TEXT(R"({"kind":"cad-joint","modelNodeId":"cad"})"),R->Mechanism);VW::Parse(TEXT("{}"),R->Metadata);R->JointDynamics=MakeUnique<VWJoint::Dynamics>();R->bRollingMarkers=true;
+    FVirtualWorldNode Parent;Parent.Id=TEXT("assembly");Parent.Wrapper=R->GetRootComponent();VW::Parse(TEXT(R"({"visible":true})"),Parent.Native);R->Nodes.Add(Parent.Id,Parent);
+    FVirtualWorldNode Cad;Cad.Id=TEXT("cad");Cad.Parent=Parent.Id;Cad.Wrapper=Model->GetRootComponent();Cad.Model=Model;VW::Parse(TEXT(R"({"visible":true})"),Cad.Native);R->Nodes.Add(Cad.Id,Cad);
+    UStaticMesh* Cube=LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube"));
+    if(!TestNotNull(TEXT("Known editor cube fixture"),Cube)){World->DestroyWorld(false);return false;}
+#if WITH_EDITOR
+    // The editor fixture already retains its tested vertex/index arrays. Restore this
+    // temporary policy flag; imported CAD instead reserves buffers before mesh creation.
+    const bool bFixtureCPUAccess=Cube->bAllowCPUAccess;ON_SCOPE_EXIT{Cube->bAllowCPUAccess=bFixtureCPUAccess;};Cube->bAllowCPUAccess=true;
+#endif
+    auto* Original=NewObject<UStaticMeshComponent>(Model);Model->AddInstanceComponent(Original);Original->SetupAttachment(R->CadModelRoot);Original->SetStaticMesh(Cube);Original->RegisterComponent();Original->SetRelativeScale3D(FVector(.1));
+    auto* Marker=NewObject<UStaticMeshComponent>(R);R->AddInstanceComponent(Marker);Marker->SetupAttachment(Original);Marker->SetStaticMesh(Original->GetStaticMesh());Marker->RegisterComponent();R->SceneComponents.Add(Marker);
+    FVirtualWorldCadBinding B;B.Component=Original;B.Marker=Marker;B.Original=Original->GetRelativeTransform();VW::Parse(TEXT(R"({"role":"fixed","axis":[0,0,1],"pivot":[0,0,0],"inspectionCut":true})"),B.Data);R->CadBindings.Add(B);
+    // Hidden on section entry, hidden while open, and revealed again must share serialized visibility.
+    for(const TCHAR* HiddenNode:{TEXT("cad"),TEXT("assembly")})
+    {
+        auto& Native=R->Nodes[FString(HiddenNode)].Native;Native->SetBoolField(TEXT("visible"),false);
+        R->Command(TEXT("section"));auto* Cut=R->CadBindings[0].InspectionMesh;
+        if(TestNotNull(TEXT("Hidden model still has a reversible derived section"),Cut))TestFalse(TEXT("Hidden model/ancestor suppresses derived section display"),Cut->IsVisible());
+        TestFalse(TEXT("Hidden model/ancestor suppresses runtime-owned markers"),Marker->IsVisible());TestTrue(TEXT("Source actor follows serialized hidden state"),Model->IsHidden());
+        Native->SetBoolField(TEXT("visible"),true);R->ApplyVisibility();
+        if(Cut)TestTrue(TEXT("Unhiding model reveals section copy"),Cut->IsVisible());TestTrue(TEXT("Unhiding model reveals enabled markers"),Marker->IsVisible());TestFalse(TEXT("Unhidden source actor"),Model->IsHidden());
+        Native->SetBoolField(TEXT("visible"),false);R->ApplyVisibility();
+        if(Cut)TestFalse(TEXT("Hiding an already open section suppresses copy"),Cut->IsVisible());TestFalse(TEXT("Hiding an already open section suppresses marker"),Marker->IsVisible());
+        R->Command(TEXT("section"));TestNull(TEXT("Section close releases copy under hidden ancestor"),R->CadBindings[0].InspectionMesh);TestFalse(TEXT("Closing section cannot reveal hidden markers"),Marker->IsVisible());
+        Native->SetBoolField(TEXT("visible"),true);R->ApplyVisibility();TestTrue(TEXT("Full source geometry restored after unhide"),Original->IsVisible()&&!Model->IsHidden());
+    }
+    R->ReleaseCadSections();World->DestroyWorld(false);return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadJointInspectionTest,"VirtualWorld.CadJoint.InstallationControls",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
@@ -199,13 +250,15 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
     if(!TestNotNull(TEXT("Active real CAD scene required for rendered component evidence"),R))return false;
     const TSharedPtr<VWJoint::Dynamics> Saved=MakeShared<VWJoint::Dynamics>(*R->JointDynamics);const FVector SavedTarget=R->CameraTarget,SavedOffset=R->CameraOffset,SavedUp=R->CameraUp;const float SavedRpm=R->Rpm;
     const bool Paused=R->bPaused,Markers=R->bRollingMarkers,Section=R->bSection,Principle=R->bPrinciple;const double Offset=R->KinematicOffset;
-    R->bPaused=true;R->bRollingMarkers=true;R->bSection=true;R->bPrinciple=true;R->KinematicOffset=0;R->JointDynamics->reset();R->JointDynamics->setRpm(30);R->Rpm=30;R->JointDynamics->start();
+    R->bPaused=true;R->bRollingMarkers=true;R->bSection=true;R->bPrinciple=false;R->KinematicOffset=0;R->JointDynamics->reset();R->JointDynamics->setRpm(30);R->Rpm=30;R->JointDynamics->start();
     const FString Directory=FPaths::ProjectSavedDir()/TEXT("Automation/CadJointMotion");IFileManager::Get().MakeDirectory(*Directory,true);
-    AddCommand(new FDelayedFunctionLatentCommand([this,R](){R->ApplyMechanism();R->ApplyVisibility();R->SelectCadSectionCamera();R->UpdateCamera();},.1f));
+    AddCommand(new FDelayedFunctionLatentCommand([this,R](){
+        for(const auto& Entry:R->CadBindings)if(VW::Bool(Entry.Data,TEXT("inspectionCut")))if(const auto* Static=Cast<UStaticMeshComponent>(Entry.Component))if(UStaticMesh* Mesh=Static->GetStaticMesh())TestTrue(TEXT("Actual imported cut geometry reserves CPU buffers before creation"),Mesh->bAllowCPUAccess);
+        R->ApplyMechanism();R->ApplyVisibility();R->SelectCadSectionCamera();R->UpdateCamera();},.1f));
     AddCommand(new FDelayedFunctionLatentCommand([this,R](){
         auto* PC=R->GetWorld()->GetFirstPlayerController();int32 Width=0,Height=0;if(PC)PC->GetViewportSize(Width,Height);TestTrue(TEXT("Renderable viewport exists"),PC&&Width>0&&Height>0);
         const auto ProjectBounds=[this,PC,Width,Height](const FBox& Bounds){for(int I=0;I<8;++I){const FVector Point((I&1)?Bounds.Max.X:Bounds.Min.X,(I&2)?Bounds.Max.Y:Bounds.Min.Y,(I&4)?Bounds.Max.Z:Bounds.Min.Z);FVector2D Pixel;TestTrue(TEXT("Actual and principle bounds fit usable viewport outside HUD"),PC&&PC->ProjectWorldLocationToScreen(Point,Pixel)&&Pixel.X>FMath::Min(450.,Width*.48)&&Pixel.X<Width&&Pixel.Y>0&&Pixel.Y<Height);}};
-        for(const auto& Entry:R->CadBindings)ProjectBounds(Entry.Component->Bounds.GetBox());if(R->PrincipleMesh)ProjectBounds(R->PrincipleMesh->Bounds.GetBox());
+        for(const auto& Entry:R->CadBindings)ProjectBounds(Entry.Component->Bounds.GetBox());if(R->bPrinciple&&R->PrincipleMesh)ProjectBounds(R->PrincipleMesh->Bounds.GetBox());
     },.1f));
     AddCommand(new FDelayedFunctionLatentCommand([this,R]()
     {
@@ -287,13 +340,13 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
         if(Name.StartsWith(TEXT("brake-")))
         {
             const TSharedPtr<FVector> OffsetBefore=MakeShared<FVector>(),UpBefore=MakeShared<FVector>(),TargetBefore=MakeShared<FVector>();
-            AddCommand(new FDelayedFunctionLatentCommand([R,OffsetBefore,UpBefore,TargetBefore](){*OffsetBefore=R->CameraOffset;*UpBefore=R->CameraUp;*TargetBefore=R->CameraTarget;R->FrameCadBrakeInspection();},.1f));
+            AddCommand(new FDelayedFunctionLatentCommand([R,OffsetBefore,UpBefore,TargetBefore](){*OffsetBefore=R->CameraOffset;*UpBefore=R->CameraUp;*TargetBefore=R->CameraTarget;R->bPrinciple=true;R->ApplyVisibility();R->FrameCadBrakeInspection();},.1f));
             AddCommand(new FDelayedFunctionLatentCommand([Directory,Name](){FScreenshotRequest::RequestScreenshot(Directory/(Name+TEXT("-principle-brake.png")),false,false);},.3f));
-            AddCommand(new FDelayedFunctionLatentCommand([R,OffsetBefore,UpBefore,TargetBefore](){R->CameraOffset=*OffsetBefore;R->CameraUp=*UpBefore;R->CameraTarget=*TargetBefore;R->UpdateCamera();},.3f));
+            AddCommand(new FDelayedFunctionLatentCommand([R,OffsetBefore,UpBefore,TargetBefore](){R->CameraOffset=*OffsetBefore;R->CameraUp=*UpBefore;R->CameraTarget=*TargetBefore;R->bPrinciple=false;R->ApplyVisibility();R->UpdateCamera();},.3f));
         }
     };
     Stage(TEXT("phase-a-released"),.2,-1);Stage(TEXT("phase-b-released"),.13,-1);Stage(TEXT("brake-delay"),.0125,0);Stage(TEXT("brake-engaging"),.025,-1);Stage(TEXT("brake-holding"),.1,-1);Stage(TEXT("brake-release-delay"),.01,1);Stage(TEXT("brake-releasing"),.025,-1);Stage(TEXT("brake-released-no-autostart"),.1,-1);
-    AddCommand(new FDelayedFunctionLatentCommand([R](){R->CameraOffset=VW::Position(FVector(0,0,1)).GetSafeNormal()*R->CameraOffset.Size();R->CameraUp=VW::Position(FVector(0,1,0)).GetSafeNormal();R->FrameCadInspection(true);R->UpdateCamera();},.1f));
+    AddCommand(new FDelayedFunctionLatentCommand([R](){R->bPrinciple=true;R->ApplyVisibility();R->FrameCadPrincipleInspection();R->UpdateCamera();},.1f));
     AddCommand(new FDelayedFunctionLatentCommand([Directory](){FScreenshotRequest::RequestScreenshot(Directory/TEXT("principle-closeup.png"),false,false);},.3f));AddCommand(new FDelayedFunctionLatentCommand([](){},.3f));
     AddCommand(new FDelayedFunctionLatentCommand([R,Saved,Paused,Markers,Section,Principle,Offset,SavedTarget,SavedOffset,SavedUp,SavedRpm](){R->JointDynamics=MakeUnique<VWJoint::Dynamics>(*Saved);R->bPaused=Paused;R->bRollingMarkers=Markers;R->bSection=Section;R->bPrinciple=Principle;R->KinematicOffset=Offset;R->Rpm=SavedRpm;R->CameraTarget=SavedTarget;R->CameraOffset=SavedOffset;R->CameraUp=SavedUp;R->UpdateCamera();R->bRunning=Saved->snapshot().running;R->ApplyMechanism();R->ApplyVisibility();},.1f));return true;
 }

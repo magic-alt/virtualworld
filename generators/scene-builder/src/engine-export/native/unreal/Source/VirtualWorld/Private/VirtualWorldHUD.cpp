@@ -19,22 +19,25 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
         {
             const auto State=JointDynamics->snapshot();
             const auto Factors=CadTransmission();const auto Gear=VW::Object(Mechanism,TEXT("gear"));
-            Lines.Add(FString::Printf(TEXT("Input %.4f rpm | Output %+.6f rpm | Setpoint %.1f rpm"),State.omega*30/PI,State.omega*30/PI*Factors.output,Rpm));
-            Lines.Add(FString::Printf(TEXT("Input %.5f rad (%.4f turns) | Output %+.5f rad (%+.4f turns)"),InputAngle,InputAngle/(2*PI),InputAngle*Factors.output,InputAngle*Factors.output/(2*PI)));
+            Lines.Add(FString::Printf(TEXT("Input %.4f rpm | Output %+.6f rpm"),State.omega*30/PI,State.omega*30/PI*Factors.output));
+            Lines.Add(FString::Printf(TEXT("Angle: input %.5f rad | output %+.5f rad"),InputAngle,InputAngle*Factors.output));
             if(Factors.resolved)
             {
-                Lines.Add(FString::Printf(TEXT("Reduction %.6g:1 | %s | %s fixed | output %s input"),1/FMath::Abs(Factors.output),*VW::String(Gear,TEXT("status")),VW::String(Gear,TEXT("status"))==TEXT("evidenced")?TEXT("circular-spline"):*VW::String(Gear,TEXT("fixedMember")),Factors.output>0?TEXT("same direction as"):TEXT("opposite to")));
-                Lines.Add(TEXT("Ratio source: ")+VW::String(Gear,TEXT("evidence")));
+                const bool Stated=VW::String(Gear,TEXT("status"))==TEXT("user-specified");
+                const FString Fixed=Stated?VW::String(Gear,TEXT("fixedMember")):TEXT("circular-spline");
+                Lines.Add(FString::Printf(TEXT("Reduction %.6g:1 | %s | fixed %s%s"),1/FMath::Abs(Factors.output),Stated?TEXT("user-provided"):TEXT("evidenced teeth"),*Fixed,Stated?TEXT(" (inferred)"):TEXT("")));
             }
             else Lines.Add(TEXT("Transmission unresolved: output remains static."));
             Lines.Add(FString::Printf(TEXT("Brake %s | Closure %.1f%% | t %.4f s"),UTF8_TO_TCHAR(State.brakePhase),State.closure*100,State.time));
-            Lines.Add(FString::Printf(TEXT("Dissipated %.8f J | Kinetic %.8f J"),State.dissipatedEnergy,State.kineticEnergy));
-            Lines.Add(FString::Printf(TEXT("Whole simulation clock %.2fx [T] | Fast inspection preserves reduction | P/focus loss freeze time"),JointTimeScale));
-            Lines.Add(TEXT("SI demonstration assumptions; no measured braking performance. Unknown CAD parts stay static."));
-            Lines.Add(TEXT("M markers: orange input, blue output, orange rolling balls | C section | G principle | H assembly"));
-            Lines.Add(TEXT("CAD brake internals unresolved; no real armature identified. Separate principle layer illustrates closure only."));
-            if(bPrinciple){Lines.Add(FString::Printf(TEXT("PRINCIPLE brake: movable armature / fixed pole; assumed air gap %.4f mm"),JointDynamics->config.armatureTravel*(1-State.closure)*1000));Lines.Add(VW::String(VW::Object(Mechanism,TEXT("principle")),TEXT("label")));Lines.Add(FString::Printf(TEXT("Illustrative profile sampled minimum gap %.6f mm (8192 points at this phase)"),PrincipleMinGap*1000));}
-            Lines.Add(VW::String(VW::Object(Mechanism,TEXT("dynamics")),TEXT("notes")));
+            Lines.Add(FString::Printf(TEXT("Whole clock %.2fx [T] | Setpoint %.1f rpm | P pauses"),JointTimeScale,Rpm));
+            Lines.Add(TEXT("M markers | C section | G principle | H assembly | T clock"));
+            Lines.Add(TEXT("Orange input / blue output. Demonstration dynamics; actual teeth and brake performance unmeasured."));
+            if(bPrinciple)
+            {
+                const auto P=VW::Object(Mechanism,TEXT("principle"));
+                Lines.Add(FString::Printf(TEXT("PRINCIPLE: hypothetical %.0f / %.0f teeth; not measured CAD teeth"),VW::Number(P,TEXT("flexTeeth")),VW::Number(P,TEXT("ringTeeth"))));
+                Lines.Add(FString::Printf(TEXT("Assumed brake gap %.4f mm | Profile minimum gap %.6f mm"),JointDynamics->config.armatureTravel*(1-State.closure)*1000,PrincipleMinGap*1000));
+            }
         }
         else
         {

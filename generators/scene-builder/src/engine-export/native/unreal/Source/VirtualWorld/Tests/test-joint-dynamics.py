@@ -64,6 +64,30 @@ code += [r"""for(bool flexFixed:{false,true}) {
   const auto legacy=VWJoint::toothTransmission(200,202,false);near(legacy.output,-.01);
   std::cout<<"101 input turns / signed output, both topology constraints passed\n";
 """]
+# Compile the actual native section command branch, so camera and principle
+# visibility restoration are verified without copying its policy into the test.
+section_start = story.index('else if(Action==TEXT("section"))')
+section_open = story.index('{', section_start)
+section_end, section_depth = section_open + 1, 1
+while section_depth:
+    section_depth += (story[section_end] == '{') - (story[section_end] == '}')
+    section_end += 1
+section_body = story[section_open + 1:section_end - 1]
+code += [r"""{ struct NativeSectionHarness {
+  bool bSection=false,bPrinciple=true,bSectionCameraSaved=false,bSectionSavedPrinciple=false;
+  double SectionSavedTarget=0,SectionSavedOffset=0,SectionSavedUp=0;
+  double CameraTarget=12,CameraOffset=10,CameraUp=3;
+  void ApplyMechanism(){} void ApplyVisibility(){} void UpdateCamera(){}
+  void SelectCadSectionCamera(){CameraTarget=2;CameraOffset=3;CameraUp=4;}
+  void section(){""" + section_body + r"""}
+};
+for(bool principle:{false,true}) {
+  NativeSectionHarness view;view.bPrinciple=principle;
+  view.section();if(view.bPrinciple||!view.bSection||view.CameraOffset!=3)throw std::runtime_error("section entry must show CAD");
+  view.section();if(view.bSection||view.bPrinciple!=principle||view.CameraTarget!=12||view.CameraOffset!=10||view.CameraUp!=3)throw std::runtime_error("section camera and principle visibility must restore together");
+}
+std::cout<<"native section paired camera/visibility restoration passed\n";
+}"""]
 code += ['auto r=VWJoint::rollingState(2.3,-.8,.02,.003); near(r.cageAngle*.02-r.worldBallAngle*.003,2.3*.017); near(r.cageAngle*.02+r.worldBallAngle*.003,-.8*.023);', 'std::cout<<checks<<" JSON checkpoints passed; rolling contact residuals passed\\n"; }']
 with tempfile.TemporaryDirectory() as tmp:
     source=pathlib.Path(tmp)/'joint.cpp'; source.write_text('\n'.join(code))

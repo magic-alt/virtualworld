@@ -125,7 +125,7 @@ void AVirtualWorldRuntime::ClearScene()
     for (AActor* Actor : SpawnedActors) if (IsValid(Actor)) Actor->Destroy();
     SpawnedActors.Reset();
     JointDynamics.Reset();CadBindings.Reset();CadModelRoot=nullptr;PrincipleMesh=nullptr;PrincipleArmature=nullptr;PrincipleBrakePole=nullptr;
-    bRollingMarkers=false;bPrinciple=false;bSectionCameraSaved=false;JointTimeScale=1;KinematicOffset=0;
+    bRollingMarkers=false;bPrinciple=false;bSectionCameraSaved=false;bSectionSavedPrinciple=false;JointTimeScale=1;KinematicOffset=0;
     for (int32 I=SceneComponents.Num()-1; I>=0; --I) if (IsValid(SceneComponents[I])) SceneComponents[I]->DestroyComponent();
     SceneComponents.Reset();
     AssetCache.Reset();Nodes.Reset();MorphComponents.Reset();
@@ -206,7 +206,8 @@ AVirtualWorldModel* AVirtualWorldRuntime::SpawnModel(const FString& ModelId,USce
     SpawnedActors.Add(Model);Model->Asset=Asset;
     Model->SkeletalAnimationConfig.bRemoveRootMotion=bPlayer;
     Model->StaticMeshConfig.bBuildComplexCollision=bMeshCollision;
-    Model->StaticMeshConfig.bAllowCPUAccess=bMeshCollision;
+    // Retain actual CPU buffers for derived CAD sections even without mesh collision.
+    Model->StaticMeshConfig.bAllowCPUAccess=bMeshCollision||VW::String(Mechanism,TEXT("kind"))==TEXT("cad-joint");
     Model->StaticMeshConfig.CollisionComplexity=bMeshCollision?CTF_UseComplexAsSimple:CTF_UseDefault;
     Model->OnNodeProcessed.AddLambda([this,bMeshCollision,ModelId](const FglTFRuntimeNode& Node,USceneComponent* Component)
     {

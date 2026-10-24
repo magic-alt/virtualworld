@@ -17,8 +17,6 @@ AVirtualWorldModel::AVirtualWorldModel()
     SkeletalMeshConfig.MorphTargetsDuplicateStrategy = EglTFRuntimeMorphTargetsDuplicateStrategy::Merge;
     // Collision settings and component outers must not leak between differently bound instances.
     StaticMeshConfig.CacheMode = EglTFRuntimeCacheMode::None;
-    // Inspection copies LOD0 without altering immutable imported geometry.
-    StaticMeshConfig.bAllowCPUAccess = true;
     SkeletalMeshConfig.CacheMode = EglTFRuntimeCacheMode::None;
 }
 
