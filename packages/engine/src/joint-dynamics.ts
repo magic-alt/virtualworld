@@ -294,7 +294,9 @@ export class JointDynamics {
       const initial = this.omega;
       let event: number | undefined;
       for (const boundary of motor ? [0, target] : [0]) {
-        if (Math.abs(initial - boundary) < 1e-12) continue;
+        // Only an exact boundary is already resolved. Tiny nonzero velocities
+        // still need their zero crossing before static friction can hold them.
+        if (initial === boundary) continue;
         if ((initial - boundary) * (integrate(initial, a, b, k, h).omega - boundary) > 0) continue;
         let lo = 0,
           hi = h;

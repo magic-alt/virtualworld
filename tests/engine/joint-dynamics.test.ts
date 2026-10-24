@@ -60,6 +60,57 @@ describe('radial bearing rolling constraints', () => {
   );
 });
 describe('joint dynamics', () => {
+  it.each([1e-12, -1e-12])(
+    'brakes tiny nonzero RPM %s without reversing or creating energy',
+    (rpm) => {
+      const d = new JointDynamics({ ...DEMO_JOINT_DYNAMICS, viscousDrag: 0 });
+      d.setRpm(rpm);
+      d.start();
+      d.tick(0.1);
+      const before = d.snapshot();
+      d.setPowered(false);
+      d.tick(0.1);
+      const after = d.snapshot();
+      expect(Math.sign(before.omega)).toBe(Math.sign(rpm));
+      expect(after.omega).toBe(0);
+      expect((after.angle - before.angle) * Math.sign(rpm)).toBeGreaterThanOrEqual(0);
+      expect(Math.abs(after.angle - before.angle)).toBeLessThan(Math.abs(before.omega) * 0.1);
+      const lost = after.dissipatedEnergy - before.dissipatedEnergy;
+      expect(lost).toBeGreaterThanOrEqual(0);
+      expect(Math.abs(lost - before.kineticEnergy)).toBeLessThan(before.kineticEnergy * 1e-9);
+    },
+  );
+  it.each([1e-12, -1e-12])(
+    'stops tiny nonzero RPM %s with the physical torque-limited stopping angle',
+    (rpm) => {
+      const d = new JointDynamics({ ...DEMO_JOINT_DYNAMICS, viscousDrag: 0 });
+      d.setRpm(rpm);
+      d.start();
+      d.tick(0.1);
+      const before = d.snapshot();
+      d.stop();
+      const stoppingTime =
+        (Math.abs(before.omega) * DEMO_JOINT_DYNAMICS.inertia) / DEMO_JOINT_DYNAMICS.driveTorque;
+      d.tick(stoppingTime / 2);
+      expect(Math.abs(d.snapshot().omega - before.omega / 2)).toBeLessThan(
+        Math.abs(before.omega) * 1e-12,
+      );
+      d.tick(0.1);
+      const after = d.snapshot();
+      expect(after.omega).toBe(0);
+      const expected =
+        (before.omega * Math.abs(before.omega) * DEMO_JOINT_DYNAMICS.inertia) /
+        (2 * DEMO_JOINT_DYNAMICS.driveTorque);
+      // At this scale the increment is below the existing angle's ULP. Validate energy too.
+      expect(Math.abs(after.angle - before.angle - expected)).toBeLessThan(
+        Math.abs(before.angle) * Number.EPSILON,
+      );
+      // Motor work absorbs kinetic energy; released friction/drag must not invent heat.
+      expect(Math.abs(after.dissipatedEnergy - before.dissipatedEnergy)).toBeLessThan(
+        before.kineticEnergy * 1e-9,
+      );
+    },
+  );
   it('preserves speed during power-off delay then dissipates energy without reversing', () => {
     const d = accelerated();
     const before = d.snapshot();
