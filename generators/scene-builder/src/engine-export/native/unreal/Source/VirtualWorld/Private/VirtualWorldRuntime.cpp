@@ -121,10 +121,11 @@ bool AVirtualWorldRuntime::ReadCatalog()
 
 void AVirtualWorldRuntime::ClearScene()
 {
+    ReleaseCadSections();
     for (AActor* Actor : SpawnedActors) if (IsValid(Actor)) Actor->Destroy();
     SpawnedActors.Reset();
     JointDynamics.Reset();CadBindings.Reset();CadModelRoot=nullptr;PrincipleMesh=nullptr;PrincipleArmature=nullptr;PrincipleBrakePole=nullptr;
-    bRollingMarkers=false;bPrinciple=false;JointTimeScale=1;KinematicOffset=0;
+    bRollingMarkers=false;bPrinciple=false;bSectionCameraSaved=false;JointTimeScale=1;KinematicOffset=0;
     for (int32 I=SceneComponents.Num()-1; I>=0; --I) if (IsValid(SceneComponents[I])) SceneComponents[I]->DestroyComponent();
     SceneComponents.Reset();
     AssetCache.Reset();Nodes.Reset();MorphComponents.Reset();

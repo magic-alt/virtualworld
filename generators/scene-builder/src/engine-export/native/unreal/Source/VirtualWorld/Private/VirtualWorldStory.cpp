@@ -172,14 +172,19 @@ void AVirtualWorldRuntime::Command(const FString& Action)
         else if(Action==TEXT("brake-install")){JointDynamics->stop();bBrakeInstalled=!bBrakeInstalled;JointDynamics->setInstalled(bBrakeInstalled);JointDynamics->setPowered(true);bBrakePowered=JointDynamics->snapshot().powered;}
         else if(Action==TEXT("markers"))bRollingMarkers=!bRollingMarkers;
         else if(Action==TEXT("principle"))bPrinciple=!bPrinciple;
-        else if(Action==TEXT("slow-motion"))JointTimeScale=JointTimeScale==1?.1:JointTimeScale==.1?.02:1;
+        else if(Action==TEXT("slow-motion"))JointTimeScale=JointTimeScale==1?.1:JointTimeScale==.1?.02:JointTimeScale==.02?10:JointTimeScale==10?50:1;
         else if((Action==TEXT("focus-brake")||Action==TEXT("focus-principle"))&&PrincipleMesh)
         {bPrinciple=true;ApplyMechanism();ApplyVisibility();if(Action==TEXT("focus-brake"))FrameCadBrakeInspection();else FrameCadInspection(true);}
         else if(Action==TEXT("frame-assembly"))
         {
-            bPrinciple=false;ApplyVisibility();const auto C=VW::Object(Scene,TEXT("camera"));CameraOffset=VW::Position(VW::Vector(C,TEXT("position"))-VW::Vector(C,TEXT("target")));CameraUp=FVector::UpVector;FrameCadInspection();
+            bPrinciple=false;bSection=false;bSectionCameraSaved=false;ApplyVisibility();const auto C=VW::Object(Scene,TEXT("camera"));CameraOffset=VW::Position(VW::Vector(C,TEXT("position"))-VW::Vector(C,TEXT("target")));CameraUp=FVector::UpVector;FrameCadInspection();
         }
-        else if(Action==TEXT("section"))bSection=!bSection;
+        else if(Action==TEXT("section"))
+        {
+            bSection=!bSection;
+            if(bSection){SectionSavedTarget=CameraTarget;SectionSavedOffset=CameraOffset;SectionSavedUp=CameraUp;bSectionCameraSaved=true;ApplyMechanism();ApplyVisibility();SelectCadSectionCamera();}
+            else if(bSectionCameraSaved){CameraTarget=SectionSavedTarget;CameraOffset=SectionSavedOffset;CameraUp=SectionSavedUp;bSectionCameraSaved=false;UpdateCamera();}
+        }
         bRunning=JointDynamics->snapshot().running;ApplyMechanism();ApplyVisibility();if(Action==TEXT("principle"))FrameCadInspection();return;
     }
     const bool bLocked=bBrakeInstalled&&!bBrakePowered;

@@ -182,6 +182,30 @@ export function checkCadMechanism(mechanism, nodes, models) {
   for (const name of ['engageDelay', 'engageRamp', 'releaseDelay', 'releaseRamp'])
     if (config[name] > 60 || (config[name] > 0 && config[name] < 1e-9))
       fail(`Invalid CAD transition ${name}`);
+  const gear = mechanism.gear;
+  if (gear?.status === 'user-specified') {
+    if (
+      !Number.isFinite(gear.reductionRatio) ||
+      gear.reductionRatio <= 0 ||
+      !['flexspline', 'circular-spline'].includes(gear.fixedMember) ||
+      typeof gear.evidence !== 'string' ||
+      !gear.evidence.length
+    )
+      fail('Invalid user-specified CAD reduction or provenance');
+  } else if (gear?.status === 'evidenced') {
+    if (
+      !Number.isSafeInteger(gear.flexTeeth) ||
+      gear.flexTeeth <= 0 ||
+      !Number.isSafeInteger(gear.ringTeeth) ||
+      gear.ringTeeth <= gear.flexTeeth ||
+      gear.fixedRing !== true ||
+      typeof gear.evidence !== 'string' ||
+      !gear.evidence.length
+    )
+      fail('Invalid evidenced fixed-ring CAD reduction');
+  } else if (gear !== undefined && gear.status !== 'unresolved') {
+    fail('Invalid CAD reduction status');
+  }
   const bearings = new Map();
   for (const bearing of array(mechanism.bearings, 'CAD bearings')) {
     if (
@@ -224,6 +248,8 @@ export function checkCadMechanism(mechanism, nodes, models) {
       ![
         'input',
         'output',
+        'flexspline',
+        'circular-spline',
         'ball',
         'inner-race',
         'outer-race',
@@ -238,6 +264,9 @@ export function checkCadMechanism(mechanism, nodes, models) {
       !bearings.has(binding.bearingId)
     )
       fail(`Missing CAD bearing for ${index}`);
+    for (const flag of ['inspectionCut', 'inspectionHidden'])
+      if (binding[flag] !== undefined && typeof binding[flag] !== 'boolean')
+        fail(`Invalid CAD inspection flag ${flag}`);
     if (binding.role === 'ball' && !vector(binding.center))
       fail(`CAD ball ${index} requires measured center`);
   }

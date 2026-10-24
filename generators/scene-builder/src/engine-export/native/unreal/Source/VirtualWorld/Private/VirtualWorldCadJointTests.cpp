@@ -6,6 +6,7 @@
 #include "ProceduralMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "Engine/StaticMesh.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -71,6 +72,77 @@ bool FVirtualWorldCadJointPivotTest::RunTest(const FString& Parameters)
     World->DestroyWorld(false);return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadJointTransmissionTest,"VirtualWorld.CadJoint.Stated101ActualOutput",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldCadJointTransmissionTest::RunTest(const FString& Parameters)
+{
+    UWorld* World=UWorld::CreateWorld(EWorldType::Game,false);if(!TestNotNull(TEXT("Transmission test world"),World))return false;
+    auto* R=World->SpawnActor<AVirtualWorldRuntime>();R->JointDynamics=MakeUnique<VWJoint::Dynamics>();R->CadModelRoot=R->GetRootComponent();
+    const FVector Axis(0,0,1),Point(.02,.01,.03);VW::Parse(TEXT("{}"),R->Metadata);
+    for(const TCHAR* Role:{TEXT("input"),TEXT("output"),TEXT("flexspline"),TEXT("circular-spline"),TEXT("fixed")})
+    {
+        auto* Mesh=NewObject<UStaticMeshComponent>(R);R->AddInstanceComponent(Mesh);Mesh->SetupAttachment(R->CadModelRoot);Mesh->RegisterComponent();
+        FVirtualWorldCadBinding B;B.Component=Mesh;VW::Parse(FString::Printf(TEXT("{\"role\":\"%s\",\"axis\":[0,0,1],\"pivot\":[0,0,0]}"),Role),B.Data);B.Original=FTransform::Identity;R->CadBindings.Add(B);
+    }
+    for(bool FlexFixed:{false,true})
+    {
+        VW::Parse(FString::Printf(TEXT("{\"kind\":\"cad-joint\",\"gear\":{\"status\":\"user-specified\",\"reductionRatio\":101,\"fixedMember\":\"%s\",\"evidence\":\"User specified 101\"}}"),FlexFixed?TEXT("flexspline"):TEXT("circular-spline")),R->Mechanism);
+        const auto Factors=R->CadTransmission();TestTrue(TEXT("Stated ratio resolves"),Factors.resolved);
+        R->JointDynamics->setRpm(6);R->JointDynamics->start();R->JointDynamics->tick(.1);R->JointDynamics->reset();
+        const FString Status=FString::Join(R->StatusLines(),TEXT("\n"));TestTrue(TEXT("HUD reports resolved 101 and source"),Status.Contains(TEXT("101:1"))&&Status.Contains(TEXT("User specified 101"))&&!Status.Contains(TEXT("ratio unresolved")));
+
+        for(double Turns:{-101.,-25.25,0.,25.25,101.})
+        {
+            R->KinematicOffset=Turns*2*PI;R->ApplyCadJoint();
+            for(const auto& B:R->CadBindings)
+            {
+                const FString Role=VW::String(B.Data,TEXT("role"));const double Factor=Role==TEXT("input")?1:Role==TEXT("output")?Factors.output:Role==TEXT("flexspline")?Factors.flex:Role==TEXT("circular-spline")?Factors.circular:0;
+                const FVector Expected=VW::Position(FQuat(Axis,Turns*2*PI*Factor).RotateVector(Point));
+                TestTrue(TEXT("Actual bound part follows signed 101 topology"),B.Component->GetComponentTransform().TransformPosition(VW::Position(Point)).Equals(Expected,1e-6));
+            }
+        }
+    }
+    VW::Parse(TEXT(R"({"gear":{"status":"evidenced","fixedRing":true,"flexTeeth":200,"ringTeeth":202}})"),R->Mechanism);
+    TestTrue(TEXT("Legacy evidenced output remains -1/100"),FMath::Abs(R->CadTransmission().output+.01)<1e-12);
+    World->DestroyWorld(false);return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadJointSectionTest,"VirtualWorld.CadJoint.FixedModelSectionRestoresOriginal",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldCadJointSectionTest::RunTest(const FString& Parameters)
+{
+    UWorld* World=UWorld::CreateWorld(EWorldType::Game,false);if(!TestNotNull(TEXT("Section test world"),World))return false;
+    auto* R=World->SpawnActor<AVirtualWorldRuntime>();VW::Parse(TEXT(R"({"kind":"cad-joint","gear":{"status":"user-specified","reductionRatio":101,"fixedMember":"flexspline","evidence":"User ratio"}})"),R->Mechanism);VW::Parse(TEXT("{}"),R->Metadata);
+    R->JointDynamics=MakeUnique<VWJoint::Dynamics>();R->CadModelRoot=R->GetRootComponent();
+    R->CadModelRoot->SetWorldTransform(FTransform(FRotator(10,20,30),FVector(20,30,40),FVector(1.2,.8,1.1)));
+    auto* Original=NewObject<UStaticMeshComponent>(R);R->AddInstanceComponent(Original);Original->SetupAttachment(R->CadModelRoot);Original->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube")));Original->RegisterComponent();Original->SetRelativeScale3D(FVector(.1));
+    FVirtualWorldCadBinding B;B.Component=Original;B.Original=Original->GetRelativeTransform();VW::Parse(TEXT(R"({"role":"output","axis":[0,0,1],"pivot":[0,0,0],"inspectionCut":true})"),B.Data);R->CadBindings.Add(B);
+    const auto* SourceMesh=Original->GetStaticMesh();const FBoxSphereBounds SourceBounds=Original->Bounds;auto* Material=Original->GetMaterial(0);
+    R->Camera=World->SpawnActor<ACameraActor>();const FVector CameraBefore=R->CameraOffset;R->Command(TEXT("section"));
+    auto& Binding=R->CadBindings[0];if(!TestNotNull(TEXT("Section uses derived procedural geometry"),Binding.InspectionMesh)){World->DestroyWorld(false);return false;}
+    auto* Derived=Binding.InspectionMesh;TestFalse(TEXT("Original hidden while display copy is cut"),Original->IsVisible());TestTrue(TEXT("Cut display visible"),Derived->IsVisible());
+    const FVector ExpectedCamera=R->CadModelRoot->GetComponentTransform().TransformVectorNoScale(VW::Position(FVector(1,.2,.1))).GetSafeNormal();
+    TestTrue(TEXT("Section entry selects near-longitudinal model camera"),R->CameraOffset.GetSafeNormal().Equals(ExpectedCamera,1e-7));
+    TestTrue(TEXT("Section up follows model CAD Z"),R->CameraUp.Equals(R->CadModelRoot->GetComponentTransform().TransformVectorNoScale(VW::Position(FVector(0,0,1))).GetSafeNormal(),1e-7));
+    TestTrue(TEXT("Cut changes actual display bounds"),Derived->Bounds.BoxExtent.Size()<SourceBounds.BoxExtent.Size());
+    for(double Input:{0.,101*PI/3,-101*PI/4})
+    {
+        R->KinematicOffset=Input;R->ApplyCadJoint();int32 CapTriangles=0,Vertices=0;
+        for(int32 S=0;S<Derived->GetNumSections();++S)if(const auto* Section=Derived->GetProcMeshSection(S))
+        {
+            if(S>=Original->GetStaticMesh()->GetNumSections(0))CapTriangles+=Section->ProcIndexBuffer.Num()/3;
+            for(const auto& V:Section->ProcVertexBuffer)
+            {
+                const FVector Model=R->CadModelRoot->GetComponentTransform().InverseTransformPosition(Derived->GetComponentTransform().TransformPosition(V.Position));
+                TestTrue(TEXT("Every cut vertex remains in CAD x<=0 during output motion"),VW::SourcePosition(Model).X<1e-6);++Vertices;
+            }
+        }
+        TestTrue(TEXT("Sliced cube has visible geometry"),Vertices>0);TestTrue(TEXT("Cut face has cap triangles"),CapTriangles>0);
+        const uint64 Revision=Binding.InspectionRevision;R->ApplyCadJoint();TestEqual(TEXT("Unchanged pose reuses cut geometry"),Binding.InspectionRevision,Revision);
+    }
+    R->Command(TEXT("section"));TestTrue(TEXT("Leaving section restores assembly camera"),R->CameraOffset.Equals(CameraBefore,1e-7));TestNull(TEXT("Leaving section releases derived component"),Binding.InspectionMesh);TestFalse(TEXT("Old derived component is unregistered"),Derived->IsRegistered());TestTrue(TEXT("Full original visible again"),Original->IsVisible());TestTrue(TEXT("Source mesh pointer unchanged"),SourceMesh==Original->GetStaticMesh());TestTrue(TEXT("Source material unchanged"),Material==Original->GetMaterial(0));
+    R->Command(TEXT("reset"));TestTrue(TEXT("Full bounds restored at zero"),Original->Bounds.BoxExtent.Equals(SourceBounds.BoxExtent,1e-6));
+    World->DestroyWorld(false);return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadJointInspectionTest,"VirtualWorld.CadJoint.InstallationControls",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
 bool FVirtualWorldCadJointInspectionTest::RunTest(const FString& Parameters)
 {
@@ -90,7 +162,11 @@ bool FVirtualWorldCadJointInspectionTest::RunTest(const FString& Parameters)
     R->Command(TEXT("brake-install"));R->Command(TEXT("brake-power"));R->JointDynamics->tick(1);R->Command(TEXT("brake-power"));R->JointDynamics->tick(.03);
     TestTrue(TEXT("Removal during release setup"),R->JointDynamics->snapshot().closure>0&&R->JointDynamics->snapshot().closure<1);R->Command(TEXT("brake-install"));
     TestFalse(TEXT("Release removal does not auto-start"),R->bRunning);TestTrue(TEXT("Release removal exposes Run"),RunEnabled());R->Command(TEXT("run"));TestTrue(TEXT("Release removal accepts fresh explicit start"),R->bRunning);
-    R->Command(TEXT("speed-down"));R->Command(TEXT("slow-motion"));R->Command(TEXT("slow-motion"));R->Command(TEXT("reset"));
+    R->Command(TEXT("slow-motion"));TestEqual(TEXT("Whole clock slow .1x"),R->JointTimeScale,.1);
+    R->Command(TEXT("slow-motion"));TestEqual(TEXT("Whole clock slow .02x"),R->JointTimeScale,.02);
+    R->Command(TEXT("slow-motion"));TestEqual(TEXT("Whole clock fast 10x"),R->JointTimeScale,10.);
+    R->Command(TEXT("slow-motion"));TestEqual(TEXT("Whole clock fast 50x"),R->JointTimeScale,50.);
+    R->Command(TEXT("speed-down"));R->Command(TEXT("reset"));
     TestEqual(TEXT("Native reset restores 6 RPM setpoint"),R->Rpm,6.f);TestEqual(TEXT("Native reset restores real-time clock"),R->JointTimeScale,1.);TestFalse(TEXT("Native reset clears running intent"),R->bRunning);
     TestTrue(TEXT("Solver and cached installation/power flags agree"),R->JointDynamics->snapshot().installed==R->bBrakeInstalled&&R->JointDynamics->snapshot().powered==R->bBrakePowered);
     World->DestroyWorld(false);return true;
@@ -125,11 +201,31 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
     const bool Paused=R->bPaused,Markers=R->bRollingMarkers,Section=R->bSection,Principle=R->bPrinciple;const double Offset=R->KinematicOffset;
     R->bPaused=true;R->bRollingMarkers=true;R->bSection=true;R->bPrinciple=true;R->KinematicOffset=0;R->JointDynamics->reset();R->JointDynamics->setRpm(30);R->Rpm=30;R->JointDynamics->start();
     const FString Directory=FPaths::ProjectSavedDir()/TEXT("Automation/CadJointMotion");IFileManager::Get().MakeDirectory(*Directory,true);
-    AddCommand(new FDelayedFunctionLatentCommand([this,R](){R->ApplyMechanism();R->ApplyVisibility();R->FrameCadInspection();R->UpdateCamera();},.1f));
+    AddCommand(new FDelayedFunctionLatentCommand([this,R](){R->ApplyMechanism();R->ApplyVisibility();R->SelectCadSectionCamera();R->UpdateCamera();},.1f));
     AddCommand(new FDelayedFunctionLatentCommand([this,R](){
         auto* PC=R->GetWorld()->GetFirstPlayerController();int32 Width=0,Height=0;if(PC)PC->GetViewportSize(Width,Height);TestTrue(TEXT("Renderable viewport exists"),PC&&Width>0&&Height>0);
         const auto ProjectBounds=[this,PC,Width,Height](const FBox& Bounds){for(int I=0;I<8;++I){const FVector Point((I&1)?Bounds.Max.X:Bounds.Min.X,(I&2)?Bounds.Max.Y:Bounds.Min.Y,(I&4)?Bounds.Max.Z:Bounds.Min.Z);FVector2D Pixel;TestTrue(TEXT("Actual and principle bounds fit usable viewport outside HUD"),PC&&PC->ProjectWorldLocationToScreen(Point,Pixel)&&Pixel.X>FMath::Min(450.,Width*.48)&&Pixel.X<Width&&Pixel.Y>0&&Pixel.Y<Height);}};
         for(const auto& Entry:R->CadBindings)ProjectBounds(Entry.Component->Bounds.GetBox());if(R->PrincipleMesh)ProjectBounds(R->PrincipleMesh->Bounds.GetBox());
+    },.1f));
+    AddCommand(new FDelayedFunctionLatentCommand([this,R]()
+    {
+        const auto Factors=R->CadTransmission();TestTrue(TEXT("Actual CAD profile resolves stated transmission"),Factors.resolved);int32 Outputs=0;
+        for(double Turns:{-101.,-25.25,0.,25.25,101.})
+        {
+            R->KinematicOffset=Turns*2*PI;R->ApplyMechanism();
+            for(const auto& Entry:R->CadBindings)
+            {
+                const FString Role=VW::String(Entry.Data,TEXT("role"));
+                if(Role!=TEXT("output")&&Role!=TEXT("input")&&Role!=TEXT("flexspline")&&Role!=TEXT("circular-spline")&&Role!=TEXT("fixed")&&Role!=TEXT("unknown"))continue;
+                const double Factor=Role==TEXT("output")?Factors.output:Role==TEXT("input")?1:Role==TEXT("flexspline")?Factors.flex:Role==TEXT("circular-spline")?Factors.circular:0;
+                const FVector Pivot=VW::Vector(Entry.Data,TEXT("pivot"));const FQuat Rotation(VW::Vector(Entry.Data,TEXT("axis"),FVector(0,0,1)),Turns*2*PI*Factor);
+                const FTransform Expected=Entry.Original*VW::Transform(Pivot-Rotation.RotateVector(Pivot),Rotation,FVector::OneVector);
+                const auto Actual=Entry.Component->GetComponentTransform().GetRelativeTransform(R->CadModelRoot->GetComponentTransform());
+                TestTrue(TEXT("Real CAD part obeys +/-101 turns and signed quarter-output turns"),Actual.Equals(Expected,1e-6));
+                if(Role==TEXT("output")||(Role==TEXT("flexspline")&&Factors.flex!=0)||(Role==TEXT("circular-spline")&&Factors.circular!=0))++Outputs;
+            }
+        }
+        TestTrue(TEXT("Actual output hardware is bound"),Outputs>0);R->KinematicOffset=0;R->ApplyMechanism();
     },.1f));
     const auto Stage=[this,R,Directory](FString Name,double Dt,int Power)
     {
@@ -137,12 +233,24 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
         {
             if(Power>=0)R->JointDynamics->setPowered(Power==1);R->JointDynamics->tick(Dt);R->ApplyMechanism();R->ApplyVisibility();
             const auto State=R->JointDynamics->snapshot();const VW::Json Report=MakeShared<FJsonObject>();Report->SetStringField(TEXT("stage"),Name);Report->SetStringField(TEXT("brakePhase"),UTF8_TO_TCHAR(State.brakePhase));Report->SetNumberField(TEXT("angle"),State.angle);Report->SetNumberField(TEXT("omega"),State.omega);Report->SetNumberField(TEXT("time"),State.time);Report->SetNumberField(TEXT("closure"),State.closure);Report->SetNumberField(TEXT("energy"),State.dissipatedEnergy);Report->SetNumberField(TEXT("principleSampledGap"),R->PrincipleMinGap);
-            TArray<TSharedPtr<FJsonValue>> Readbacks;int32 Balls=0;
+            TArray<TSharedPtr<FJsonValue>> Readbacks;int32 Balls=0,Outputs=0;const auto Factors=R->CadTransmission();
             for(const auto& Entry:R->CadBindings)
             {
                 const auto B=Entry.Data;const FString Role=VW::String(B,TEXT("role"));const auto Actual=Entry.Component->GetComponentTransform().GetRelativeTransform(R->CadModelRoot->GetComponentTransform());
                 TestTrue(Name+TEXT(" original scale"),Actual.GetScale3D().Equals(Entry.Original.GetScale3D(),1e-8));
-                TestEqual(Name+TEXT(" section affects only documented components"),Entry.Component->IsVisible(),!VW::Bool(B,TEXT("inspectionHidden")));
+                TestEqual(Name+TEXT(" section affects only documented components"),Entry.Component->IsVisible(),Entry.bOriginalVisible&&!VW::Bool(B,TEXT("inspectionHidden"))&&!Entry.bInspectionBuilt);
+                if(VW::Bool(B,TEXT("inspectionCut"))&&!VW::Bool(B,TEXT("inspectionHidden")))TestNotNull(Name+TEXT(" selected occluder is actually cut"),Entry.InspectionMesh);
+                const double Factor=Role==TEXT("output")?Factors.output:Role==TEXT("flexspline")?Factors.flex:Role==TEXT("circular-spline")?Factors.circular:Role==TEXT("input")?1:0;
+                if(Factor!=0)
+                {
+                    const FVector Pivot=VW::Vector(B,TEXT("pivot"));const FQuat Rotation(VW::Vector(B,TEXT("axis")),(State.angle+R->KinematicOffset)*Factor);
+                    const FTransform Expected=Entry.Original*VW::Transform(Pivot-Rotation.RotateVector(Pivot),Rotation,FVector::OneVector);
+                    TestTrue(Name+TEXT(" actual transmission part transform"),Actual.Equals(Expected,1e-6));
+                    if(Role!=TEXT("input"))
+                    {
+                        ++Outputs;const VW::Json Output=MakeShared<FJsonObject>();Output->SetStringField(TEXT("role"),Role);Output->SetNumberField(TEXT("nodeIndex"),VW::Number(B,TEXT("gltfNodeIndex")));Output->SetNumberField(TEXT("angle"),(State.angle+R->KinematicOffset)*Factor);Output->SetNumberField(TEXT("omega"),State.omega*Factor);Readbacks.Add(MakeShared<FJsonValueObject>(Output));TestNotNull(TEXT("Actual output has visible radial marker"),Entry.Marker);
+                    }
+                }
                 if(Role==TEXT("fixed")||Role==TEXT("unknown"))TestTrue(Name+TEXT(" static original"),Actual.Equals(Entry.Original,1e-6));
                 if(Role!=TEXT("ball"))continue;++Balls;
                 VW::Json Bearing;for(const auto& V:VW::Array(R->Mechanism,TEXT("bearings")))if(VW::String(V->AsObject(),TEXT("id"))==VW::String(B,TEXT("bearingId")))Bearing=V->AsObject();
@@ -158,7 +266,7 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
                 }
                 const VW::Json Record=MakeShared<FJsonObject>();Record->SetNumberField(TEXT("nodeIndex"),VW::Number(B,TEXT("gltfNodeIndex")));Record->SetNumberField(TEXT("centerResidualCm"),Error);Record->SetNumberField(TEXT("worldBallAngle"),Rolling.worldBallAngle);Record->SetNumberField(TEXT("cageAngle"),Rolling.cageAngle);const FVector P=Actual.GetTranslation();Record->SetArrayField(TEXT("translationCm"),{MakeShared<FJsonValueNumber>(P.X),MakeShared<FJsonValueNumber>(P.Y),MakeShared<FJsonValueNumber>(P.Z)});Readbacks.Add(MakeShared<FJsonValueObject>(Record));
             }
-            TestTrue(TEXT("Actual imported balls were read"),Balls>0);TestTrue(TEXT("Principle sampled gap finite and nonnegative"),FMath::IsFinite(R->PrincipleMinGap)&&R->PrincipleMinGap>=-1e-10);
+            TestTrue(TEXT("Actual imported balls were read"),Balls>0);TestTrue(TEXT("Actual imported output components were read"),Factors.resolved&&Outputs>0);TestTrue(TEXT("Principle sampled gap finite and nonnegative"),FMath::IsFinite(R->PrincipleMinGap)&&R->PrincipleMinGap>=-1e-10);
             if(TestNotNull(TEXT("Actual principle procedural component"),R->PrincipleMesh))
             {
                 const auto* Flex=R->PrincipleMesh->GetProcMeshSection(0);const auto* Ring=R->PrincipleMesh->GetProcMeshSection(1);

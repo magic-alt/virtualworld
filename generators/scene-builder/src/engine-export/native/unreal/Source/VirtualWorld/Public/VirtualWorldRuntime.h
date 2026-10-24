@@ -6,6 +6,7 @@
 #include "GameFramework/HUD.h"
 #include "VirtualWorldData.h"
 #include "VirtualWorldJointDynamics.h"
+#include "VirtualWorldJointTransmission.h"
 #include "VirtualWorldRuntime.generated.h"
 
 class AVirtualWorldModel;
@@ -20,6 +21,11 @@ struct FVirtualWorldCadBinding
     VW::Json Data;
     UPrimitiveComponent* Component = nullptr;
     USceneComponent* Marker = nullptr;
+    UProceduralMeshComponent* InspectionMesh = nullptr;
+    FTransform InspectionPose;
+    bool bInspectionBuilt = false;
+    uint64 InspectionRevision = 0;
+    bool bOriginalVisible = true;
     FTransform Original; // Native basis, model-relative, before any motion.
 };
 
@@ -71,6 +77,8 @@ private:
     friend class FVirtualWorldCadJointPivotTest;
     friend class FVirtualWorldCadJointSuspensionTest;
     friend class FVirtualWorldCadJointInspectionTest;
+    friend class FVirtualWorldCadJointTransmissionTest;
+    friend class FVirtualWorldCadJointSectionTest;
     bool Fail(const FString& Message);
     bool ReadCatalog();
     void ClearScene();
@@ -80,6 +88,10 @@ private:
     bool BindMechanism();
     bool BindCadJoint();
     void ApplyCadJoint();
+    VWJoint::Transmission CadTransmission() const;
+    void UpdateCadSections();
+    void ReleaseCadSections();
+    void SelectCadSectionCamera();
     void BuildCadPrinciple();
     void UpdateCadPrinciple();
     void FrameCadInspection(bool bPrincipleOnly = false);
@@ -184,6 +196,10 @@ private:
     FVector CameraTarget = FVector::ZeroVector;
     FVector CameraOffset = FVector(400,400,300);
     FVector CameraUp = FVector::UpVector;
+    FVector SectionSavedTarget = FVector::ZeroVector;
+    FVector SectionSavedOffset = FVector::ZeroVector;
+    FVector SectionSavedUp = FVector::UpVector;
+    bool bSectionCameraSaved = false;
     float InspectionZoomMin = .02f;
     float InspectionZoomMax = 5000.f;
     UPROPERTY() TArray<TObjectPtr<AActor>> SpawnedActors;

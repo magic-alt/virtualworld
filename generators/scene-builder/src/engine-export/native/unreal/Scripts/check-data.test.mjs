@@ -49,3 +49,35 @@ for (const [name, edit] of [
     edit(m);
     assert.throws(() => checkCadMechanism(m, nodes, models));
   });
+
+test('stated 101 topology and reversible inspection flags resolve final nodes', () => {
+  for (const role of ['flexspline', 'circular-spline']) {
+    const m = mechanism();
+    m.gear = {
+      status: 'user-specified',
+      reductionRatio: 101,
+      fixedMember: role,
+      evidence: 'User stated 101; topology remains geometric inference',
+    };
+    m.bindings[0] = { ...m.bindings[0], role, inspectionCut: true, inspectionHidden: false };
+    assert.doesNotThrow(() => checkCadMechanism(m, nodes, models));
+  }
+});
+for (const [name, edit] of [
+  ['zero reduction', (m) => (m.gear.reductionRatio = 0)],
+  ['nonfinite reduction', (m) => (m.gear.reductionRatio = Infinity)],
+  ['unidentified fixed member', (m) => (m.gear.fixedMember = 'housing')],
+  ['unlabelled ratio', (m) => (m.gear.evidence = '')],
+  ['invalid inspection cut', (m) => (m.bindings[0].inspectionCut = 'yes')],
+])
+  test(`reject ${name}`, () => {
+    const m = mechanism();
+    m.gear = {
+      status: 'user-specified',
+      reductionRatio: 101,
+      fixedMember: 'flexspline',
+      evidence: 'User stated 101',
+    };
+    edit(m);
+    assert.throws(() => checkCadMechanism(m, nodes, models));
+  });

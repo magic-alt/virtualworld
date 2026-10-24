@@ -173,6 +173,12 @@ void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
     if(Pressed(EKeys::RightBracket)) Command(TEXT("step"));
     if(Pressed(EKeys::C)) Command(TEXT("section"));
     if(Pressed(EKeys::X)) Command(TEXT("explode"));
+    if(Pressed(EKeys::M)) Command(TEXT("markers"));
+    if(Pressed(EKeys::G)) Command(TEXT("principle"));
+    if(Pressed(EKeys::K)) Command(TEXT("focus-brake"));
+    if(Pressed(EKeys::V)) Command(TEXT("focus-principle"));
+    if(Pressed(EKeys::H)) Command(TEXT("frame-assembly"));
+    if(Pressed(EKeys::T)) Command(TEXT("slow-motion"));
     if(Pressed(EKeys::B)) Command(TEXT("brake-power"));
     if(Pressed(EKeys::I)) Command(TEXT("brake-install"));
     if(Pressed(EKeys::Equals)||Pressed(EKeys::Add)) Command(TEXT("speed-up"));

@@ -2,7 +2,7 @@
 import json, pathlib, re, subprocess, tempfile
 root = pathlib.Path(__file__).resolve().parent
 fixture = json.loads((root / "joint-dynamics-scenarios.json").read_text())
-code = ['#include "VirtualWorldJointDynamics.h"', '#include <iostream>', '#include <stdexcept>', 'int main(){ int checks=0;', 'auto near=[](double a,double b){if(std::abs(a-b)>1e-6) throw std::runtime_error("numeric mismatch");};']
+code = ['#include "VirtualWorldJointDynamics.h"', '#include "VirtualWorldJointTransmission.h"', '#include <iostream>', '#include <stdexcept>', 'int main(){ int checks=0;', 'auto near=[](double a,double b){if(std::abs(a-b)>1e-6) throw std::runtime_error("numeric mismatch");};']
 config = fixture['config']
 for scenario in fixture['scenarios']:
     code += ['{ VWJoint::Config c;']
@@ -49,6 +49,21 @@ code += ['{ VWJoint::Dynamics native; auto* JointDynamics=&native; bool bBrakeIn
          'toggle();JointDynamics->setPowered(false);bBrakePowered=false;JointDynamics->tick(1);JointDynamics->setPowered(true);bBrakePowered=true;JointDynamics->tick(.03);',
          'check(JointDynamics->snapshot().closure>0&&JointDynamics->snapshot().closure<1,"release setup");toggle();check(!bRunning&&bBrakePowered&&!bBrakeInstalled,"release removal must not auto-start");check(JointDynamics->start(),"release removal allows explicit Run");',
          'std::cout<<"native installation action policy passed\\n"; }']
+code += [r"""for(bool flexFixed:{false,true}) {
+    const auto f=VWJoint::statedTransmission(101,flexFixed);
+    near(f.output,flexFixed?1./101:-1./101);
+    near(flexFixed?f.flex:f.circular,0);
+    for(double turns:{-101.,0.,101.}) near(f.output*turns,turns/101*(flexFixed?1:-1));
+    const auto p=VWJoint::toothTransmission(200,202,flexFixed);
+    for(double wave:{-1000.,-.3,0.,.3,1000.})
+      near(200*(p.flex*wave-wave),202*(p.circular*wave-wave));
+    if(flexFixed)near(p.circular,2./202);else near(p.flex,-2./200);
+  }
+  bool rejected=false;try{VWJoint::statedTransmission(0,true);}catch(const std::invalid_argument&){rejected=true;}
+  if(!rejected)throw std::runtime_error("zero ratio accepted");
+  const auto legacy=VWJoint::toothTransmission(200,202,false);near(legacy.output,-.01);
+  std::cout<<"101 input turns / signed output, both topology constraints passed\n";
+"""]
 code += ['auto r=VWJoint::rollingState(2.3,-.8,.02,.003); near(r.cageAngle*.02-r.worldBallAngle*.003,2.3*.017); near(r.cageAngle*.02+r.worldBallAngle*.003,-.8*.023);', 'std::cout<<checks<<" JSON checkpoints passed; rolling contact residuals passed\\n"; }']
 with tempfile.TemporaryDirectory() as tmp:
     source=pathlib.Path(tmp)/'joint.cpp'; source.write_text('\n'.join(code))

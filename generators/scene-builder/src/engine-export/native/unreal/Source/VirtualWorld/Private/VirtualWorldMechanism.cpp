@@ -88,10 +88,12 @@ void AVirtualWorldRuntime::StepMechanism(float DeltaSeconds)
 
 void AVirtualWorldRuntime::ApplyVisibility()
 {
+    UpdateCadSections();
     for(auto& Binding:CadBindings)
     {
-        const bool Visible=!(bSection&&VW::Bool(Binding.Data,TEXT("inspectionHidden")));
-        Binding.Component->SetVisibility(Visible,false);
+        const bool Visible=Binding.bOriginalVisible&&!(bSection&&VW::Bool(Binding.Data,TEXT("inspectionHidden")));
+        Binding.Component->SetVisibility(Visible&&!(bSection&&Binding.bInspectionBuilt),false);
+        if(Binding.InspectionMesh)Binding.InspectionMesh->SetVisibility(Visible&&bSection,false);
         if(Binding.Marker) Binding.Marker->SetVisibility(Visible&&bRollingMarkers,false);
     }
     if(PrincipleMesh) PrincipleMesh->SetVisibility(bPrinciple,true);

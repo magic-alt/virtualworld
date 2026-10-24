@@ -18,11 +18,20 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
         if(JointDynamics)
         {
             const auto State=JointDynamics->snapshot();
-            Lines.Add(FString::Printf(TEXT("Input %.3f rpm | Setpoint %.1f rpm | Actual ratio unresolved"),State.omega*30/PI,Rpm));
+            const auto Factors=CadTransmission();const auto Gear=VW::Object(Mechanism,TEXT("gear"));
+            Lines.Add(FString::Printf(TEXT("Input %.4f rpm | Output %+.6f rpm | Setpoint %.1f rpm"),State.omega*30/PI,State.omega*30/PI*Factors.output,Rpm));
+            Lines.Add(FString::Printf(TEXT("Input %.5f rad (%.4f turns) | Output %+.5f rad (%+.4f turns)"),InputAngle,InputAngle/(2*PI),InputAngle*Factors.output,InputAngle*Factors.output/(2*PI)));
+            if(Factors.resolved)
+            {
+                Lines.Add(FString::Printf(TEXT("Reduction %.6g:1 | %s | %s fixed | output %s input"),1/FMath::Abs(Factors.output),*VW::String(Gear,TEXT("status")),VW::String(Gear,TEXT("status"))==TEXT("evidenced")?TEXT("circular-spline"):*VW::String(Gear,TEXT("fixedMember")),Factors.output>0?TEXT("same direction as"):TEXT("opposite to")));
+                Lines.Add(TEXT("Ratio source: ")+VW::String(Gear,TEXT("evidence")));
+            }
+            else Lines.Add(TEXT("Transmission unresolved: output remains static."));
             Lines.Add(FString::Printf(TEXT("Brake %s | Closure %.1f%% | t %.4f s"),UTF8_TO_TCHAR(State.brakePhase),State.closure*100,State.time));
-            Lines.Add(FString::Printf(TEXT("Angle %.5f rad | Dissipated %.8f J | Kinetic %.8f J"),State.angle,State.dissipatedEnergy,State.kineticEnergy));
-            Lines.Add(FString::Printf(TEXT("Simulation clock %.2fx | P freezes time | Focus loss freezes time"),JointTimeScale));
+            Lines.Add(FString::Printf(TEXT("Dissipated %.8f J | Kinetic %.8f J"),State.dissipatedEnergy,State.kineticEnergy));
+            Lines.Add(FString::Printf(TEXT("Whole simulation clock %.2fx [T] | Fast inspection preserves reduction | P/focus loss freeze time"),JointTimeScale));
             Lines.Add(TEXT("SI demonstration assumptions; no measured braking performance. Unknown CAD parts stay static."));
+            Lines.Add(TEXT("M markers: orange input, blue output, orange rolling balls | C section | G principle | H assembly"));
             Lines.Add(TEXT("CAD brake internals unresolved; no real armature identified. Separate principle layer illustrates closure only."));
             if(bPrinciple){Lines.Add(FString::Printf(TEXT("PRINCIPLE brake: movable armature / fixed pole; assumed air gap %.4f mm"),JointDynamics->config.armatureTravel*(1-State.closure)*1000));Lines.Add(VW::String(VW::Object(Mechanism,TEXT("principle")),TEXT("label")));Lines.Add(FString::Printf(TEXT("Illustrative profile sampled minimum gap %.6f mm (8192 points at this phase)"),PrincipleMinGap*1000));}
             Lines.Add(VW::String(VW::Object(Mechanism,TEXT("dynamics")),TEXT("notes")));
@@ -93,12 +102,12 @@ TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
         Result.Add({TEXT("speed-down"),TEXT("RPM -1 [-]"),true});Result.Add({TEXT("speed-up"),TEXT("RPM +1 [+]"),true});
         if(JointDynamics)
         {
-            Result.Add({TEXT("markers"),bRollingMarkers?TEXT("Hide rolling markers"):TEXT("Show rolling markers"),true});
-            Result.Add({TEXT("principle"),bPrinciple?TEXT("Hide assumed principle"):TEXT("Show assumed principle"),PrincipleMesh!=nullptr});
-            Result.Add({TEXT("slow-motion"),FString::Printf(TEXT("Clock %.2fx / cycle"),JointTimeScale),true});
-            Result.Add({TEXT("focus-brake"),TEXT("Brake close-up"),PrincipleMesh!=nullptr});
-            Result.Add({TEXT("focus-principle"),TEXT("Principle overview"),PrincipleMesh!=nullptr});
-            Result.Add({TEXT("frame-assembly"),TEXT("Frame assembly"),true});
+            Result.Add({TEXT("markers"),bRollingMarkers?TEXT("Hide motion markers [M]"):TEXT("Show motion markers [M]"),true});
+            Result.Add({TEXT("principle"),bPrinciple?TEXT("Hide principle [G]"):TEXT("Show principle [G]"),PrincipleMesh!=nullptr});
+            Result.Add({TEXT("slow-motion"),FString::Printf(TEXT("Whole clock %.2fx [T]"),JointTimeScale),true});
+            Result.Add({TEXT("focus-brake"),TEXT("Brake close-up [K]"),PrincipleMesh!=nullptr});
+            Result.Add({TEXT("focus-principle"),TEXT("Principle overview [V]"),PrincipleMesh!=nullptr});
+            Result.Add({TEXT("frame-assembly"),TEXT("Frame assembly [H]"),true});
         }
         else Result.Add({TEXT("explode"),TEXT("Explode +25% / reset [X]"),true});
         if(bHasBrake)
