@@ -108,6 +108,7 @@ const GearSchema = z.discriminatedUnion('status', [
       status: z.literal('user-specified'),
       reductionRatio: positive,
       fixedMember: z.enum(['flexspline', 'circular-spline']),
+      fixedMemberProvenance: z.enum(['user-specified', 'geometric-inference']).optional(),
       evidence: z.string().min(1).max(4000),
     })
     .strict(),
@@ -128,6 +129,8 @@ export const CadMechanismObjectSchema = z
     modelNodeId: id,
     sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
     modelSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    motionMarkers: z.boolean().optional(),
+    inspectionCutaway: z.enum(['half', 'quarter-window']).optional(),
     principle: z
       .object({
         kind: z.literal('illustrative-harmonic'),

@@ -80,7 +80,7 @@ export class CadJointView {
     const sphere = new T.SphereGeometry(1, 8, 6),
       material = new T.MeshBasicMaterial({ color: '#ff6840' });
     for (const e of this.entries)
-      if (e.binding.role === 'ball' && !e.binding.displayHidden) {
+      if (config.motionMarkers !== false && e.binding.role === 'ball' && !e.binding.displayHidden) {
         const b = config.bearings.find((b) => b.id === e.binding.bearingId)!;
         const marker = new T.Mesh(sphere, material);
         marker.name = 'rolling-marker';

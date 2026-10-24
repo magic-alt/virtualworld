@@ -91,7 +91,7 @@ bool AVirtualWorldRuntime::BindCadJoint()
     for(auto& Entry:CadBindings)
     {
         const FString Role=VW::String(Entry.Data,TEXT("role"));const auto Factors=CadTransmission();
-        if(VW::Bool(Entry.Data,TEXT("displayHidden")))continue;
+        if(!VW::Bool(Mechanism,TEXT("motionMarkers"),true)||VW::Bool(Entry.Data,TEXT("displayHidden")))continue;
         const bool Ball=Role==TEXT("ball"),Input=Role==TEXT("input"),Output=Role==TEXT("output")||(Role==TEXT("flexspline")&&Factors.flex!=0)||(Role==TEXT("circular-spline")&&Factors.circular!=0);
         if(!Ball&&!Input&&!Output)continue;
         double Radius=0;FVector Surface;
@@ -206,7 +206,21 @@ void AVirtualWorldRuntime::UpdateCadSections()
         UKismetProceduralMeshLibrary::CopyProceduralMeshFromStaticMeshComponent(Source,0,Cut,false);
         UProceduralMeshComponent* Other=nullptr;
         // Engine cap triangulation closes supported manifold loops. This is display geometry only.
-        UKismetProceduralMeshLibrary::SliceProceduralMesh(Cut,PlanePosition,PlaneNormal,false,Other,EProcMeshSliceCapOption::CreateNewSectionForCap,Cap);
+        const bool QuarterWindow=VW::String(Mechanism,TEXT("inspectionCutaway"))==TEXT("quarter-window");
+        UKismetProceduralMeshLibrary::SliceProceduralMesh(Cut,PlanePosition,PlaneNormal,QuarterWindow,Other,EProcMeshSliceCapOption::CreateNewSectionForCap,Cap);
+        if(Other)
+        {
+            // Retain x<=0 UNION (x>=0 AND y<=0), removing only the front90-degree sector.
+            // The temporary disjoint quarter shares local coordinates with Cut; copy its
+            // sections/materials into the same display component, then release it.
+            const FVector SecondNormal=ModelWorld.GetRotation().RotateVector(VW::Position(FVector(0,-1,0)).GetSafeNormal()/ModelWorld.GetScale3D()).GetSafeNormal();
+            UProceduralMeshComponent* Discard=nullptr;
+            UKismetProceduralMeshLibrary::SliceProceduralMesh(Other,PlanePosition,SecondNormal,false,Discard,EProcMeshSliceCapOption::CreateNewSectionForCap,Cap);
+            const int32 FirstSection=Cut->GetNumSections();
+            for(int32 S=0;S<Other->GetNumSections();++S)if(auto* Part=Other->GetProcMeshSection(S))
+            {Cut->SetProcMeshSection(FirstSection+S,*Part);Cut->SetMaterial(FirstSection+S,Other->GetMaterial(S));}
+            Other->DestroyComponent();
+        }
         Entry.InspectionPose=Pose;Entry.bInspectionBuilt=true;++Entry.InspectionRevision;
     }
 }
@@ -215,7 +229,8 @@ void AVirtualWorldRuntime::SelectCadSectionCamera()
 {
     if(!CadModelRoot)return;
     const auto Model=CadModelRoot->GetComponentTransform();
-    CameraOffset=Model.TransformVectorNoScale(VW::Position(FVector(1,.2,.1))).GetSafeNormal()*FMath::Max(1.,CameraOffset.Size());
+    const FVector Direction=VW::String(Mechanism,TEXT("inspectionCutaway"))==TEXT("quarter-window")?FVector(1,1,.15):FVector(1,.2,.1);
+    CameraOffset=Model.TransformVectorNoScale(VW::Position(Direction)).GetSafeNormal()*FMath::Max(1.,CameraOffset.Size());
     CameraUp=Model.TransformVectorNoScale(VW::Position(FVector(0,0,1))).GetSafeNormal();
     FrameCadInspection();
 }

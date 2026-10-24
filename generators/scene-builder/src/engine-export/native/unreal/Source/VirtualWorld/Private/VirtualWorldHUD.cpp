@@ -25,13 +25,16 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
             {
                 const bool Stated=VW::String(Gear,TEXT("status"))==TEXT("user-specified");
                 const FString Fixed=Stated?VW::String(Gear,TEXT("fixedMember")):TEXT("circular-spline");
-                Lines.Add(FString::Printf(TEXT("Reduction %.6g:1 | %s | fixed %s%s"),1/FMath::Abs(Factors.output),Stated?TEXT("user-provided"):TEXT("evidenced teeth"),*Fixed,Stated?TEXT(" (inferred)"):TEXT("")));
+                const bool Inferred=Stated&&VW::String(Gear,TEXT("fixedMemberProvenance"))!=TEXT("user-specified");
+                Lines.Add(FString::Printf(TEXT("Reduction %.6g:1 | %s | fixed %s%s"),1/FMath::Abs(Factors.output),Stated?TEXT("user-provided"):TEXT("evidenced teeth"),*Fixed,Inferred?TEXT(" (inferred)"):TEXT("")));
             }
             else Lines.Add(TEXT("Transmission unresolved: output remains static."));
             Lines.Add(FString::Printf(TEXT("Brake %s | Closure %.1f%% | t %.4f s"),UTF8_TO_TCHAR(State.brakePhase),State.closure*100,State.time));
             Lines.Add(FString::Printf(TEXT("Whole clock %.2fx [T] | Setpoint %.1f rpm | P pauses"),JointTimeScale,Rpm));
-            Lines.Add(TEXT("M markers | C section | G principle | H assembly | T clock"));
-            Lines.Add(TEXT("Orange input / blue output. Demonstration dynamics; actual teeth and brake performance unmeasured."));
+            const bool Markers=VW::Bool(Mechanism,TEXT("motionMarkers"),true);
+            Lines.Add(Markers?TEXT("M markers | C section | G principle | H assembly | T clock"):TEXT("C motor window | G principle | H assembly | T clock"));
+            if(Markers)Lines.Add(TEXT("Orange input / blue output."));
+            Lines.Add(TEXT("Demonstration dynamics; actual teeth and brake performance unmeasured."));
             if(bPrinciple)
             {
                 const auto P=VW::Object(Mechanism,TEXT("principle"));
@@ -99,13 +102,14 @@ TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
     {
         const bool Locked=JointDynamics?(!JointDynamics->snapshot().powered||(JointDynamics->snapshot().installed&&(JointDynamics->snapshot().closure!=0||FString(UTF8_TO_TCHAR(JointDynamics->snapshot().brakePhase))!=TEXT("released")))):bBrakeInstalled&&!bBrakePowered;
         Result.Add({TEXT("run"),bRunning?TEXT("Stop [Space]"):TEXT("Run [Space]"),!Locked||bRunning});
-        Result.Add({TEXT("section"),bSection?TEXT("Full housing [C]"):TEXT("Section view [C]"),true});
+        const bool MotorWindow=VW::String(Mechanism,TEXT("inspectionCutaway"))==TEXT("quarter-window");
+        Result.Add({TEXT("section"),bSection?TEXT("Full housing [C]"):(MotorWindow?TEXT("Motor window [C]"):TEXT("Section view [C]")),true});
         Result.Add({TEXT("step-back"),TEXT("Step -15 degrees [ ]"),!Locked&&!bRunning&&!bPaused&&(!JointDynamics||JointDynamics->snapshot().omega==0)});
         Result.Add({TEXT("step"),TEXT("Step +15 degrees [ ]"),!Locked&&!bRunning&&!bPaused&&(!JointDynamics||JointDynamics->snapshot().omega==0)});
         Result.Add({TEXT("speed-down"),TEXT("RPM -1 [-]"),true});Result.Add({TEXT("speed-up"),TEXT("RPM +1 [+]"),true});
         if(JointDynamics)
         {
-            Result.Add({TEXT("markers"),bRollingMarkers?TEXT("Hide motion markers [M]"):TEXT("Show motion markers [M]"),true});
+            if(VW::Bool(Mechanism,TEXT("motionMarkers"),true))Result.Add({TEXT("markers"),bRollingMarkers?TEXT("Hide motion markers [M]"):TEXT("Show motion markers [M]"),true});
             Result.Add({TEXT("principle"),bPrinciple?TEXT("Hide principle [G]"):TEXT("Show principle [G]"),PrincipleMesh!=nullptr});
             Result.Add({TEXT("slow-motion"),FString::Printf(TEXT("Whole clock %.2fx [T]"),JointTimeScale),true});
             Result.Add({TEXT("focus-brake"),TEXT("Brake close-up [K]"),PrincipleMesh!=nullptr});

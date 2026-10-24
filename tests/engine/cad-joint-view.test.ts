@@ -80,7 +80,7 @@ it('carries verified final node identities through GLB loading and actual mesh m
 });
 
 import * as T from 'three';
-import type { CadMechanism } from '@virtualworld/scene-schema';
+import { CadMechanismSchema, type CadMechanism } from '@virtualworld/scene-schema';
 function inspectionConfig(bindings: CadMechanism['bindings'] = []): CadMechanism {
   return {
     kind: 'cad-joint',
@@ -131,6 +131,39 @@ function nestedCad() {
   model.updateWorldMatrix(true, true);
   return { model, parent, child, primitive };
 }
+it('accepts an explicit motor window and disabled markers without inventing measured teeth', () => {
+  const config = {
+    ...inspectionConfig(),
+    motionMarkers: false,
+    inspectionCutaway: 'quarter-window',
+    gear: {
+      status: 'user-specified',
+      reductionRatio: 101,
+      fixedMember: 'flexspline',
+      fixedMemberProvenance: 'user-specified',
+      evidence: 'User supplied fixed flex / circular output',
+    },
+  };
+  expect(CadMechanismSchema.parse(config)).toMatchObject(config);
+  expect(() => CadMechanismSchema.parse({ ...config, inspectionCutaway: 'unknown' })).toThrow();
+});
+it('does not create spherical motion markers when the CAD display disables them', () => {
+  const { model, parent } = nestedCad();
+  const config = inspectionConfig([
+    { ...inputBinding(1), role: 'ball', center: [0.013, 0, 0], bearingId: 'b' },
+  ]);
+  config.bearings = [
+    { id: 'b', innerSpeedFactor: 1, outerSpeedFactor: 0, pitchRadius: 0.013, ballRadius: 0.002 },
+  ];
+  config.motionMarkers = false;
+  const view = new CadJointView(model, config, new T.Group());
+  view.setMarkers(true);
+  for (const section of [false, true, false]) {
+    view.update(1, 0, section);
+    expect(parent.children.some((o) => o.name === 'rolling-marker')).toBe(false);
+  }
+  view.dispose();
+});
 it('renders both spline roles from the selected 101 transmission and reversibly hides cut occluders in browser inspection', () => {
   const { model, parent, child } = nestedCad();
   const originals = [parent, child].map((o) =>

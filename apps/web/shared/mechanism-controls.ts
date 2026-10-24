@@ -72,10 +72,12 @@ export function mountMechanismControls(
   );
   let timeScaleSelect: HTMLSelectElement | undefined;
   if (m.kind === 'cad-joint') {
-    const markers = input('显示滚动标记', 'checkbox');
-    markers.addEventListener('change', () => runtime.setRollingMarkers(markers.checked), {
-      signal: listeners.signal,
-    });
+    if (m.motionMarkers !== false) {
+      const markers = input('显示滚动标记', 'checkbox');
+      markers.addEventListener('change', () => runtime.setRollingMarkers(markers.checked), {
+        signal: listeners.signal,
+      });
+    }
     if (m.principle) {
       const principle = input('独立原理层（演示假设）', 'checkbox');
       principle.addEventListener('change', () => runtime.setPrincipleLayer(principle.checked), {

@@ -90,6 +90,12 @@ bool FVirtualWorldCadJointTransmissionTest::RunTest(const FString& Parameters)
         const auto Factors=R->CadTransmission();TestTrue(TEXT("Stated ratio resolves"),Factors.resolved);
         R->JointDynamics->setRpm(6);R->JointDynamics->start();R->JointDynamics->tick(.1);R->JointDynamics->reset();
         const FString Status=FString::Join(R->StatusLines(),TEXT("\n"));TestTrue(TEXT("HUD reports resolved 101 and source"),Status.Contains(TEXT("101:1"))&&Status.Contains(TEXT("user-provided"))&&!Status.Contains(TEXT("User specified 101"))&&!Status.Contains(TEXT("ratio unresolved")));
+        R->Mechanism->SetBoolField(TEXT("motionMarkers"),false);
+        const auto Gear=VW::Object(R->Mechanism,TEXT("gear"));Gear->SetStringField(TEXT("fixedMemberProvenance"),TEXT("user-specified"));
+        const FString CleanStatus=FString::Join(R->StatusLines(),TEXT("\n"));
+        TestFalse(TEXT("Disabled marker UI does not advertise floating balls"),CleanStatus.Contains(TEXT("Orange input"))||CleanStatus.Contains(TEXT("M markers")));
+        TestFalse(TEXT("User specified fixed member is not labelled inferred"),CleanStatus.Contains(TEXT("inferred")));
+        for(const auto& Action:R->Actions())TestTrue(TEXT("Disabled markers have no action button"),Action.Id!=TEXT("markers"));
 
         for(double Turns:{-101.,-25.25,0.,25.25,101.})
         {
@@ -148,6 +154,22 @@ bool FVirtualWorldCadJointSectionTest::RunTest(const FString& Parameters)
     }
     R->Command(TEXT("section"));TestTrue(TEXT("Leaving section restores assembly camera"),R->CameraOffset.Equals(CameraBefore,1e-7));TestNull(TEXT("Leaving section releases derived component"),Binding.InspectionMesh);TestFalse(TEXT("Old derived component is unregistered"),Derived->IsRegistered());TestTrue(TEXT("Full original visible again"),Original->IsVisible());TestTrue(TEXT("Source mesh pointer unchanged"),SourceMesh==Original->GetStaticMesh());TestTrue(TEXT("Source material unchanged"),Material==Original->GetMaterial(0));
     R->Command(TEXT("reset"));TestTrue(TEXT("Full bounds restored at zero"),Original->Bounds.BoxExtent.Equals(SourceBounds.BoxExtent,1e-6));
+    R->Mechanism->SetStringField(TEXT("inspectionCutaway"),TEXT("quarter-window"));R->Command(TEXT("section"));
+    TestTrue(TEXT("Motor window camera looks diagonally into removed quarter"),R->CameraOffset.GetSafeNormal().Equals(R->CadModelRoot->GetComponentTransform().TransformVectorNoScale(VW::Position(FVector(1,1,.15))).GetSafeNormal(),1e-7));
+    for(double Input:{0.,101.*VWJoint::Pi/3.})
+    {
+        R->KinematicOffset=Input;R->ApplyCadJoint();auto* Window=Binding.InspectionMesh;
+        bool Q2=false,Q3=false,Q4=false;double Volume=0;
+        if(TestNotNull(TEXT("Quarter window derived display"),Window))for(int32 S=0;S<Window->GetNumSections();++S)if(const auto* Part=Window->GetProcMeshSection(S))
+        {
+            const auto ModelPosition=[R,Window](const FVector& P){return R->CadModelRoot->GetComponentTransform().InverseTransformPosition(Window->GetComponentTransform().TransformPosition(P));};
+            for(const auto& V:Part->ProcVertexBuffer){const FVector P=VW::SourcePosition(ModelPosition(V.Position));TestTrue(TEXT("Removed front quadrant stays empty"),P.X<=1e-6||P.Y<=1e-6);Q2|=P.X< -1e-6&&P.Y>1e-6;Q3|=P.X< -1e-6&&P.Y< -1e-6;Q4|=P.X>1e-6&&P.Y< -1e-6;}
+            for(int32 I=0;I+2<Part->ProcIndexBuffer.Num();I+=3){const FVector A=ModelPosition(Part->ProcVertexBuffer[Part->ProcIndexBuffer[I]].Position),Bv=ModelPosition(Part->ProcVertexBuffer[Part->ProcIndexBuffer[I+1]].Position),C=ModelPosition(Part->ProcVertexBuffer[Part->ProcIndexBuffer[I+2]].Position);Volume+=FVector::DotProduct(A,FVector::CrossProduct(Bv,C))/6;}
+        }
+        TestTrue(TEXT("Local window retains geometry in all other three quadrants"),Q2&&Q3&&Q4);
+        if(Input==0)TestTrue(TEXT("Capped local window retains three quarters of source cube volume"),FMath::IsNearlyEqual(FMath::Abs(Volume),750.,.1));
+    }
+    R->Command(TEXT("section"));TestNull(TEXT("Closing motor window disposes merged cut"),Binding.InspectionMesh);TestTrue(TEXT("Complete original remains unchanged"),Original->IsVisible()&&Original->GetStaticMesh()==SourceMesh);R->KinematicOffset=0;
     VW::Json Principle;VW::Parse(TEXT(R"({"flexTeeth":200,"ringTeeth":202,"radius":0.032,"amplitude":0.002,"toothHeight":0.0003,"clearance":0.0001,"position":[0.12,0.025,0]})"),Principle);R->Mechanism->SetObjectField(TEXT("principle"),Principle);R->BuildCadPrinciple();
     R->bPrinciple=false;R->Command(TEXT("principle"));const FVector PrincipleTarget=R->CameraTarget,PrincipleOffset=R->CameraOffset,PrincipleUp=R->CameraUp;
     TestTrue(TEXT("G opens visible face-on principle view"),R->bPrinciple&&R->PrincipleMesh->IsVisible()&&PrincipleOffset.GetSafeNormal().Equals(VW::Position(FVector(0,0,1)).GetSafeNormal(),1e-7));
@@ -263,6 +285,12 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
     const FString Directory=FPaths::ProjectSavedDir()/TEXT("Automation/CadJointMotion");IFileManager::Get().MakeDirectory(*Directory,true);
     AddCommand(new FDelayedFunctionLatentCommand([this,R](){
         for(const auto& Entry:R->CadBindings)if(VW::Bool(Entry.Data,TEXT("inspectionCut")))if(const auto* Static=Cast<UStaticMeshComponent>(Entry.Component))if(UStaticMesh* Mesh=Static->GetStaticMesh())TestTrue(TEXT("Actual imported cut geometry reserves CPU buffers before creation"),Mesh->bAllowCPUAccess);
+        if(!VW::Bool(R->Mechanism,TEXT("motionMarkers"),true))
+        {
+            for(const auto& Entry:R->CadBindings)TestNull(TEXT("Marker-free real CAD creates no floating sphere components"),Entry.Marker);
+            R->Command(TEXT("markers"));R->Command(TEXT("markers"));
+            for(const auto& Action:R->Actions())TestTrue(TEXT("Marker-free real CAD has no marker button"),Action.Id!=TEXT("markers"));
+        }
         R->ApplyMechanism();R->ApplyVisibility();R->SelectCadSectionCamera();R->UpdateCamera();},.1f));
     AddCommand(new FDelayedFunctionLatentCommand([this,R](){
         auto* PC=R->GetWorld()->GetFirstPlayerController();int32 Width=0,Height=0;if(PC)PC->GetViewportSize(Width,Height);TestTrue(TEXT("Renderable viewport exists"),PC&&Width>0&&Height>0);
@@ -312,7 +340,7 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
                     TestTrue(Name+TEXT(" actual transmission part transform"),Actual.Equals(Expected,1e-6));
                     if(Role!=TEXT("input"))
                     {
-                        ++Outputs;const VW::Json Output=MakeShared<FJsonObject>();Output->SetStringField(TEXT("role"),Role);Output->SetNumberField(TEXT("nodeIndex"),VW::Number(B,TEXT("gltfNodeIndex")));Output->SetNumberField(TEXT("angle"),(State.angle+R->KinematicOffset)*Factor);Output->SetNumberField(TEXT("omega"),State.omega*Factor);Readbacks.Add(MakeShared<FJsonValueObject>(Output));TestNotNull(TEXT("Actual output has visible radial marker"),Entry.Marker);
+                        ++Outputs;const VW::Json Output=MakeShared<FJsonObject>();Output->SetStringField(TEXT("role"),Role);Output->SetNumberField(TEXT("nodeIndex"),VW::Number(B,TEXT("gltfNodeIndex")));Output->SetNumberField(TEXT("angle"),(State.angle+R->KinematicOffset)*Factor);Output->SetNumberField(TEXT("omega"),State.omega*Factor);Readbacks.Add(MakeShared<FJsonValueObject>(Output));if(VW::Bool(R->Mechanism,TEXT("motionMarkers"),true))TestNotNull(TEXT("Actual output has visible radial marker"),Entry.Marker);
                     }
                 }
                 if(Role==TEXT("fixed")||Role==TEXT("unknown"))TestTrue(Name+TEXT(" static original"),Actual.Equals(Entry.Original,1e-6));
