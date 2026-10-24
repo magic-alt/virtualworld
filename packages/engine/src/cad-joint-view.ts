@@ -1,8 +1,18 @@
 import * as T from 'three';
 import type { CadMechanism } from '@virtualworld/scene-schema';
-import { cadBindingPose, principlePoint, principleRingRadius } from './joint-geometry';
+import {
+  cadBindingPose,
+  cadTransmission,
+  principlePoint,
+  principleRingRadius,
+} from './joint-geometry';
 
-type Entry = { object: T.Object3D; initial: T.Matrix4; binding: CadMechanism['bindings'][number] };
+type Entry = {
+  object: T.Object3D;
+  initial: T.Matrix4;
+  visible: boolean;
+  binding: CadMechanism['bindings'][number];
+};
 /** A transient inspection instance. Authored CAD geometry, materials and SceneSpec remain untouched. */
 export class CadJointView {
   private entries: Entry[] = [];
@@ -35,7 +45,12 @@ export class CadJointView {
         (!binding.center || !config.bearings.some((b) => b.id === binding.bearingId))
       )
         throw new Error('Missing fitted ball geometry');
-      this.entries.push({ object, binding, initial: inverse.clone().multiply(object.matrixWorld) });
+      this.entries.push({
+        object,
+        binding,
+        visible: object.visible,
+        initial: inverse.clone().multiply(object.matrixWorld),
+      });
     }
     const configured = new Set(config.bindings.map((binding) => binding.gltfNodeIndex));
     // A tagged glTF node is a mechanical identity. Untagged primitive children
@@ -44,6 +59,7 @@ export class CadJointView {
       if (configured.has(gltfNodeIndex)) continue;
       this.entries.push({
         object,
+        visible: object.visible,
         initial: inverse.clone().multiply(object.matrixWorld),
         binding: {
           gltfNodeIndex,
@@ -130,10 +146,7 @@ export class CadJointView {
     for (const m of this.markers) m.visible = enabled;
   }
   update(angle: number, closure: number, section: boolean) {
-    const ratio =
-      this.config.gear.status === 'evidenced'
-        ? -(this.config.gear.ringTeeth - this.config.gear.flexTeeth) / this.config.gear.flexTeeth
-        : undefined;
+    const transmission = cadTransmission(this.config.gear);
     for (const e of this.entries) {
       const bearing = this.config.bearings.find((b) => b.id === e.binding.bearingId),
         pose = cadBindingPose(
@@ -142,7 +155,7 @@ export class CadJointView {
           angle,
           closure,
           this.config.dynamics.armatureTravel,
-          ratio,
+          transmission,
         );
       const delta = new T.Matrix4().compose(
         new T.Vector3(...pose.translation),
@@ -151,7 +164,9 @@ export class CadJointView {
       );
       e.object.matrix.copy(delta.multiply(e.initial));
       e.object.matrixWorldNeedsUpdate = true;
-      e.object.visible = !(section && e.binding.inspectionHidden);
+      // Browser inspection hides selected occluders; native derives capped sections.
+      e.object.visible =
+        e.visible && !(section && (e.binding.inspectionHidden || e.binding.inspectionCut));
     }
     if (this.principleEnabled && this.config.principle && this.flex && this.ring) {
       this.strip(this.flex, false, angle);
@@ -168,7 +183,7 @@ export class CadJointView {
       const u = (i * 2 * Math.PI) / count,
         v = principlePoint(p, u, theta),
         phi = ring ? u : v.phi,
-        edge = ring ? principleRingRadius(p, phi) : v.radius,
+        edge = ring ? principleRingRadius(p, phi, theta) : v.radius,
         width = Math.max(0.0004, p.toothHeight * 3);
       for (let c = 0; c < 4; c++) {
         const radius = ring

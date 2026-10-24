@@ -169,6 +169,35 @@ try {
   await page.getByLabel('仿真时间倍率').selectOption('0.02');
   assert.equal(await page.evaluate(() => window.virtualworld.getMechanismState().timeScale), 0.02);
   await page.screenshot({ path: output + '/principle-and-rolling.png' });
+  const statedScene = structuredClone(prepared.scene);
+  statedScene.mechanism.gear = {
+    status: 'user-specified',
+    reductionRatio: 101,
+    fixedMember: 'flexspline',
+    evidence: 'User stated 101; fixture does not establish actual teeth',
+  };
+  resources.set('/scene.json', Buffer.from(JSON.stringify(statedScene)));
+  await page.reload();
+  await page.waitForFunction(() => window.ready, { timeout: 30000 });
+  assert.match(await page.locator('.joint-panel').innerText(), /101:1.*用户指定.*同向输出/);
+  for (const sign of [-1, 1]) {
+    await page.evaluate((s) => {
+      window.virtualworld.resetMechanismMotion();
+      window.virtualworld.stepMechanism(s * 101 * Math.PI * 2);
+    }, sign);
+    assert.equal(
+      await page.getByLabel('输出角度', { exact: true }).textContent(),
+      `${sign * 360}.00°`,
+    );
+  }
+  await page.getByRole('button', { name: '运动归零', exact: true }).click();
+  await page.getByLabel('仿真时间倍率').selectOption('50');
+  assert.equal(await page.evaluate(() => window.virtualworld.getMechanismState().timeScale), 50);
+  await page.getByRole('button', { name: '播放机构', exact: true }).click();
+  await page.waitForFunction(() => window.virtualworld.getMechanismState().actualInputRpm > 5.9);
+  assert.equal(await page.getByLabel('实际输出 RPM', { exact: true }).textContent(), '0.059');
+  await page.evaluate(() => window.virtualworld.setPaused(true));
+  assert.equal(await page.getByLabel('实际输出 RPM', { exact: true }).textContent(), '0.000');
   assert.deepEqual(errors, []);
   await writeFile(
     output + '/result.json',
@@ -186,6 +215,7 @@ try {
           'releaseInterlock',
           'slowMotion',
           'pause',
+          'stated101-output-readings-and-fast-whole-clock',
         ],
       },
       null,

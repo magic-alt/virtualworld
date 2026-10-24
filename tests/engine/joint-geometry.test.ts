@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import { Vector3, Quaternion } from 'three';
 import {
   cadBindingPose,
+  cadTransmission,
   principlePoint,
   principleRingRadius,
 } from '@virtualworld/engine/joint-geometry';
@@ -54,6 +55,95 @@ it('transports actual balls about the fitted race centre with independent world 
     translation: [0, 0, 0],
     rotation: [0, 0, 0, 1],
   });
+});
+
+it('uses the stated 101 reduction with the selected fixed member and retains evidenced fixed-ring motion', () => {
+  const stated = {
+    status: 'user-specified' as const,
+    reductionRatio: 101,
+    fixedMember: 'flexspline' as const,
+    evidence: 'User stated 101',
+  };
+  expect(cadTransmission(stated)).toEqual({
+    known: true,
+    input: 1,
+    flex: 0,
+    circular: 1 / 101,
+    output: 1 / 101,
+  });
+  expect(cadTransmission({ ...stated, fixedMember: 'circular-spline' })).toEqual({
+    known: true,
+    input: 1,
+    flex: -1 / 101,
+    circular: 0,
+    output: -1 / 101,
+  });
+  expect(
+    cadTransmission({
+      status: 'evidenced',
+      flexTeeth: 200,
+      ringTeeth: 202,
+      fixedRing: true,
+      evidence: 'Measured fixture',
+    }),
+  ).toEqual({ known: true, input: 1, flex: -0.01, circular: 0, output: -0.01 });
+  expect(cadTransmission({ status: 'unresolved', notes: 'Unknown' })).toEqual({
+    known: false,
+    input: 1,
+    flex: 0,
+    circular: 0,
+    output: 0,
+  });
+  for (const sign of [-1, 1]) {
+    const angle = sign * 101 * 2 * Math.PI;
+    expect(angle * cadTransmission(stated).output).toBeCloseTo(sign * 2 * Math.PI, 12);
+  }
+});
+
+it('moves circular output and rotor bodies while the fixed flexspline stays at its authored pivot', () => {
+  const transmission = { known: true, input: 1, flex: 0, circular: 1 / 101, output: 1 / 101 };
+  const binding = {
+    gltfNodeIndex: 1,
+    originalPath: '/body',
+    pivot: [0.01, 0.02, 0.03] as [number, number, number],
+    axis: [0, 0, 1] as [number, number, number],
+  };
+  for (const [role, phase] of [
+    ['input', Math.PI / 2],
+    ['output', Math.PI / 202],
+    ['circular-spline', Math.PI / 202],
+    ['flexspline', 0],
+  ] as const) {
+    const pose = cadBindingPose({ ...binding, role }, undefined, Math.PI / 2, 0, 0, transmission);
+    const q = new Quaternion(...pose.rotation);
+    expect(q.angleTo(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), phase))).toBeLessThan(
+      1e-7,
+    );
+    expect(
+      new Vector3(...binding.pivot)
+        .applyQuaternion(q)
+        .add(new Vector3(...pose.translation))
+        .distanceTo(new Vector3(...binding.pivot)),
+    ).toBeLessThan(1e-12);
+  }
+});
+
+it('keeps hypothetical 200/202 fixed-flex teeth engaged with a rotating circular profile in both directions', () => {
+  const principle = { ...p, flexTeeth: 200, ringTeeth: 202, fixedMember: 'flexspline' as const };
+  let minimum = Infinity;
+  for (const theta of [0, 0.73, -1.2, 101 * 2 * Math.PI, -101 * 2 * Math.PI]) {
+    for (let k = 0; k < 2400; k++) {
+      const u = (k * Math.PI * 2) / 2400;
+      const v = principlePoint(principle, u, theta);
+      expect(v.phi + Math.sin(2 * (v.phi - theta)) / 200 - u).toBeCloseTo(0, 12);
+      minimum = Math.min(minimum, principleRingRadius(principle, v.phi, theta) - v.radius);
+    }
+    for (const phi of [theta, theta + Math.PI]) {
+      const v = principlePoint(principle, phi, theta);
+      expect(principleRingRadius(principle, v.phi, theta) - v.radius).toBeCloseTo(p.clearance, 10);
+    }
+  }
+  expect(minimum).toBeGreaterThanOrEqual(p.clearance - 1e-10);
 });
 it('preserves a non-origin shaft pivot without changing length or scale', () => {
   const b = {

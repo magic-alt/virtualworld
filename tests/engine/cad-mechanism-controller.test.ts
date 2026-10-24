@@ -1,6 +1,60 @@
 import { expect, it } from 'vitest';
 import { MechanismController } from '../../packages/engine/src/mechanism';
 import { DEMO_JOINT_DYNAMICS } from '@virtualworld/engine/joint-dynamics';
+it('reports actual user-stated output speed and signed 101-turn motion without asserting measured teeth', () => {
+  const gear = {
+    status: 'user-specified' as const,
+    reductionRatio: 101,
+    fixedMember: 'flexspline' as const,
+    evidence: 'User stated 101',
+  };
+  const c = new MechanismController({
+    kind: 'cad-joint',
+    hasBrake: true,
+    dynamics: DEMO_JOINT_DYNAMICS,
+    gear,
+  });
+  expect(c.snapshot().ratioKnown).toBe(true);
+  for (const sign of [-1, 1]) {
+    c.resetMotion();
+    c.step(sign * 101 * 2 * Math.PI);
+    expect(c.snapshot().outputAngle).toBeCloseTo(sign * 2 * Math.PI, 12);
+  }
+  c.resetMotion();
+  c.setMoving(true);
+  c.tick(0.1, false);
+  expect(c.snapshot().actualOutputRpm).toBeCloseTo(6 / 101, 10);
+  c.tick(1, true);
+  expect(c.snapshot().actualOutputRpm).toBe(0);
+});
+
+it('accelerates the entire CAD clock for inspection while preserving output ratio and brake stopping', () => {
+  const gear = {
+    status: 'user-specified' as const,
+    reductionRatio: 101,
+    fixedMember: 'flexspline' as const,
+    evidence: 'User stated 101',
+  };
+  for (const scale of [10, 50]) {
+    const c = new MechanismController({
+      kind: 'cad-joint',
+      hasBrake: true,
+      dynamics: DEMO_JOINT_DYNAMICS,
+      gear,
+    });
+    c.setTimeScale(scale);
+    c.setMoving(true);
+    c.tick(0.1, false);
+    expect(c.snapshot().dynamics!.time).toBeCloseTo(0.1 * scale, 10);
+    expect(c.snapshot().outputAngle).toBeCloseTo(c.snapshot().inputAngle / 101, 12);
+    c.setBrakePowered(false);
+    c.tick(0.1, false);
+    expect(c.snapshot().actualOutputRpm).toBe(0);
+    c.setBrakePowered(true);
+    c.tick(0.1, false);
+    expect(c.snapshot().moving).toBe(false);
+  }
+});
 it('uses continuous CAD dynamics, release interlock and a frozen slow-motion clock without inventing output ratio', () => {
   const c = new MechanismController({
     kind: 'cad-joint',

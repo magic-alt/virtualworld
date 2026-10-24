@@ -407,6 +407,46 @@ describe('CAD mechanism scene commands', () => {
         false,
       );
   });
+  it('accepts explicit stated reduction and mechanical roles without promoting user input to tooth evidence or confirmation', () => {
+    const gear = {
+      status: 'user-specified',
+      reductionRatio: 101,
+      fixedMember: 'flexspline',
+      evidence: 'User supplied ratio; topology inferred from geometry',
+    };
+    const parsed = CadMechanismSchema.parse({
+      ...mechanism(),
+      gear,
+      bindings: [
+        { ...mechanism().bindings[0], role: 'flexspline', inspectionCut: true },
+        { ...mechanism().bindings[0], gltfNodeIndex: 8, role: 'circular-spline' },
+      ],
+    });
+    expect(parsed.gear).toEqual(gear);
+    expect(parsed.dynamics.provenance).toBe('demonstration-assumption');
+    for (const invalid of [
+      { ...gear, reductionRatio: 0 },
+      { ...gear, reductionRatio: -101 },
+      { ...gear, reductionRatio: Infinity },
+      { ...gear, fixedMember: 'unknown' },
+      { ...gear, evidence: '' },
+      { ...gear, confirmed: true },
+      { ...gear, flexTeeth: 200, ringTeeth: 202 },
+    ])
+      expect(CadMechanismSchema.safeParse({ ...mechanism(), gear: invalid }).success).toBe(false);
+    expect(
+      CadMechanismSchema.safeParse({
+        ...mechanism(),
+        gear: {
+          status: 'evidenced',
+          flexTeeth: 200,
+          ringTeeth: 202,
+          fixedRing: true,
+          evidence: 'Measured fixture',
+        },
+      }).success,
+    ).toBe(true);
+  });
   it('rejects invalid source, duplicate mesh bindings, unsupported bearings and invented confirmation', () => {
     expect(CadMechanismSchema.safeParse({ ...mechanism(), sourceSha256: 'unknown' }).success).toBe(
       false,

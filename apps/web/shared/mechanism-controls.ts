@@ -56,11 +56,19 @@ export function mountMechanismControls(
     if (el.textContent !== value) el.textContent = value;
   };
   const m = runtime.spec.mechanism!;
+  const cadRatioLabel =
+    m.kind === 'cad-joint'
+      ? m.gear.status === 'user-specified'
+        ? `${m.gear.reductionRatio}:1 · 用户指定 · ${m.gear.fixedMember === 'flexspline' ? '同向输出' : '反向输出'}`
+        : m.gear.status === 'evidenced'
+          ? `${(m.gear.flexTeeth / (m.gear.ringTeeth - m.gear.flexTeeth)).toFixed(2)}:1 · 齿数证据 · 反向输出`
+          : '减速比待核验'
+      : '';
   text(
     'small',
     m.kind === 'harmonic'
       ? `HARMONIC / ${(m.flexTeeth / (m.ringTeeth - m.flexTeeth)).toFixed(0)}:1 · 反向输出`
-      : '真实 CAD · 减速比待核验 · 制动参数为演示假设',
+      : `真实 CAD · ${cadRatioLabel} · 制动参数为演示假设`,
   );
   let timeScaleSelect: HTMLSelectElement | undefined;
   if (m.kind === 'cad-joint') {
@@ -82,6 +90,8 @@ export function mountMechanismControls(
       ['1', '实时 1×'],
       ['0.1', '慢放 0.1×'],
       ['0.02', '慢放 0.02×'],
+      ['10', '快速观察 10×（整机时钟）'],
+      ['50', '快速观察 50×（整机时钟）'],
     ]) {
       const option = document.createElement('option');
       option.value = v;
@@ -139,6 +149,8 @@ export function mountMechanismControls(
     { signal: listeners.signal },
   );
   const section = input('剖视', 'checkbox');
+  if (m.kind === 'cad-joint' && m.bindings.some((binding) => binding.inspectionCut))
+    text('p', '浏览器剖视隐藏选定遮挡件；原生版保留切面。').className = 'joint-note';
   section.addEventListener(
     'change',
     () => {

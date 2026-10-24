@@ -1,5 +1,6 @@
 import { JointDynamics, type JointSnapshot } from './joint-dynamics';
-import type { JointDynamicsConfig } from '@virtualworld/scene-schema';
+import type { CadMechanism, JointDynamicsConfig } from '@virtualworld/scene-schema';
+import { cadTransmission } from './joint-geometry';
 export function harmonicState(
   inputAngle: number,
   inputRpm: number,
@@ -50,7 +51,7 @@ export class MechanismController {
       ringTeeth?: number;
       hasBrake: boolean;
       dynamics?: JointDynamicsConfig;
-      gear?: { status: string; flexTeeth?: number; ringTeeth?: number };
+      gear?: CadMechanism['gear'];
     },
   ) {
     this.installed = config.hasBrake;
@@ -62,11 +63,9 @@ export class MechanismController {
   snapshot(): MechanismState {
     if (this.dynamics) {
       const d = this.dynamics.snapshot();
-      const ratioKnown = this.config.gear?.status === 'evidenced';
-      const ratio = ratioKnown
-        ? -(this.config.gear!.ringTeeth! - this.config.gear!.flexTeeth!) /
-          this.config.gear!.flexTeeth!
-        : 0;
+      const transmission = cadTransmission(this.config.gear);
+      const ratioKnown = transmission.known;
+      const ratio = transmission.output;
       const inputAngle = d.angle + this.angle;
       const rpm = this.paused ? 0 : (d.omega * 30) / Math.PI;
       return {
@@ -186,7 +185,7 @@ export class MechanismController {
     this.emit();
   }
   setTimeScale(value: number) {
-    if ([1, 0.1, 0.02].includes(value)) {
+    if ([1, 0.1, 0.02, 10, 50].includes(value)) {
       this.timeScale = value;
       this.emit();
     }

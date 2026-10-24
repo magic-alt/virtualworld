@@ -131,6 +131,57 @@ function nestedCad() {
   model.updateWorldMatrix(true, true);
   return { model, parent, child, primitive };
 }
+it('renders both spline roles from the selected 101 transmission and reversibly hides cut occluders in browser inspection', () => {
+  const { model, parent, child } = nestedCad();
+  const originals = [parent, child].map((o) =>
+    model.matrixWorld.clone().invert().multiply(o.matrixWorld),
+  );
+  const config = inspectionConfig([
+    { ...inputBinding(1), role: 'flexspline', inspectionCut: true },
+    { ...inputBinding(2), role: 'circular-spline' },
+  ]);
+  config.gear = {
+    status: 'user-specified',
+    reductionRatio: 101,
+    fixedMember: 'flexspline',
+    evidence: 'User stated 101',
+  };
+  const view = new CadJointView(model, config, new T.Group());
+  for (const sign of [-1, 1]) {
+    view.update((sign * 101 * Math.PI) / 2, 0, true);
+    model.updateWorldMatrix(true, true);
+    expect(parent.visible).toBe(false);
+    const parentLocal = model.matrixWorld.clone().invert().multiply(parent.matrixWorld);
+    parentLocal.elements.forEach((v, i) => expect(v).toBeCloseTo(originals[0].elements[i], 10));
+    const originalPoint = new T.Vector3(0.02, 0.03, 0.04).applyMatrix4(originals[1]);
+    const pivot = new T.Vector3(...config.bindings[1].pivot);
+    const expected = originalPoint
+      .clone()
+      .sub(pivot)
+      .applyAxisAngle(new T.Vector3(0, 0, 1), (sign * Math.PI) / 2)
+      .add(pivot);
+    const actual = new T.Vector3(0.02, 0.03, 0.04).applyMatrix4(child.matrix).distanceTo(expected);
+    expect(actual).toBeLessThan(1e-10);
+  }
+  view.update(0, 0, false);
+  expect(parent.visible).toBe(true);
+  expect(parent.matrix.equals(originals[0])).toBe(true);
+  expect(child.matrix.equals(originals[1])).toBe(true);
+  view.dispose();
+});
+it('preserves authored hidden CAD bodies when toggling browser inspection', () => {
+  const { model, parent } = nestedCad();
+  parent.visible = false;
+  const view = new CadJointView(
+    model,
+    inspectionConfig([{ ...inputBinding(1), inspectionCut: true }]),
+    new T.Group(),
+  );
+  view.update(0, 0, true);
+  view.update(0, 0, false);
+  expect(parent.visible).toBe(false);
+  view.dispose();
+});
 it('keeps omitted tagged descendants static while untagged primitives follow their mechanical body', () => {
   const { model, parent, child, primitive } = nestedCad();
   const childWorld = child.matrixWorld.clone(),

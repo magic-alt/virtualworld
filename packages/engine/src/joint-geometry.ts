@@ -9,6 +9,21 @@ const identity = () => ({
   translation: [0, 0, 0] as Vec3,
   rotation: [0, 0, 0, 1] as [number, number, number, number],
 });
+/** Angular factors relative to the input; stated ratios never assert actual tooth counts. */
+export function cadTransmission(gear: CadMechanism['gear'] | undefined) {
+  let known = false,
+    flex = 0,
+    circular = 0;
+  if (gear?.status === 'user-specified') {
+    known = true;
+    if (gear.fixedMember === 'flexspline') circular = 1 / gear.reductionRatio;
+    else flex = -1 / gear.reductionRatio;
+  } else if (gear?.status === 'evidenced') {
+    known = true;
+    flex = -(gear.ringTeeth - gear.flexTeeth) / gear.flexTeeth;
+  }
+  return { known, input: 1, flex, circular, output: circular || flex };
+}
 /** Delta in the original CAD frame; compose on the left of the authored model transform. */
 export function cadBindingPose(
   binding: Binding,
@@ -16,7 +31,7 @@ export function cadBindingPose(
   angle: number,
   closure: number,
   travel: number,
-  ratio: number | undefined,
+  transmission: ReturnType<typeof cadTransmission> | number | undefined,
 ) {
   if (angle === 0 && closure === 0) return identity();
   const axis = new Vector3(...binding.axis),
@@ -42,10 +57,16 @@ export function cadBindingPose(
       .sub(center.clone().applyQuaternion(rotation));
   } else {
     let phase = 0;
-    if (binding.role === 'input') phase = angle;
+    const factors =
+      typeof transmission === 'number'
+        ? { input: 1, flex: transmission, circular: 0, output: transmission }
+        : transmission;
+    if (binding.role === 'input') phase = angle * (factors?.input ?? 1);
     else if (binding.role === 'inner-race' && bearing) phase = angle * bearing.innerSpeedFactor;
     else if (binding.role === 'outer-race' && bearing) phase = angle * bearing.outerSpeedFactor;
-    else if (binding.role === 'output' && ratio !== undefined) phase = angle * ratio;
+    else if (binding.role === 'output') phase = angle * (factors?.output ?? 0);
+    else if (binding.role === 'flexspline') phase = angle * (factors?.flex ?? 0);
+    else if (binding.role === 'circular-spline') phase = angle * (factors?.circular ?? 0);
     rotation.setFromAxisAngle(axis, phase);
     translation.copy(pivot).sub(pivot.clone().applyQuaternion(rotation));
     if (binding.role === 'armature') translation.addScaledVector(axis, travel * closure);
@@ -55,12 +76,12 @@ export function cadBindingPose(
 /** Separate illustrative profile. Material arclabel u has a tangential correction near both engagement zones. */
 export function principlePoint(p: Principle, u: number, theta: number) {
   const difference = p.ringTeeth - p.flexTeeth,
-    output = (-difference / p.flexTeeth) * theta;
-  let phi = u + output;
+    flexPhase = p.fixedMember === 'flexspline' ? 0 : (-difference / p.flexTeeth) * theta;
+  let phi = u + flexPhase;
   for (let i = 0; i < 10; i++) {
     const delta = phi - theta;
     phi -=
-      (phi - output + (difference / (2 * p.flexTeeth)) * Math.sin(2 * delta) - u) /
+      (phi - flexPhase + (difference / (2 * p.flexTeeth)) * Math.sin(2 * delta) - u) /
       (1 + (difference / p.flexTeeth) * Math.cos(2 * delta));
   }
   const radius =
@@ -69,6 +90,13 @@ export function principlePoint(p: Principle, u: number, theta: number) {
     p.toothHeight * Math.cos(p.flexTeeth * u);
   return { phi, radius, x: radius * Math.cos(phi), y: radius * Math.sin(phi) };
 }
-export function principleRingRadius(p: Principle, phi: number) {
-  return p.radius + p.amplitude + p.clearance + p.toothHeight * Math.cos(p.ringTeeth * phi);
+export function principleRingRadius(p: Principle, phi: number, theta = 0) {
+  const circularPhase =
+    p.fixedMember === 'flexspline' ? ((p.ringTeeth - p.flexTeeth) / p.ringTeeth) * theta : 0;
+  return (
+    p.radius +
+    p.amplitude +
+    p.clearance +
+    p.toothHeight * Math.cos(p.ringTeeth * (phi - circularPhase))
+  );
 }

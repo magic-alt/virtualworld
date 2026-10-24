@@ -79,6 +79,8 @@ const BindingSchema = z
     role: z.enum([
       'input',
       'output',
+      'flexspline',
+      'circular-spline',
       'ball',
       'inner-race',
       'outer-race',
@@ -92,12 +94,21 @@ const BindingSchema = z
     bearingId: id.optional(),
     center: vector.optional(),
     inspectionHidden: z.boolean().optional(),
+    inspectionCut: z.boolean().optional(),
     group: z.string().min(1).max(200).optional(),
     phase: z.number().finite().optional(),
   })
   .strict();
 const GearSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('unresolved'), notes: z.string().min(1).max(2000) }).strict(),
+  z
+    .object({
+      status: z.literal('user-specified'),
+      reductionRatio: positive,
+      fixedMember: z.enum(['flexspline', 'circular-spline']),
+      evidence: z.string().min(1).max(4000),
+    })
+    .strict(),
   z
     .object({
       status: z.literal('evidenced'),
@@ -120,6 +131,7 @@ export const CadMechanismObjectSchema = z
         kind: z.literal('illustrative-harmonic'),
         flexTeeth: z.number().int().min(10),
         ringTeeth: z.number().int().min(10),
+        fixedMember: z.enum(['flexspline', 'circular-spline']).optional(),
         radius: positive,
         amplitude: positive,
         toothHeight: positive,
