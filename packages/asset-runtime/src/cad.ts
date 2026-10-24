@@ -29,29 +29,43 @@ export function cadToGroup(result: CadResult) {
       new THREE.MeshStandardMaterial({ color: baseColor, metalness: 0.35, roughness: 0.45 }),
     ];
     if (m.brep_faces?.length) {
+      // CAD faces are opaque and differ only in color. Batch equal colors instead
+      // of making one renderer section (and one copied vertex stream in UE) per face.
+      const materialIds = new Map<string, number>([[baseColor.toArray().join(','), 0]]);
+      const batches = new Map<number, number[]>();
+      const append = (start: number, count: number, material: number) => {
+        const batch = batches.get(material) ?? [];
+        for (let i = start; i < start + count; i++) batch.push(m.index.array[i]);
+        batches.set(material, batch);
+      };
       let cursor = 0;
       for (const face of m.brep_faces) {
         const start = face.first * 3,
           count = (face.last - face.first + 1) * 3;
-        if (start > cursor) g.addGroup(cursor, start - cursor, 0);
+        if (start > cursor) append(cursor, start - cursor, 0);
         let material = 0;
         if (face.color) {
-          mats.push(
-            new THREE.MeshStandardMaterial({
-              color: new THREE.Color().setRGB(
-                ...(face.color as [number, number, number]),
-                THREE.SRGBColorSpace,
-              ),
-              metalness: 0.35,
-              roughness: 0.45,
-            }),
+          const color = new THREE.Color().setRGB(
+            ...(face.color as [number, number, number]),
+            THREE.SRGBColorSpace,
           );
-          material = mats.length - 1;
+          const key = color.toArray().join(',');
+          material = materialIds.get(key) ?? mats.length;
+          if (!materialIds.has(key)) {
+            materialIds.set(key, material);
+            mats.push(new THREE.MeshStandardMaterial({ color, metalness: 0.35, roughness: 0.45 }));
+          }
         }
-        g.addGroup(start, count, material);
+        append(start, count, material);
         cursor = start + count;
       }
-      if (cursor < m.index.array.length) g.addGroup(cursor, m.index.array.length - cursor, 0);
+      if (cursor < m.index.array.length) append(cursor, m.index.array.length - cursor, 0);
+      const indices: number[] = [];
+      for (const [material, batch] of batches) {
+        g.addGroup(indices.length, batch.length, material);
+        for (const index of batch) indices.push(index);
+      }
+      g.setIndex(indices);
     }
     const mesh = new THREE.Mesh(g, mats.length > 1 ? mats : mats[0]);
     mesh.name = m.name || `零件 ${index + 1}`;
