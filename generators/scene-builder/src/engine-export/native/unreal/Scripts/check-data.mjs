@@ -95,9 +95,9 @@ export function checkData(project, requestedScene) {
     const mechanism = metadata.mechanism;
     if (mechanism) {
       const bindingIds = [
-        mechanism.waveNodeId,
-        mechanism.flexNodeId,
-        mechanism.outputNodeId,
+        ...(mechanism.kind === 'cad-joint'
+          ? [mechanism.modelNodeId]
+          : [mechanism.waveNodeId, mechanism.flexNodeId, mechanism.outputNodeId]),
         ...(mechanism.fixedNodeIds ?? []),
         ...(mechanism.fullHousingIds ?? []),
         ...(mechanism.sectionHousingIds ?? []),
@@ -105,23 +105,27 @@ export function checkData(project, requestedScene) {
       ];
       for (const id of bindingIds)
         if (!nodes.has(id)) fail(`Missing mechanism node binding ${id}: ${scene.id}`);
-      if (!(mechanism.flexTeeth > 0 && mechanism.ringTeeth > mechanism.flexTeeth))
-        fail(`Invalid signed transmission dimensions: ${scene.id}`);
-      let found = false;
-      for (const node of nodes.values()) {
-        let parent = node.id;
-        while (parent && parent !== mechanism.flexNodeId) parent = nodes.get(parent)?.parentId;
-        if (!parent || !node.model) continue;
-        for (const mesh of models.get(node.model).meshes ?? []) {
-          const names = mesh.extras?.targetNames ?? [];
-          if (names.includes(mechanism.cosMorph) && names.includes(mechanism.sinMorph))
-            found = true;
+      if (mechanism.kind === 'cad-joint') {
+        checkCadMechanism(mechanism, nodes, models);
+      } else {
+        if (!(mechanism.flexTeeth > 0 && mechanism.ringTeeth > mechanism.flexTeeth))
+          fail(`Invalid signed transmission dimensions: ${scene.id}`);
+        let found = false;
+        for (const node of nodes.values()) {
+          let parent = node.id;
+          while (parent && parent !== mechanism.flexNodeId) parent = nodes.get(parent)?.parentId;
+          if (!parent || !node.model) continue;
+          for (const mesh of models.get(node.model).meshes ?? []) {
+            const names = mesh.extras?.targetNames ?? [];
+            if (names.includes(mechanism.cosMorph) && names.includes(mechanism.sinMorph))
+              found = true;
+          }
         }
+        if (!found)
+          fail(
+            `Missing named signed morph bindings ${mechanism.cosMorph}/${mechanism.sinMorph}: ${scene.id}`,
+          );
       }
-      if (!found)
-        fail(
-          `Missing named signed morph bindings ${mechanism.cosMorph}/${mechanism.sinMorph}: ${scene.id}`,
-        );
     }
     scenes.set(scene.id, scene);
   }
@@ -144,4 +148,97 @@ export function checkData(project, requestedScene) {
     models: models.size,
     sceneId: requestedScene ?? manifest.entrySceneId,
   };
+}
+
+/** CAD bindings identify final serialized mesh nodes, never duplicated display names. */
+export function checkCadMechanism(mechanism, nodes, models) {
+  const model = nodes.get(mechanism.modelNodeId)?.model;
+  if (!model || !models.has(model) || mechanism.modelSha256 !== model)
+    fail('CAD mechanism canonical model SHA-256 mismatch');
+  if (!/^[a-f0-9]{64}$/.test(mechanism.sourceSha256)) fail('Invalid CAD source SHA-256 provenance');
+  const config = mechanism.dynamics;
+  const positive = ['inertia', 'driveTorque', 'brakeTorque', 'holdTorque'];
+  const nonnegative = [
+    'viscousDrag',
+    'engageDelay',
+    'engageRamp',
+    'releaseDelay',
+    'releaseRamp',
+    'armatureTravel',
+  ];
+  for (const name of [...positive, ...nonnegative])
+    if (!Number.isFinite(config?.[name]) || config[name] < (positive.includes(name) ? 1e-9 : 0))
+      fail(`Invalid CAD SI dynamics parameter ${name}`);
+  if (
+    config.inertia > 1e3 ||
+    ['driveTorque', 'brakeTorque', 'holdTorque', 'viscousDrag'].some(
+      (name) => config[name] > 1e6,
+    ) ||
+    config.armatureTravel > 0.01 ||
+    config.holdTorque < config.brakeTorque ||
+    config.provenance !== 'demonstration-assumption'
+  )
+    fail('Invalid CAD dynamics limits or provenance');
+  for (const name of ['engageDelay', 'engageRamp', 'releaseDelay', 'releaseRamp'])
+    if (config[name] > 60 || (config[name] > 0 && config[name] < 1e-9))
+      fail(`Invalid CAD transition ${name}`);
+  const bearings = new Map();
+  for (const bearing of array(mechanism.bearings, 'CAD bearings')) {
+    if (
+      !safeId(bearing.id) ||
+      bearings.has(bearing.id) ||
+      ![
+        bearing.pitchRadius,
+        bearing.ballRadius,
+        bearing.innerSpeedFactor,
+        bearing.outerSpeedFactor,
+      ].every(Number.isFinite) ||
+      bearing.ballRadius <= 0 ||
+      bearing.pitchRadius <= bearing.ballRadius
+    )
+      fail('Invalid or duplicate CAD radial bearing');
+    bearings.set(bearing.id, bearing);
+  }
+  const seen = new Set(),
+    gltf = models.get(model);
+  const vector = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
+  for (const binding of array(mechanism.bindings, 'CAD bindings')) {
+    const index = binding.gltfNodeIndex;
+    if (
+      !Number.isSafeInteger(index) ||
+      index < 0 ||
+      seen.has(index) ||
+      !Number.isSafeInteger(gltf.nodes?.[index]?.mesh) ||
+      !gltf.meshes?.[gltf.nodes[index].mesh]
+    )
+      fail(`Invalid or stale CAD mesh node binding ${index}`);
+    seen.add(index);
+    if (
+      !vector(binding.pivot) ||
+      !vector(binding.axis) ||
+      Math.abs(Math.hypot(...binding.axis) - 1) >= 1e-6 ||
+      (binding.center !== undefined && !vector(binding.center))
+    )
+      fail(`Invalid CAD SI pivot/axis/center ${index}`);
+    if (
+      ![
+        'input',
+        'output',
+        'ball',
+        'inner-race',
+        'outer-race',
+        'armature',
+        'fixed',
+        'unknown',
+      ].includes(binding.role)
+    )
+      fail(`Invalid CAD role ${index}`);
+    if (
+      ['ball', 'inner-race', 'outer-race'].includes(binding.role) &&
+      !bearings.has(binding.bearingId)
+    )
+      fail(`Missing CAD bearing for ${index}`);
+    if (binding.role === 'ball' && !vector(binding.center))
+      fail(`CAD ball ${index} requires measured center`);
+  }
 }

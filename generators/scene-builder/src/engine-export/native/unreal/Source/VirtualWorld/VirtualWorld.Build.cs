@@ -6,7 +6,7 @@ public class VirtualWorld : ModuleRules
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         PublicDependencyModuleNames.AddRange(new string[] {
-            "Core", "CoreUObject", "Engine", "InputCore", "Json", "JsonUtilities", "glTFRuntime"
+            "Core", "CoreUObject", "Engine", "InputCore", "Json", "JsonUtilities", "glTFRuntime", "ProceduralMeshComponent"
         });
         PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
         if (Target.bBuildEditor) PrivateDependencyModuleNames.Add("DesktopPlatform");

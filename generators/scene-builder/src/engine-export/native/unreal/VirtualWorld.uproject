@@ -4,5 +4,5 @@
   "Category": "VirtualWorld",
   "Description": "Native VirtualWorld runtime; compile and validate in Unreal Engine before distribution.",
   "Modules": [{ "Name": "VirtualWorld", "Type": "Runtime", "LoadingPhase": "Default" }],
-  "Plugins": [{ "Name": "glTFRuntime", "Enabled": true }]
+  "Plugins": [{ "Name": "glTFRuntime", "Enabled": true }, { "Name": "ProceduralMeshComponent", "Enabled": true }]
 }

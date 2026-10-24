@@ -5,6 +5,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/HUD.h"
 #include "VirtualWorldData.h"
+#include "VirtualWorldJointDynamics.h"
 #include "VirtualWorldRuntime.generated.h"
 
 class AVirtualWorldModel;
@@ -12,6 +13,15 @@ class ACameraActor;
 class UglTFRuntimeAsset;
 class USkeletalMeshComponent;
 class UPrimitiveComponent;
+class UProceduralMeshComponent;
+
+struct FVirtualWorldCadBinding
+{
+    VW::Json Data;
+    UPrimitiveComponent* Component = nullptr;
+    USceneComponent* Marker = nullptr;
+    FTransform Original; // Native basis, model-relative, before any motion.
+};
 
 struct FVirtualWorldNode
 {
@@ -57,6 +67,9 @@ private:
     friend class FVirtualWorldProgressTest;
     friend class FVirtualWorldMechanismTimingTest;
     friend class FVirtualWorldInspectionTest;
+    friend class FVirtualWorldCadJointComponentTest;
+    friend class FVirtualWorldCadJointPivotTest;
+    friend class FVirtualWorldCadJointInspectionTest;
     bool Fail(const FString& Message);
     bool ReadCatalog();
     void ClearScene();
@@ -64,6 +77,10 @@ private:
     bool BuildColliders(FVirtualWorldNode& Node);
     bool BuildPlayer();
     bool BindMechanism();
+    bool BindCadJoint();
+    void ApplyCadJoint();
+    void BuildCadPrinciple();
+    void UpdateCadPrinciple();
     void BuildCameraAndLight();
     void ChooseCadFile();
     void BeginCadImport(const FString& Path);
@@ -126,6 +143,16 @@ private:
     int32 ColliderCount = 0;
     int32 SmokeFrame = 0;
     int32 SmokeIndex = 0;
+    TUniquePtr<VWJoint::Dynamics> JointDynamics;
+    TArray<FVirtualWorldCadBinding> CadBindings;
+    USceneComponent* CadModelRoot = nullptr;
+    UProceduralMeshComponent* PrincipleMesh = nullptr;
+    USceneComponent* PrincipleArmature = nullptr;
+    bool bRollingMarkers = false;
+    bool bPrinciple = false;
+    double JointTimeScale = 1;
+    double KinematicOffset = 0;
+    double PrincipleMinGap = 0;
     double InputAngle = 0;
     float Rpm = 6;
     float Explosion = 0;

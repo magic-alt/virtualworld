@@ -15,6 +15,20 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
     Lines.Add(TEXT("Right drag / arrows: orbit. Wheel over scene: zoom."));
     if(Mechanism)
     {
+        if(JointDynamics)
+        {
+            const auto State=JointDynamics->snapshot();
+            Lines.Add(FString::Printf(TEXT("Input %.3f rpm | Setpoint %.1f rpm | Actual ratio unresolved"),State.omega*30/PI,Rpm));
+            Lines.Add(FString::Printf(TEXT("Brake %s | Closure %.1f%% | t %.4f s"),UTF8_TO_TCHAR(State.brakePhase),State.closure*100,State.time));
+            Lines.Add(FString::Printf(TEXT("Angle %.5f rad | Dissipated %.8f J | Kinetic %.8f J"),State.angle,State.dissipatedEnergy,State.kineticEnergy));
+            Lines.Add(FString::Printf(TEXT("Simulation clock %.2fx | P freezes time | Focus loss freezes time"),JointTimeScale));
+            Lines.Add(TEXT("SI demonstration assumptions; no measured braking performance. Unknown CAD parts stay static."));
+            Lines.Add(TEXT("CAD brake internals unresolved; no real armature identified. Separate principle layer illustrates closure only."));
+            if(bPrinciple){Lines.Add(VW::String(VW::Object(Mechanism,TEXT("principle")),TEXT("label")));Lines.Add(FString::Printf(TEXT("Illustrative profile sampled minimum gap %.6f mm (8192 points at this phase)"),PrincipleMinGap*1000));}
+            Lines.Add(VW::String(VW::Object(Mechanism,TEXT("dynamics")),TEXT("notes")));
+        }
+        else
+        {
         const VW::Harmonic State=VW::Transmission(InputAngle,VW::Number(Mechanism,TEXT("flexTeeth")),VW::Number(Mechanism,TEXT("ringTeeth")));
         const double ActualRpm=bRunning&&!bPaused&&!(bBrakeInstalled&&!bBrakePowered)?Rpm:0.;
         const double OutputRpm=ActualRpm==0?0:ActualRpm*State.Ratio;
@@ -26,6 +40,7 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
         Lines.Add(TEXT("Space run | +/- rpm | [ ] step | C section | X explode"));
         Lines.Add(TEXT("B brake power | I install brake | Q/F roll | R zero"));
         Lines.Add(VW::String(Mechanism,TEXT("referenceNotes")));
+        }
     }
     else if(PlayerRoot)
     {
@@ -70,19 +85,25 @@ TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
     Result.Add({TEXT("reset"),Mechanism?TEXT("Zero input [R]"):(PlayerRoot?TEXT("Reset campaign [R]"):TEXT("Frame model [R]")),true});
     if(Mechanism)
     {
-        const bool Locked=bBrakeInstalled&&!bBrakePowered;
-        Result.Add({TEXT("run"),bRunning?TEXT("Stop [Space]"):TEXT("Run [Space]"),!Locked});
+        const bool Locked=JointDynamics?(!JointDynamics->snapshot().powered||(JointDynamics->snapshot().installed&&(JointDynamics->snapshot().closure!=0||FString(UTF8_TO_TCHAR(JointDynamics->snapshot().brakePhase))!=TEXT("released")))):bBrakeInstalled&&!bBrakePowered;
+        Result.Add({TEXT("run"),bRunning?TEXT("Stop [Space]"):TEXT("Run [Space]"),!Locked||bRunning});
         Result.Add({TEXT("section"),bSection?TEXT("Full housing [C]"):TEXT("Section view [C]"),true});
-        Result.Add({TEXT("step-back"),TEXT("Step -15 degrees [ ]"),!Locked&&!bRunning&&!bPaused});
-        Result.Add({TEXT("step"),TEXT("Step +15 degrees [ ]"),!Locked&&!bRunning&&!bPaused});
+        Result.Add({TEXT("step-back"),TEXT("Step -15 degrees [ ]"),!Locked&&!bRunning&&!bPaused&&(!JointDynamics||JointDynamics->snapshot().omega==0)});
+        Result.Add({TEXT("step"),TEXT("Step +15 degrees [ ]"),!Locked&&!bRunning&&!bPaused&&(!JointDynamics||JointDynamics->snapshot().omega==0)});
         Result.Add({TEXT("speed-down"),TEXT("RPM -1 [-]"),true});Result.Add({TEXT("speed-up"),TEXT("RPM +1 [+]"),true});
-        Result.Add({TEXT("explode"),TEXT("Explode +25% / reset [X]"),true});
+        if(JointDynamics)
+        {
+            Result.Add({TEXT("markers"),bRollingMarkers?TEXT("Hide rolling markers"):TEXT("Show rolling markers"),true});
+            Result.Add({TEXT("principle"),bPrinciple?TEXT("Hide assumed principle"):TEXT("Show assumed principle"),PrincipleMesh!=nullptr});
+            Result.Add({TEXT("slow-motion"),FString::Printf(TEXT("Clock %.2fx / cycle"),JointTimeScale),true});
+        }
+        else Result.Add({TEXT("explode"),TEXT("Explode +25% / reset [X]"),true});
         if(bHasBrake)
         {
             Result.Add({TEXT("brake-install"),bBrakeInstalled?TEXT("Remove brake [I]"):TEXT("Install brake [I]"),true});
             Result.Add({TEXT("brake-power"),bBrakePowered?TEXT("Cut brake power [B]"):TEXT("Power brake [B]"),bBrakeInstalled});
         }
-        for(const auto& Value:VW::Array(Mechanism,TEXT("subsystems")))
+        if(!JointDynamics) for(const auto& Value:VW::Array(Mechanism,TEXT("subsystems")))
         {
             const VW::Json System=Value->AsObject();const FString Id=VW::String(System,TEXT("id")),Name=VW::String(System,TEXT("name"));
             Result.Add({TEXT("hide:")+Id,(HiddenSubsystems.Contains(Id)?TEXT("Show "):TEXT("Hide "))+Name,true});

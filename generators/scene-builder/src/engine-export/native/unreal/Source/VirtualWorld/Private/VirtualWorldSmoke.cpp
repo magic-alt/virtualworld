@@ -2,6 +2,7 @@
 #include "VirtualWorldModel.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/Engine.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -116,6 +117,22 @@ void AVirtualWorldRuntime::RunSmokeStep()
         Require(bReflections,TEXT("Metal inspection requires a fixed, non-black environment reflection."));
         Require(bViewFill,TEXT("Cutaways require a persistent unshadowed fill following the inspection camera."));
         Result->SetBoolField(TEXT("stableInspectionLighting"),FatalError.IsEmpty());
+        if(JointDynamics)
+        {
+            Require(!CadBindings.IsEmpty(),TEXT("Real CAD component bindings are required."));
+            JointDynamics->setRpm(30);Require(JointDynamics->start(),TEXT("Initially released real joint can start."));StepMechanism(.2f);
+            const double Before=InputAngle,Speed=JointDynamics->snapshot().omega;Command(TEXT("brake-power"));
+            Require(JointDynamics->snapshot().omega==Speed,TEXT("Cut power must not instantly change shaft speed."));StepMechanism(.0125f);
+            Require(JointDynamics->snapshot().omega>0&&JointDynamics->snapshot().closure==0,TEXT("Response delay preserves free motion before contact."));StepMechanism(.2f);
+            Require(JointDynamics->snapshot().omega==0&&JointDynamics->snapshot().dissipatedEnergy>0&&InputAngle>Before,TEXT("Brake must dissipate energy over a positive stopping angle."));
+            Command(TEXT("brake-power"));Require(!JointDynamics->start(),TEXT("Release delay must interlock start."));StepMechanism(.1f);
+            Require(!JointDynamics->snapshot().running&&JointDynamics->snapshot().omega==0,TEXT("Release never automatically restarts."));
+            bSection=true;ApplyVisibility();
+            for(const auto& Binding:CadBindings)Require(Binding.Component->IsVisible()!=VW::Bool(Binding.Data,TEXT("inspectionHidden")),TEXT("Section changes only documented real meshes."));
+            Result->SetNumberField(TEXT("cadMeshBindings"),CadBindings.Num());Result->SetNumberField(TEXT("stoppingAngle"),InputAngle-Before);Result->SetNumberField(TEXT("dissipatedEnergy"),JointDynamics->snapshot().dissipatedEnergy);
+        }
+        else
+        {
         const VW::Harmonic Base=VW::Transmission(1,VW::Number(Mechanism,TEXT("flexTeeth")),VW::Number(Mechanism,TEXT("ringTeeth")));
         Require(Base.Output<0,TEXT("Harmonic output must reverse sign."));
         InputAngle=1.75/(1-Base.Ratio);ApplyMechanism();
@@ -145,6 +162,7 @@ void AVirtualWorldRuntime::RunSmokeStep()
         {
             const VW::Json System=Systems[0]->AsObject();Command(TEXT("hide:")+VW::String(System,TEXT("id")));
             for(const auto& Id:VW::Array(System,TEXT("nodeIds")))Require(!Nodes[Id->AsString()].bVisible,TEXT("Subsystem hide failed."));
+        }
         }
         Require(GNearClippingPlane<=.011f,TEXT("Near plane clips the metre-scale harmonic mechanism."));
         Result->SetNumberField(TEXT("signedMorphComponents"),MorphComponents.Num());

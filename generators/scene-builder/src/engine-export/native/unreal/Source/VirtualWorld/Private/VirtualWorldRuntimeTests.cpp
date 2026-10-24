@@ -100,7 +100,7 @@ bool FVirtualWorldInspectionTest::RunTest(const FString& Parameters)
     AVirtualWorldRuntime* Runtime=nullptr;
     for(const FWorldContext& Context:GEngine->GetWorldContexts())
         if(Context.World()&&Context.World()->IsGameWorld())
-            for(TActorIterator<AVirtualWorldRuntime> It(Context.World());It;++It) if(It->Mechanism) Runtime=*It;
+            for(TActorIterator<AVirtualWorldRuntime> It(Context.World());It;++It) if(VW::String(It->Mechanism,TEXT("kind"))==TEXT("harmonic")) Runtime=*It;
     if(!Runtime) {AddInfo(TEXT("No active harmonic scene; render capture skipped."));return true;}
     const FVector SavedOffset=Runtime->CameraOffset,SavedUp=Runtime->CameraUp;
     const bool SavedSection=Runtime->bSection,SavedRunning=Runtime->bRunning;

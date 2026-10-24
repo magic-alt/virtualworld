@@ -150,7 +150,7 @@ void AVirtualWorldRuntime::Command(const FString& Action)
     if(Action.StartsWith(TEXT("scene:"))) {LoadScene(SceneOrder.IndexOfByKey(Action.Mid(6)));return;}
     if(Action==TEXT("reset"))
     {
-        if(Mechanism) {InputAngle=0;bRunning=false;ApplyMechanism();}
+        if(Mechanism) {InputAngle=0;KinematicOffset=0;bRunning=false;if(JointDynamics){JointDynamics->reset();Rpm=6;bBrakeInstalled=bBrakePowered=true;JointTimeScale=1;}ApplyMechanism();ApplyVisibility();}
         else if(!PlayerRoot) {LoadScene(SceneIndex);Notice=TEXT("Model view reset.");}
         else {for(auto& Pair:Progress) Pair.Value=FVirtualWorldProgress();SaveProgress();LoadScene(SceneOrder.IndexOfByKey(LaunchSceneId));Notice=TEXT("Campaign progress reset.");}
         return;
@@ -162,6 +162,20 @@ void AVirtualWorldRuntime::Command(const FString& Action)
         return;
     }
     if(!Mechanism) return;
+    if(JointDynamics)
+    {
+        const auto State=JointDynamics->snapshot();
+        if(Action==TEXT("run")){if(State.running)JointDynamics->stop();else if(!JointDynamics->start())Notice=TEXT("Wait for complete brake release before starting.");}
+        else if(Action==TEXT("step")||Action==TEXT("step-back")){if(!bPaused&&!State.running&&State.omega==0&&State.closure==0&&State.powered)KinematicOffset+=(Action==TEXT("step")?1:-1)*PI/12.;}
+        else if(Action==TEXT("speed-up")||Action==TEXT("speed-down")){Rpm=FMath::Clamp(Rpm+(Action==TEXT("speed-up")?1:-1),-30.f,30.f);JointDynamics->setRpm(Rpm);}
+        else if(Action==TEXT("brake-power")&&bBrakeInstalled){bBrakePowered=!bBrakePowered;JointDynamics->setPowered(bBrakePowered);}
+        else if(Action==TEXT("brake-install")){bBrakeInstalled=!bBrakeInstalled;JointDynamics->setInstalled(bBrakeInstalled);}
+        else if(Action==TEXT("markers"))bRollingMarkers=!bRollingMarkers;
+        else if(Action==TEXT("principle"))bPrinciple=!bPrinciple;
+        else if(Action==TEXT("slow-motion"))JointTimeScale=JointTimeScale==1?.1:JointTimeScale==.1?.02:1;
+        else if(Action==TEXT("section"))bSection=!bSection;
+        bRunning=JointDynamics->snapshot().running;ApplyMechanism();ApplyVisibility();return;
+    }
     const bool bLocked=bBrakeInstalled&&!bBrakePowered;
     if(Action==TEXT("run")) bRunning=!bRunning&&!bLocked;
     else if(Action==TEXT("step")||Action==TEXT("step-back"))

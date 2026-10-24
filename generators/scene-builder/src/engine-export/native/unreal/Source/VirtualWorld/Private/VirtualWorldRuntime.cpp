@@ -1,4 +1,5 @@
 #include "VirtualWorldRuntime.h"
+#include "Misc/App.h"
 #include "VirtualWorldModel.h"
 #include "glTFRuntimeFunctionLibrary.h"
 #include "Camera/CameraActor.h"
@@ -120,6 +121,8 @@ void AVirtualWorldRuntime::ClearScene()
 {
     for (AActor* Actor : SpawnedActors) if (IsValid(Actor)) Actor->Destroy();
     SpawnedActors.Reset();
+    JointDynamics.Reset();CadBindings.Reset();CadModelRoot=nullptr;PrincipleMesh=nullptr;PrincipleArmature=nullptr;
+    bRollingMarkers=false;bPrinciple=false;JointTimeScale=1;KinematicOffset=0;
     for (int32 I=SceneComponents.Num()-1; I>=0; --I) if (IsValid(SceneComponents[I])) SceneComponents[I]->DestroyComponent();
     SceneComponents.Reset();
     AssetCache.Reset();Nodes.Reset();MorphComponents.Reset();
@@ -351,7 +354,7 @@ void AVirtualWorldRuntime::Tick(float DeltaSeconds)
     const float Elapsed=FMath::IsFinite(DeltaSeconds)?FMath::Max(0.f,DeltaSeconds):0.f;
     const float Delta=FMath::Min(Elapsed,0.05f);
     HandleInput(Delta);
-    if(!bPaused)
+    if(!bPaused && (!JointDynamics || FApp::HasFocus()))
     {
         StepPlayer(Delta);
         // Prescribed kinematics use full elapsed time, independent of render frame rate.
