@@ -399,6 +399,8 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
             }
             int32 ExpectedBalls=0;for(const auto& Entry:R->CadBindings)if(VW::String(Entry.Data,TEXT("role"))==TEXT("ball"))++ExpectedBalls;
             TestEqual(TEXT("Every configured rolling ball was read; exterior-only profile has none"),Balls,ExpectedBalls);TestTrue(TEXT("Actual imported output components were read"),Factors.resolved&&Outputs>0);TestTrue(TEXT("Principle sampled gap finite and nonnegative"),FMath::IsFinite(R->PrincipleMinGap)&&R->PrincipleMinGap>=-1e-10);
+            // Geometry readback explicitly opens/synchronizes the optional layer; hidden layers do no frame work.
+            const bool PrincipleWasVisible=R->bPrinciple;R->bPrinciple=true;R->UpdateCadPrinciple();R->bPrinciple=PrincipleWasVisible;
             if(TestNotNull(TEXT("Actual principle procedural component"),R->PrincipleMesh))
             {
                 const auto* Flex=R->PrincipleMesh->GetProcMeshSection(0);const auto* Ring=R->PrincipleMesh->GetProcMeshSection(1);
@@ -407,7 +409,16 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
                 if(Cam){const auto P=VW::Object(R->Mechanism,TEXT("principle"));const double Radius=VW::Number(P,TEXT("radius")),Amplitude=VW::Number(P,TEXT("amplitude")),Height=VW::Number(P,TEXT("toothHeight")),Clearance=VW::Number(P,TEXT("clearance"));
                 for(int I=0;I<1536;++I){const double U=2*VWJoint::Pi*I/1536,Phi=U+R->InputAngle,Edge=Radius+Amplitude*FMath::Cos(2*U)-FMath::Max(.0004,Height*3)-Height-Clearance;
                 const FVector Expected=VW::Position(FVector(Edge*FMath::Cos(Phi),Edge*FMath::Sin(Phi),-.0006));TestTrue(TEXT("Cam surface is synchronous with actual signed input and clears flex"),Cam->ProcVertexBuffer[I*4+1].Position.Equals(Expected,1e-7));
+                TestTrue(TEXT("Analytic cam normal remains finite and normalized"),!Cam->ProcVertexBuffer[I*4+1].Normal.ContainsNaN()&&Cam->ProcVertexBuffer[I*4+1].Normal.IsUnit(1e-6));
                 TestTrue(TEXT("Cam leaves an open central bore"),FMath::IsNearlyEqual(VW::SourcePosition(Cam->ProcVertexBuffer[I*4].Position).Size2D(),Radius*.25,1e-8));}}
+                for(const auto* Strip:{Flex,Ring,Cam})if(Strip)for(int Sample:{0,384,768,1152,1535})for(int Face=0;Face<4;++Face)for(int Triangle=0;Triangle<2;++Triangle)
+                {
+                    const int Index=Sample*24+Face*6+Triangle*3;
+                    const auto& A=Strip->ProcVertexBuffer[Strip->ProcIndexBuffer[Index]];const auto& B=Strip->ProcVertexBuffer[Strip->ProcIndexBuffer[Index+1]];const auto& C=Strip->ProcVertexBuffer[Strip->ProcIndexBuffer[Index+2]];
+                    // UE front-face convention, including all four walls and the closed periodic seam.
+                    const FVector FaceNormal=FVector::CrossProduct(B.Position-C.Position,A.Position-C.Position).GetSafeNormal();
+                    TestTrue(TEXT("Analytic normals face the same exterior side as UE triangle winding"),FVector::DotProduct(FaceNormal,(A.Normal+B.Normal+C.Normal).GetSafeNormal())>0);
+                }
                 TestTrue(TEXT("Actual closed gear strips contain vertices and triangles"),Flex&&Ring&&Flex->ProcVertexBuffer.Num()>=1536&&Flex->ProcIndexBuffer.Num()>=1536&&Ring->ProcVertexBuffer.Num()>=1536);
                 const VW::Json Layer=MakeShared<FJsonObject>();Layer->SetNumberField(TEXT("flexVertices"),Flex?Flex->ProcVertexBuffer.Num():0);Layer->SetNumberField(TEXT("ringVertices"),Ring?Ring->ProcVertexBuffer.Num():0);
                 if(R->PrincipleArmature){const FVector Actual=R->PrincipleArmature->GetRelativeLocation();const auto P=VW::Object(R->Mechanism,TEXT("principle"));const FVector Expected=VW::Position(FVector(0,-VW::Number(P,TEXT("radius"))*1.7,State.closure*R->JointDynamics->config.armatureTravel));TestTrue(TEXT("Illustrative armature actual transform follows closure"),Actual.Equals(Expected,1e-8));Layer->SetArrayField(TEXT("armatureTranslationCm"),{MakeShared<FJsonValueNumber>(Actual.X),MakeShared<FJsonValueNumber>(Actual.Y),MakeShared<FJsonValueNumber>(Actual.Z)});}
@@ -434,5 +445,66 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
     AddCommand(new FDelayedFunctionLatentCommand([R](){R->bPrinciple=true;R->ApplyVisibility();R->FrameCadPrincipleInspection();R->UpdateCamera();},.1f));
     AddCommand(new FDelayedFunctionLatentCommand([Directory](){FScreenshotRequest::RequestScreenshot(Directory/TEXT("principle-closeup.png"),false,false);},.3f));AddCommand(new FDelayedFunctionLatentCommand([](){},.3f));
     AddCommand(new FDelayedFunctionLatentCommand([R,Saved,Paused,Markers,Section,Principle,Offset,SavedTarget,SavedOffset,SavedUp,SavedRpm](){R->JointDynamics=MakeUnique<VWJoint::Dynamics>(*Saved);R->bPaused=Paused;R->bRollingMarkers=Markers;R->bSection=Section;R->bPrinciple=Principle;R->KinematicOffset=Offset;R->Rpm=SavedRpm;R->CameraTarget=SavedTarget;R->CameraOffset=SavedOffset;R->CameraUp=SavedUp;R->UpdateCamera();R->bRunning=Saved->snapshot().running;R->ApplyMechanism();R->ApplyVisibility();},.1f));return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadJointWorkBudgetTest,"VirtualWorld.CadJoint.RuntimeWorkBudget",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldCadJointWorkBudgetTest::RunTest(const FString& Parameters)
+{
+    AVirtualWorldRuntime* R=nullptr;for(const FWorldContext& Context:GEngine->GetWorldContexts())if(auto* World=Context.World())for(TActorIterator<AVirtualWorldRuntime> It(World);It;++It)if(It->JointDynamics&&It->PrincipleMesh){R=*It;break;}
+    if(!TestNotNull(TEXT("Real imported CAD runtime for CPU benchmark"),R))return false;
+    const bool SavedPrinciple=R->bPrinciple;const double SavedOffset=R->KinematicOffset;
+    ON_SCOPE_EXIT{R->bPrinciple=SavedPrinciple;R->KinematicOffset=SavedOffset;R->ApplyMechanism();R->ApplyVisibility();};
+    R->bPrinciple=true;R->ApplyCadJoint();R->bPrinciple=false;R->ApplyVisibility();
+    const FVector Initial=R->PrincipleMesh->GetProcMeshSection(0)->ProcVertexBuffer[1].Position;
+    const VW::Json Report=MakeShared<FJsonObject>();
+    for(bool Visible:{false,true})
+    {
+        R->bPrinciple=Visible;TArray<double> Samples;
+        for(int I=0;I<40;++I){R->KinematicOffset=SavedOffset+.137*(I+1);const double Start=FPlatformTime::Seconds();R->ApplyCadJoint();Samples.Add((FPlatformTime::Seconds()-Start)*1000);}
+        Samples.Sort();const auto Mode=MakeShared<FJsonObject>();Mode->SetNumberField(TEXT("medianMs"),Samples[20]);Mode->SetNumberField(TEXT("p95Ms"),Samples[38]);Mode->SetNumberField(TEXT("iterations"),Samples.Num());Report->SetObjectField(Visible?TEXT("principleVisible"):TEXT("principleHidden"),Mode);
+        if(!Visible)TestTrue(TEXT("Hidden principle keeps its initial vertex buffers until shown"),R->PrincipleMesh->GetProcMeshSection(0)->ProcVertexBuffer[1].Position.Equals(Initial,1e-9));
+    }
+    FString Label=TEXT("current");FParse::Value(FCommandLine::Get(),TEXT("VirtualWorldPerfLabel="),Label);
+    const FString Directory=FPaths::ProjectSavedDir()/TEXT("Automation/CadJointPerformance");IFileManager::Get().MakeDirectory(*Directory,true);
+    FFileHelper::SaveStringToFile(VW::Serialize(Report),*(Directory/Label+TEXT(".json")),FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM);
+    return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldInspectionPointerTest,"VirtualWorld.CadJoint.InspectionPointerRouting",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
+bool FVirtualWorldInspectionPointerTest::RunTest(const FString& Parameters)
+{
+    UWorld* World=UWorld::CreateWorld(EWorldType::Game,false);auto* R=World->SpawnActor<AVirtualWorldRuntime>();R->CameraOffset=FVector(20,0,0);R->CameraUp=FVector::UpVector;R->CameraTarget=FVector::ZeroVector;
+    const FVector Offset=R->CameraOffset;
+    R->UpdateInspectionPointer(FVector2D(100,100),true,FVector2D(100,50),true,false,0,1000,800);
+    TestTrue(TEXT("Dragging from panel cannot orbit"),R->CameraOffset.Equals(Offset));
+    R->UpdateInspectionPointer(FVector2D(600,100),true,FVector2D(100,50),true,false,0,1000,800);
+    TestTrue(TEXT("Panel drag crossing viewport stays in panel until release"),!R->bPointerOrbit&&R->CameraOffset.Equals(Offset));
+    R->UpdateInspectionPointer(FVector2D(600,100),true,FVector2D(100,50),false,false,0,1000,800);
+    R->UpdateInspectionPointer(FVector2D(600,100),true,FVector2D(100,50),true,false,0,1000,800);
+    TestTrue(TEXT("First drag event has no camera jump"),R->CameraOffset.Equals(Offset));
+    R->UpdateInspectionPointer(FVector2D(620,110),true,FVector2D::ZeroVector,true,false,0,1000,800);
+    TestFalse(TEXT("Visible-cursor position fallback orbits without raw deltas"),R->CameraOffset.Equals(Offset));TestTrue(TEXT("Orbit preserves distance"),FMath::IsNearlyEqual(R->CameraOffset.Size(),20.,1e-8));
+    R->UpdateInspectionPointer(FVector2D(620,110),true,FVector2D::ZeroVector,false,false,0,1000,800);
+    R->UpdateInspectionPointer(FVector2D(620,110),true,FVector2D::ZeroVector,false,true,0,1000,800);const FVector BeforePan=R->CameraOffset;
+    R->UpdateInspectionPointer(FVector2D(630,120),true,FVector2D(10,10),false,true,0,1000,800);
+    TestFalse(TEXT("Middle drag pans target"),R->CameraTarget.IsNearlyZero());TestTrue(TEXT("Pan does not orbit"),R->CameraOffset.Equals(BeforePan));
+    R->UpdateInspectionPointer(FVector2D(100,100),true,FVector2D::ZeroVector,false,false,2,480,800);
+    TestTrue(TEXT("Panel wheel stays in HUD"),R->PendingPanelWheel==2&&R->CameraOffset.Equals(BeforePan));
+    R->UpdateInspectionPointer(FVector2D(250,100),true,FVector2D::ZeroVector,false,false,1,480,800);
+    TestTrue(TEXT("Narrow viewport uses actual panel edge rather than fixed460"),R->CameraOffset.Size()<BeforePan.Size());
+    for(bool Pan:{false,true})
+    {
+        auto* Raw=World->SpawnActor<AVirtualWorldRuntime>();auto* Absolute=World->SpawnActor<AVirtualWorldRuntime>();
+        for(auto* Runtime:{Raw,Absolute})
+        {
+            Runtime->CameraOffset=FVector(20,0,0);Runtime->CameraUp=FVector::UpVector;Runtime->CameraTarget=FVector::ZeroVector;
+            Runtime->UpdateInspectionPointer(FVector2D(600,100),true,FVector2D::ZeroVector,!Pan,Pan,0,1000,800);
+        }
+        Raw->UpdateInspectionPointer(FVector2D(620,110),true,FVector2D(20,-10),!Pan,Pan,0,1000,800);
+        Absolute->UpdateInspectionPointer(FVector2D(620,110),true,FVector2D::ZeroVector,!Pan,Pan,0,1000,800);
+        TestTrue(TEXT("Equivalent raw and screen-position input has the same orbit direction"),Raw->CameraOffset.Equals(Absolute->CameraOffset,1e-8)&&Raw->CameraUp.Equals(Absolute->CameraUp,1e-8));
+        TestTrue(TEXT("Equivalent raw and screen-position input has the same pan direction"),Raw->CameraTarget.Equals(Absolute->CameraTarget,1e-8));
+    }
+    World->DestroyWorld(false);return true;
 }
 #endif

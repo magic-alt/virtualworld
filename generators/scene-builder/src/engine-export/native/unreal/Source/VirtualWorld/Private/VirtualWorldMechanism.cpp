@@ -89,6 +89,7 @@ void AVirtualWorldRuntime::StepMechanism(float DeltaSeconds)
 void AVirtualWorldRuntime::ApplyVisibility()
 {
     UpdateCadSections();UpdateCadTransparency();
+    if(bPrinciple)UpdateCadPrinciple();
     if(PrincipleMesh) PrincipleMesh->SetVisibility(bPrinciple,true);
     TMap<FString,bool> Local;
     for(const auto& Pair:Nodes)

@@ -79,6 +79,8 @@ private:
     friend class FVirtualWorldMechanismTimingTest;
     friend class FVirtualWorldInspectionTest;
     friend class FVirtualWorldCadJointComponentTest;
+    friend class FVirtualWorldCadJointWorkBudgetTest;
+    friend class FVirtualWorldInspectionPointerTest;
     friend class FVirtualWorldCadJointPivotTest;
     friend class FVirtualWorldCadJointSuspensionTest;
     friend class FVirtualWorldCadJointInspectionTest;
@@ -124,6 +126,7 @@ private:
     void StepPlayer(float DeltaSeconds);
     void UpdateCamera();
     void HandleInput(float DeltaSeconds);
+    void UpdateInspectionPointer(FVector2D Position,bool HasPosition,FVector2D RawDelta,bool RightDown,bool MiddleDown,double Wheel,int32 Width,int32 Height);
     void PlayPlayerClip(const FString& State);
     void ApplyMechanism();
     void StepMechanism(float DeltaSeconds);
@@ -185,6 +188,9 @@ private:
     double JointTimeScale = 1;
     double KinematicOffset = 0;
     double PrincipleMinGap = 0;
+    bool bPrincipleBuilt = false;
+    double PrincipleBuiltAngle = 0;
+    double PrincipleBuiltClosure = 0;
     double InputAngle = 0;
     float Rpm = 6;
     float Explosion = 0;
@@ -210,6 +216,13 @@ private:
     FVector SectionSavedUp = FVector::UpVector;
     bool bSectionCameraSaved = false;
     bool bSectionSavedPrinciple = false;
+    FVector2D LastPointerPosition = FVector2D::ZeroVector;
+    bool bLastPointerValid = false;
+    bool bPointerOrbit = false;
+    bool bPointerPan = false;
+    bool bRightWasDown = false;
+    bool bMiddleWasDown = false;
+    float PendingPanelWheel = 0;
     float InspectionZoomMin = .02f;
     float InspectionZoomMax = 5000.f;
     UPROPERTY() TArray<TObjectPtr<AActor>> SpawnedActors;

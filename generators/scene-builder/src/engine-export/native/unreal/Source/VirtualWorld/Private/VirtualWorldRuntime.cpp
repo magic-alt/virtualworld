@@ -124,6 +124,7 @@ void AVirtualWorldRuntime::ClearScene()
     ReleaseCadSections();
     for (AActor* Actor : SpawnedActors) if (IsValid(Actor)) Actor->Destroy();
     SpawnedActors.Reset();
+    bPrincipleBuilt=false;
     JointDynamics.Reset();CadBindings.Reset();CadModelRoot=nullptr;PrincipleMesh=nullptr;PrincipleArmature=nullptr;PrincipleBrakePole=nullptr;
     bRollingMarkers=false;bPrinciple=false;bSectionCameraSaved=false;bSectionSavedPrinciple=false;JointTimeScale=1;KinematicOffset=0;
     for (int32 I=SceneComponents.Num()-1; I>=0; --I) if (IsValid(SceneComponents[I])) SceneComponents[I]->DestroyComponent();
@@ -133,6 +134,7 @@ void AVirtualWorldRuntime::ClearScene()
     SelectedInteraction.Empty();Dialogue.Empty();PlayerClip.Empty();
     ColliderCount=0;InteractionRemaining=0;
     HiddenSubsystems.Reset();IsolatedNodes.Reset();IsolatedSubsystem.Empty();
+    bLastPointerValid=bPointerOrbit=bPointerPan=bRightWasDown=bMiddleWasDown=false;PendingPanelWheel=0;
     InputAngle=0;Rpm=6;Explosion=0;bRunning=false;bPaused=false;bSection=false;
 }
 

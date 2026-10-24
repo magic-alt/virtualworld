@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { checkData } from './check-data.mjs';
 import { verifyPlugin } from './prepare-plugin.mjs';
+import { packageOptions, preparePackageRuntime } from './package-runtime.mjs';
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 function option(args, name) {
@@ -43,7 +44,7 @@ export function nativeCommand(argv, projectRoot = project) {
   const command = args.shift();
   if (!['check', 'build', 'run', 'smoke', 'package'].includes(command))
     throw new Error(
-      'Usage: node Scripts/native.mjs check [--data-only] | build|run|smoke|package --engine <UE_ROOT> [--scene <scene-id>]',
+      'Usage: node Scripts/native.mjs check [--data-only] | build|run|smoke|package --engine <UE_ROOT> [--scene <scene-id>] [--configuration Development|Shipping] [--output <archive-folder>]',
     );
   const scene = option(args, '--scene');
   const data = checkData(projectRoot, scene);
@@ -101,6 +102,8 @@ export function nativeCommand(argv, projectRoot = project) {
         projectRoot,
       );
     } else if (command === 'package') {
+      const packaging = packageOptions(args, process.platform, projectRoot);
+      preparePackageRuntime(projectRoot);
       const uat = join(
         root,
         'Engine/Build/BatchFiles',
@@ -118,7 +121,10 @@ export function nativeCommand(argv, projectRoot = project) {
           '-pak',
           '-package',
           `-platform=${platform}`,
-          '-clientconfig=Development',
+          `-clientconfig=${packaging.configuration}`,
+          '-archive',
+          `-archivedirectory=${packaging.archive}`,
+          '-prereqs',
           '-map=/Engine/Maps/Entry',
           '-utf8output',
         ],

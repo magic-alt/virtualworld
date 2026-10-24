@@ -12,7 +12,7 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
     if(!FatalError.IsEmpty()) {Lines.Add(TEXT("Cannot load this native scene"));Lines.Add(FatalError);Lines.Add(TEXT("See Saved/Logs/VirtualWorld.log and README-Unreal.md."));return Lines;}
     if(!Metadata) {Lines.Add(TEXT("Loading canonical scene assets..."));return Lines;}
     Lines.Add(VW::String(Metadata,TEXT("name")));
-    Lines.Add(TEXT("Right drag / arrows: orbit. Wheel over scene: zoom."));
+    Lines.Add(TEXT("Right drag / arrows: orbit. Middle drag: pan. Wheel: zoom."));
     if(Mechanism)
     {
         if(JointDynamics)
@@ -161,11 +161,7 @@ void AVirtualWorldHUD::DrawHUD()
     const float Width=FMath::Min(450.f,Canvas->SizeX*.48f),Top=52,Bottom=Canvas->SizeY-24;
     APlayerController* PC=GetOwningPlayerController();
     float MX=0,MY=0;if(PC)PC->GetMousePosition(MX,MY);
-    if(PC&&MX<Width)
-    {
-        if(PC->WasInputKeyJustPressed(EKeys::MouseScrollDown)) PanelScroll+=60;
-        if(PC->WasInputKeyJustPressed(EKeys::MouseScrollUp)) PanelScroll-=60;
-    }
+    PanelScroll-=Player->PendingPanelWheel*60;Player->PendingPanelWheel=0;
     PanelScroll=FMath::Clamp(PanelScroll,0.f,FMath::Max(0.f,ContentHeight-(Bottom-Top)));
     DrawRect(FLinearColor(.025f,.035f,.06f,.94f),0,0,Width,Canvas->SizeY);
     DrawText(TEXT("Unreal Engine | VirtualWorld"),FLinearColor(.85f,.92f,1),16,14,GEngine->GetMediumFont(),1.f);
@@ -175,12 +171,19 @@ void AVirtualWorldHUD::DrawHUD()
     {
         FString Current;
         const auto Flush=[&]() {if(Y>=Top&&Y+20<=Bottom)DrawText(Current,Color,16,Y,GEngine->GetMediumFont(),.8f);Current.Empty();Y+=22;};
-        for(TCHAR C:Text)
+        TArray<FString> Paragraphs;Text.ParseIntoArrayLines(Paragraphs,false);
+        for(int32 Paragraph=0;Paragraph<Paragraphs.Num();++Paragraph)
         {
-            if(C=='\n') {Flush();continue;}
-            FString Candidate=Current;Candidate.AppendChar(C);float W=0,H=0;GetTextSize(Candidate,W,H,GEngine->GetMediumFont(),.8f);
-            if(W>Width-32&&!Current.IsEmpty()) Flush();
-            Current.AppendChar(C);
+            if(Paragraph>0)Flush();TArray<FString> Words;Paragraphs[Paragraph].ParseIntoArrayWS(Words);
+            for(const FString& Word:Words)
+            {
+                FString Candidate=Current.IsEmpty()?Word:Current+TEXT(" ")+Word;float W=0,H=0;GetTextSize(Candidate,W,H,GEngine->GetMediumFont(),.8f);
+                if(W<=Width-32){Current=Candidate;continue;}
+                if(!Current.IsEmpty())Flush();GetTextSize(Word,W,H,GEngine->GetMediumFont(),.8f);
+                if(W<=Width-32){Current=Word;continue;}
+                // Long unspaced words/CJK retain the glyph-by-glyph fallback.
+                for(TCHAR C:Word){Candidate=Current;Candidate.AppendChar(C);GetTextSize(Candidate,W,H,GEngine->GetMediumFont(),.8f);if(W>Width-32&&!Current.IsEmpty())Flush();Current.AppendChar(C);}
+            }
         }
         if(!Current.IsEmpty()) Flush();
         Y+=6;
@@ -191,7 +194,8 @@ void AVirtualWorldHUD::DrawHUD()
     {
         const auto& Button=Buttons[I];const float X=16+(I%2)*(ButtonWidth+10),RowY=Y+(I/2)*40;
         if(RowY<Top||RowY+34>Bottom) continue;
-        DrawRect(Button.bEnabled?FLinearColor(.12f,.22f,.34f,1):FLinearColor(.09f,.11f,.14f,1),X,RowY,ButtonWidth,34);
+        const bool Hover=MX>=X&&MX<X+ButtonWidth&&MY>=RowY&&MY<RowY+34;
+        DrawRect(Button.bEnabled?(Hover?FLinearColor(.2f,.36f,.5f,1):FLinearColor(.12f,.22f,.34f,1)):FLinearColor(.09f,.11f,.14f,1),X,RowY,ButtonWidth,34);
         FString Label=Button.Label;float W=0,H=0;GetTextSize(Label,W,H,GEngine->GetSmallFont(),.9f);
         while(W>ButtonWidth-14&&Label.Len()>3) {Label.LeftChopInline(1);GetTextSize(Label+TEXT("..."),W,H,GEngine->GetSmallFont(),.9f);}
         if(Label!=Button.Label)Label+=TEXT("...");

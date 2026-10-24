@@ -1,6 +1,7 @@
 #include "VirtualWorldRuntime.h"
 #include "VirtualWorldModel.h"
 #include "Camera/CameraActor.h"
+#include "Camera/CameraComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
@@ -185,10 +186,13 @@ void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
     if(Pressed(EKeys::Hyphen)||Pressed(EKeys::Subtract)) Command(TEXT("speed-down"));
     const FKey Digits[]={EKeys::One,EKeys::Two,EKeys::Three,EKeys::Four,EKeys::Five,EKeys::Six,EKeys::Seven,EKeys::Eight,EKeys::Nine,EKeys::Zero};
     for(int32 I=0;I<10;++I) if(Pressed(Digits[I])) Command(TEXT("choice:")+FString::FromInt(I));
-    float DX=0,DY=0;
-    if(PC->IsInputKeyDown(EKeys::RightMouseButton)) PC->GetInputMouseDelta(DX,DY);
-    DX+=((PC->IsInputKeyDown(EKeys::Right)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::Left)?1.f:0.f))*160.f*DeltaSeconds;
-    DY+=((PC->IsInputKeyDown(EKeys::Down)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::Up)?1.f:0.f))*160.f*DeltaSeconds;
+    float MX=0,MY=0,RawX=0,RawY=0;const bool HasPosition=PC->GetMousePosition(MX,MY);
+    PC->GetInputMouseDelta(RawX,RawY);int32 Width=0,Height=0;PC->GetViewportSize(Width,Height);
+    double Wheel=PC->GetInputAnalogKeyState(EKeys::MouseWheelAxis);
+    if(!FMath::IsFinite(Wheel)||FMath::IsNearlyZero(Wheel))Wheel=(Pressed(EKeys::MouseScrollUp)?1:0)-(Pressed(EKeys::MouseScrollDown)?1:0);
+    UpdateInspectionPointer(FVector2D(MX,MY),HasPosition,FVector2D(RawX,RawY),PC->IsInputKeyDown(EKeys::RightMouseButton),PC->IsInputKeyDown(EKeys::MiddleMouseButton),Wheel,Width,Height);
+    const float DX=((PC->IsInputKeyDown(EKeys::Right)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::Left)?1.f:0.f))*160.f*DeltaSeconds;
+    const float DY=((PC->IsInputKeyDown(EKeys::Down)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::Up)?1.f:0.f))*160.f*DeltaSeconds;
     if(!FMath::IsNearlyZero(DX)||!FMath::IsNearlyZero(DY))
     {
         const FVector Right=FVector::CrossProduct(CameraUp,-CameraOffset.GetSafeNormal()).GetSafeNormal();
@@ -200,10 +204,40 @@ void AVirtualWorldRuntime::HandleInput(float DeltaSeconds)
         const float Roll=(PC->IsInputKeyDown(EKeys::Q)?1.f:0.f)-(PC->IsInputKeyDown(EKeys::F)?1.f:0.f);
         CameraUp=FQuat(-CameraOffset.GetSafeNormal(),Roll*DeltaSeconds).RotateVector(CameraUp);
     }
-    float MouseX=0,MouseY=0;PC->GetMousePosition(MouseX,MouseY);
-    if(MouseX>460.f)
+ }
+
+void AVirtualWorldRuntime::UpdateInspectionPointer(FVector2D Position,bool HasPosition,FVector2D RawDelta,bool RightDown,bool MiddleDown,double Wheel,int32 Width,int32 Height)
+{
+    if(Width<=0||Height<=0)return;
+    const double Panel=FMath::Min(450.,Width*.48);
+    const bool InScene=HasPosition&&Position.X>=Panel&&Position.X<Width&&Position.Y>=0&&Position.Y<Height;
+    const bool Continuing=(bPointerOrbit&&RightDown)||(bPointerPan&&MiddleDown);
+    if(!RightDown)bPointerOrbit=false;if(!MiddleDown)bPointerPan=false;
+    if(!bPointerOrbit&&!bPointerPan&&InScene){bPointerOrbit=RightDown&&!bRightWasDown;bPointerPan=MiddleDown&&!bMiddleWasDown&&!RightDown&&!PlayerRoot;}
+    // Unreal MouseY is positive upward; absolute cursor positions are positive downward.
+    FVector2D Delta(RawDelta.X,-RawDelta.Y);
+    if(Delta.IsNearlyZero()&&HasPosition&&bLastPointerValid)Delta=Position-LastPointerPosition;
+    if(Continuing&&!Delta.ContainsNaN())
     {
-        const int Zoom=(Pressed(EKeys::MouseScrollUp)?-1:0)+(Pressed(EKeys::MouseScrollDown)?1:0);
-        if(Zoom) CameraOffset=CameraOffset.GetSafeNormal()*FMath::Clamp(CameraOffset.Size()*FMath::Pow(1.15,Zoom),PlayerRoot?100.:InspectionZoomMin,PlayerRoot?5000.:InspectionZoomMax);
+        const FVector Right=FVector::CrossProduct(CameraUp,-CameraOffset.GetSafeNormal()).GetSafeNormal();
+        if(bPointerOrbit)
+        {
+            const FQuat Rotation=FQuat(Right,-Delta.Y*.006)*FQuat(CameraUp,-Delta.X*.006);
+            CameraOffset=Rotation.RotateVector(CameraOffset);CameraUp=Rotation.RotateVector(CameraUp).GetSafeNormal();
+        }
+        else if(bPointerPan)
+        {
+            // World distance per viewport pixel at the inspection target, preserving camera roll.
+            const double Fov=Camera?Camera->GetCameraComponent()->FieldOfView:50.;
+            const double Scale=2*CameraOffset.Size()*FMath::Tan(FMath::DegreesToRadians(Fov*.5))/Width;
+            CameraTarget+=(-Right*Delta.X+CameraUp*Delta.Y)*Scale;
+        }
     }
+    if(HasPosition&&FMath::IsFinite(Wheel)&&Wheel!=0)
+    {
+        if(InScene)CameraOffset=CameraOffset.GetSafeNormal()*FMath::Clamp(CameraOffset.Size()*FMath::Pow(1.12,-Wheel),PlayerRoot?100.:InspectionZoomMin,PlayerRoot?5000.:InspectionZoomMax);
+        else if(Position.X>=0&&Position.X<Panel)PendingPanelWheel+=Wheel;
+    }
+    bRightWasDown=RightDown;bMiddleWasDown=MiddleDown;
+    bLastPointerValid=HasPosition;if(HasPosition)LastPointerPosition=Position;
 }

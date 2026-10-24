@@ -63,9 +63,11 @@ node Scripts/native.mjs run --engine /absolute/path/to/UE_5.8 --import /absolute
 
 Click **Import STEP / STP** or press **O**. Editor-based game runs use the native
 file selector. Packaged game builds use a path-entry window because they cannot
-depend on the editor's DesktopPlatform module. The launcher supplies
-`VW_NODE_EXECUTABLE`; a direct packaged launch must supply that environment
-variable with the installed Node executable's absolute path. Nothing downloads
+depend on the editor's DesktopPlatform module. The launcher supplies `VW_NODE_EXECUTABLE`. The package helper copies the installed
+host Node runtime and its LICENSE into the non-UFS tools directory; a directly
+launched package uses that bundled runtime without a separately installed Node.
+An explicitly supplied `VW_NODE_EXECUTABLE` overrides the bundled path. The
+packaging host needs an official Node24+ distribution with its LICENSE present. Nothing downloads
 Node, contacts Studio or calls a paid provider. Plain source archives exported
 through the generic download API do not contain the CAD helper; create a native
 project through the CLI above to enable this optional feature.
@@ -98,8 +100,9 @@ in the cook configuration. Main-light shadows retain shape while the fills
 keep exposed internal parts readable.
 
 Scroll over the panel to reach additional controls. Scroll over the rendered
-scene to zoom. Right-drag or arrow keys orbit the camera; the mechanism camera
-has no polar clamp. Q/F rolls the mechanism view. The configured near plane is
+scene to zoom. Right-drag or arrow keys orbit the camera; middle-drag pans an inspection view; the mechanism camera
+has no polar clamp. Drag starts over the scene, without an initial jump, and the
+HUD panel handles its own wheel scrolling. Mouse smoothing is disabled. Q/F rolls the mechanism view. The configured near plane is
 0.01 centimetres so the small harmonic model can be inspected close up.
 
 | Experience          | Keyboard                                                        |
@@ -158,6 +161,53 @@ path before loading. The importer cannot resolve external files. The data checke
 also verifies actor clips, hierarchy references, campaign dependencies and
 harmonic target names. Missing render meshes, animation bindings, morph pairs or
 import errors produce a persistent HUD error and a native log entry.
+
+## Standalone applications and Windows builds
+
+Package on the target platform with the installed UE5.8 C++ toolchain. The helper
+performs build/cook/stage/package/archive; `--output` names the distribution
+folder. Distribute the whole archived directory, including the executable/app,
+Pak files and non-UFS model/tool files. An exported `.uproject` is source, not a
+standalone executable. A packaged player does not need the UE editor, Node or
+Studio installed; the optional CAD importer uses the bundled licensed runtime.
+
+macOS, with Xcode selected:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer node Scripts/native.mjs package --engine '/Users/Shared/Epic Games/UE_5.8' --configuration Development --output ./Packaged/Mac
+```
+
+Windows PowerShell, with UE5.8 and its supported Visual Studio C++ workload and
+Windows SDK installed:
+
+```powershell
+node Scripts/native.mjs check --data-only
+node Scripts/prepare-plugin.mjs
+node Scripts/prepare-plugin.mjs --verify
+node Scripts/native.mjs package --engine 'C:\Program Files\Epic Games\UE_5.8' --platform Win64 --configuration Development --output 'D:\VirtualWorldBuild'
+```
+
+Use `--configuration Shipping` for a distribution configuration after target
+validation. The default is Development for diagnostics. Windows packaging runs
+on Windows; this helper rejects a Win64 target on macOS rather than claiming a
+cross-built `.exe`. Node, pinned plugin, canonical GLBs, tools and required
+licenses must remain present during packaging. No runtime binary is downloaded
+by the helper. Verify the archived application on each intended target system;
+unsigned/notarization, signing and installer distribution are separate release
+work. A successful Mac build does not validate a Windows build.
+
+Mac packaged offline import still requires sandbox-compatible file selection and
+writable converter storage. Direct playback is verified; the current default
+sandbox blocks creating the conversion directory for an absolute-path import.
+Keep that distinction when distributing this build.
+
+During CAD playback, the hidden illustrative layer keeps its buffers; opening
+it synchronizes to the current physical angle. Visible animated strips reuse
+topology/render sections and analytic normals. Paused unchanged geometry is
+cached. These changes do not alter physical time,101 reduction or source CAD.
+
+Official references: [Epic packaging](https://dev.epicgames.com/documentation/en-us/unreal-engine/packaging-your-project),
+[Epic Visual Studio setup](https://dev.epicgames.com/documentation/en-us/unreal-engine/setting-up-visual-studio-development-environment-for-cplusplus-projects-in-unreal-engine).
 
 ## Native acceptance checks
 

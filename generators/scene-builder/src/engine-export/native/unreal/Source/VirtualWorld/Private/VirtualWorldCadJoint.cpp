@@ -194,7 +194,8 @@ void AVirtualWorldRuntime::ApplyCadJoint()
         else if(Angle!=0){Rotation=FQuat(Axis,Angle);Translation=Pivot-Rotation.RotateVector(Pivot);}
         const FTransform Motion=VW::Transform(Translation,Rotation,FVector::OneVector);
         // All vertices retain their original model frame. Rotate about fitted pivots, not mesh origins.
-        Entry.Component->SetWorldTransform(Entry.Original*Motion*CadModelRoot->GetComponentTransform());
+        const FTransform Target=Entry.Original*Motion*CadModelRoot->GetComponentTransform();
+        if(!Entry.Component->GetComponentTransform().Equals(Target,1e-9))Entry.Component->SetWorldTransform(Target);
     }
     UpdateCadSections();UpdateCadPrinciple();
 }
@@ -317,6 +318,8 @@ void AVirtualWorldRuntime::BuildCadPrinciple()
 void AVirtualWorldRuntime::UpdateCadPrinciple()
 {
     if(!PrincipleMesh)return;
+    const double Closure=JointDynamics->snapshot().closure;
+    if(bPrincipleBuilt&&(!bPrinciple||(PrincipleBuiltAngle==InputAngle&&PrincipleBuiltClosure==Closure)))return;
     const VW::Json P=VW::Object(Mechanism,TEXT("principle"));
     const double R=VW::Number(P,TEXT("radius")),A=VW::Number(P,TEXT("amplitude")),H=VW::Number(P,TEXT("toothHeight")),Clearance=VW::Number(P,TEXT("clearance"));
     const double Nf=VW::Number(P,TEXT("flexTeeth")),Nc=VW::Number(P,TEXT("ringTeeth")),ThetaW=InputAngle;
@@ -327,6 +330,7 @@ void AVirtualWorldRuntime::UpdateCadPrinciple()
     const auto Ring=[&](double Phi){return R+A+Clearance+H*FMath::Cos(Nc*(Phi-ThetaC));};
     PrincipleMinGap=TNumericLimits<double>::Max();
     for(int I=0;I<8192;++I){const double Phi=2*VWJoint::Pi*I/8192;PrincipleMinGap=FMath::Min(PrincipleMinGap,Ring(Phi)-Flex(Phi));}
+    bPrincipleBuilt=true;PrincipleBuiltAngle=InputAngle;PrincipleBuiltClosure=Closure;
     constexpr int Samples=1536;
     const bool HasCam=R-A-FMath::Max(.0004,H*3)-H-Clearance>R*.25;
     if(!HasCam&&PrincipleMesh->GetNumSections()>2)PrincipleMesh->ClearMeshSection(2);
@@ -348,12 +352,27 @@ void AVirtualWorldRuntime::UpdateCadPrinciple()
             const double Inner=Strip==2?R*.25:Strip==0?Edge-Width:Edge,Outer=Strip==1?Edge+Width:Edge;
             for(int Corner=0;Corner<4;++Corner){const double Radius=(Corner==0||Corner==3)?Inner:Outer,Z=Corner<2?-.0006:.0006;Vertices.Add(VW::Position(FVector(Radius*FMath::Cos(Phi),Radius*FMath::Sin(Phi),Z)));UV.Add(FVector2D(double(I)/Samples,double(Corner)/3));}
         }
+        // Reuse topology and the render proxy. Analytic strip normals avoid the general
+        // tangent builder's costly coincident-vertex search on this dense closed profile.
+        const auto* Existing=PrincipleMesh->GetProcMeshSection(Strip);const bool BuildTopology=!Existing||Existing->ProcVertexBuffer.Num()!=Vertices.Num();
+        const FVector ZAxis=VW::Position(FVector(0,0,1)).GetSafeNormal();
+        const double Handedness=VW::LoaderConfig().GetMatrix().Determinant()<0?-1:1;
+        Normals.Reserve(Vertices.Num());Tangents.Reserve(Vertices.Num());
+        for(int I=0;I<Samples;++I)for(int Corner=0;Corner<4;++Corner)
+        {
+            const FVector Tangent=(Vertices[((I+1)%Samples)*4+Corner]-Vertices[((I+Samples-1)%Samples)*4+Corner]).GetSafeNormal();
+            const FVector Outward=FVector::CrossProduct(Tangent,ZAxis).GetSafeNormal()*Handedness;
+            Normals.Add((Outward*((Corner==0||Corner==3)?-1:1)+ZAxis*(Corner<2?-1:1)).GetSafeNormal());
+            Tangents.Add(FProcMeshTangent(Tangent,false));
+        }
         // Four walls, closed at the periodic seam; no holes, no collision on explanatory geometry.
-        for(int I=0;I<Samples;++I)for(int Edge=0;Edge<4;++Edge)
+        if(BuildTopology)for(int I=0;I<Samples;++I)for(int Edge=0;Edge<4;++Edge)
         {const int Next=(I+1)%Samples,Ai=4*I+Edge,Bi=4*Next+Edge,Ci=4*Next+(Edge+1)%4,Di=4*I+(Edge+1)%4;Indices.Append({Ai,Bi,Ci,Ai,Ci,Di});}
-        if(VW::LoaderConfig().GetMatrix().Determinant()<0)for(int32 I=0;I<Indices.Num();I+=3)Swap(Indices[I+1],Indices[I+2]);
-        UKismetProceduralMeshLibrary::CalculateTangentsForMesh(Vertices,Indices,UV,Normals,Tangents);
-        PrincipleMesh->CreateMeshSection_LinearColor(Strip,Vertices,Indices,Normals,UV,Colors,Tangents,false);
+        // UE front faces use the reverse cross-product convention; keep exterior normals
+        // and exterior-facing winding aligned after the source-basis reflection.
+        if(VW::LoaderConfig().GetMatrix().Determinant()>=0)for(int32 I=0;I<Indices.Num();I+=3)Swap(Indices[I+1],Indices[I+2]);
+        if(BuildTopology)PrincipleMesh->CreateMeshSection_LinearColor(Strip,Vertices,Indices,Normals,UV,Colors,Tangents,false);
+        else PrincipleMesh->UpdateMeshSection_LinearColor(Strip,Vertices,Normals,UV,Colors,Tangents);
     }
     if(PrincipleArmature)PrincipleArmature->SetRelativeLocation(VW::Position(FVector(0,-R*1.7,JointDynamics->snapshot().closure*JointDynamics->config.armatureTravel)));
 }

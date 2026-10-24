@@ -47,6 +47,15 @@ void AVirtualWorldRuntime::BeginCadImport(const FString& Path)
     if((Extension!=TEXT("step")&&Extension!=TEXT("stp"))||Size<=0||Size>100LL*1024*1024)
     { Notice=TEXT("Choose a nonempty STEP / STP file, at most 100 MiB.");WriteCadReport(false,Notice);return; }
     FString Node=FPlatformMisc::GetEnvironmentVariable(TEXT("VW_NODE_EXECUTABLE"));
+    if(Node.IsEmpty())
+    {
+#if PLATFORM_WINDOWS
+        const FString Bundled=FPaths::ProjectContentDir()/TEXT("VirtualWorldTools/Node/node.exe");
+#else
+        const FString Bundled=FPaths::ProjectContentDir()/TEXT("VirtualWorldTools/Node/node");
+#endif
+        if(FPaths::FileExists(Bundled))Node=FPaths::ConvertRelativePathToFull(Bundled);
+    }
     const FString Helper=FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir()/TEXT("VirtualWorldTools/Cad/import-cad.mjs"));
     if(Node.IsEmpty()||!FPaths::FileExists(Node)||!FPaths::FileExists(Helper))
     { Notice=TEXT("CAD helper unavailable. Launch with Scripts/native.mjs using Node.js 24; prepare this project with npm run native:export.");WriteCadReport(false,Notice);return; }
