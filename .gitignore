@@ -5,6 +5,12 @@ worlds/world-*/
 .env
 .npm-cache/
 output/
+# Local CAD and converted models stay private; only named public demos are allowed below.
+private-cad/
+*.[sS][tT][pP]
+*.[sS][tT][eE][pP]
+*.[gG][lL][bB]
+*.[gG][lL][tT][fF]
 .superpowers/
 *.log
 public/cad/occt-import-js.js
@@ -23,7 +29,13 @@ assets/manifests/plans/
 assets/manifests/jobs/
 assets/manifests/worlds/
 __pycache__/
-!assets/optimized/showcase/*.glb
+!assets/optimized/showcase/harmonic-joint.glb
+!assets/optimized/showcase/prince-b612.glb
+!assets/optimized/showcase/prince-character.glb
+!assets/optimized/showcase/prince-desert.glb
+!assets/optimized/showcase/prince-earth.glb
+!assets/optimized/showcase/prince-fox.glb
+!assets/optimized/showcase/prince-pilot.glb
 assets/source/showcase/**/*.blend
 assets/source/showcase/**/*.blend1
 assets/source/showcase/**/*.png
