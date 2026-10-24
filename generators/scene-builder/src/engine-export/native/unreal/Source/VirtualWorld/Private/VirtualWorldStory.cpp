@@ -173,6 +173,12 @@ void AVirtualWorldRuntime::Command(const FString& Action)
         else if(Action==TEXT("markers"))bRollingMarkers=!bRollingMarkers;
         else if(Action==TEXT("principle"))bPrinciple=!bPrinciple;
         else if(Action==TEXT("slow-motion"))JointTimeScale=JointTimeScale==1?.1:JointTimeScale==.1?.02:1;
+        else if((Action==TEXT("focus-brake")||Action==TEXT("focus-principle"))&&PrincipleMesh)
+        {bPrinciple=true;ApplyMechanism();ApplyVisibility();if(Action==TEXT("focus-brake"))FrameCadBrakeInspection();else FrameCadInspection(true);}
+        else if(Action==TEXT("frame-assembly"))
+        {
+            bPrinciple=false;ApplyVisibility();const auto C=VW::Object(Scene,TEXT("camera"));CameraOffset=VW::Position(VW::Vector(C,TEXT("position"))-VW::Vector(C,TEXT("target")));CameraUp=FVector::UpVector;FrameCadInspection();
+        }
         else if(Action==TEXT("section"))bSection=!bSection;
         bRunning=JointDynamics->snapshot().running;ApplyMechanism();ApplyVisibility();if(Action==TEXT("principle"))FrameCadInspection();return;
     }

@@ -96,6 +96,9 @@ TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
             Result.Add({TEXT("markers"),bRollingMarkers?TEXT("Hide rolling markers"):TEXT("Show rolling markers"),true});
             Result.Add({TEXT("principle"),bPrinciple?TEXT("Hide assumed principle"):TEXT("Show assumed principle"),PrincipleMesh!=nullptr});
             Result.Add({TEXT("slow-motion"),FString::Printf(TEXT("Clock %.2fx / cycle"),JointTimeScale),true});
+            Result.Add({TEXT("focus-brake"),TEXT("Brake close-up"),PrincipleMesh!=nullptr});
+            Result.Add({TEXT("focus-principle"),TEXT("Principle overview"),PrincipleMesh!=nullptr});
+            Result.Add({TEXT("frame-assembly"),TEXT("Frame assembly"),true});
         }
         else Result.Add({TEXT("explode"),TEXT("Explode +25% / reset [X]"),true});
         if(bHasBrake)
