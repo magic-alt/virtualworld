@@ -95,6 +95,8 @@ const BindingSchema = z
     center: vector.optional(),
     inspectionHidden: z.boolean().optional(),
     inspectionCut: z.boolean().optional(),
+    /** Omit display details in every view without changing the retained source CAD. */
+    displayHidden: z.boolean().optional(),
     group: z.string().min(1).max(200).optional(),
     phase: z.number().finite().optional(),
   })

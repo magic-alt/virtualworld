@@ -91,6 +91,7 @@ bool AVirtualWorldRuntime::BindCadJoint()
     for(auto& Entry:CadBindings)
     {
         const FString Role=VW::String(Entry.Data,TEXT("role"));const auto Factors=CadTransmission();
+        if(VW::Bool(Entry.Data,TEXT("displayHidden")))continue;
         const bool Ball=Role==TEXT("ball"),Input=Role==TEXT("input"),Output=Role==TEXT("output")||(Role==TEXT("flexspline")&&Factors.flex!=0)||(Role==TEXT("circular-spline")&&Factors.circular!=0);
         if(!Ball&&!Input&&!Output)continue;
         double Radius=0;FVector Surface;
@@ -187,7 +188,7 @@ void AVirtualWorldRuntime::UpdateCadSections()
     const FVector PlaneNormal=ModelWorld.GetRotation().RotateVector(VW::Position(FVector(-1,0,0)).GetSafeNormal()/ModelWorld.GetScale3D()).GetSafeNormal();
     for(auto& Entry:CadBindings)
     {
-        if(!VW::Bool(Entry.Data,TEXT("inspectionCut"))||VW::Bool(Entry.Data,TEXT("inspectionHidden")))continue;
+        if(!VW::Bool(Entry.Data,TEXT("inspectionCut"))||VW::Bool(Entry.Data,TEXT("inspectionHidden"))||VW::Bool(Entry.Data,TEXT("displayHidden")))continue;
         auto* Source=Cast<UStaticMeshComponent>(Entry.Component);if(!Source||!Source->GetStaticMesh())continue;
         UStaticMesh* Mesh=Source->GetStaticMesh();const auto* RenderData=Mesh->GetRenderData();
         if(!RenderData||RenderData->LODResources.IsEmpty()||RenderData->LODResources[0].VertexBuffers.PositionVertexBuffer.GetNumVertices()==0)

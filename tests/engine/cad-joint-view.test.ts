@@ -182,6 +182,25 @@ it('preserves authored hidden CAD bodies when toggling browser inspection', () =
   expect(parent.visible).toBe(false);
   view.dispose();
 });
+it('keeps omitted bearing internals hidden and stationary in both inspection and assembly', () => {
+  const { model, parent, child } = nestedCad();
+  const config = inspectionConfig([
+    { ...inputBinding(1), role: 'fixed', displayHidden: true, inspectionCut: true },
+    { ...inputBinding(2), role: 'fixed' },
+  ]);
+  const view = new CadJointView(model, config, new T.Group());
+  const originals = [parent, child].map((o) => o.matrix.clone());
+  view.setMarkers(true);
+  for (const section of [false, true, false]) {
+    view.update(1.2, 0, section);
+    expect(parent.visible).toBe(false);
+    expect(child.visible).toBe(true);
+    expect(parent.matrix.equals(originals[0])).toBe(true);
+    expect(child.matrix.equals(originals[1])).toBe(true);
+    expect(parent.children.some((o) => o.name === 'rolling-marker')).toBe(false);
+  }
+  view.dispose();
+});
 it('keeps omitted tagged descendants static while untagged primitives follow their mechanical body', () => {
   const { model, parent, child, primitive } = nestedCad();
   const childWorld = child.matrixWorld.clone(),

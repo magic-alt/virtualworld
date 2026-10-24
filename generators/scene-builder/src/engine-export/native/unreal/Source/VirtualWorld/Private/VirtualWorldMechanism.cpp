@@ -125,7 +125,7 @@ void AVirtualWorldRuntime::ApplyVisibility()
     const bool CadVisible=!CadNode||CadNode->bVisible;
     for(auto& Binding:CadBindings)
     {
-        const bool Visible=CadVisible&&Binding.bOriginalVisible&&!(bSection&&VW::Bool(Binding.Data,TEXT("inspectionHidden")));
+        const bool Visible=CadVisible&&Binding.bOriginalVisible&&!VW::Bool(Binding.Data,TEXT("displayHidden"))&&!(bSection&&VW::Bool(Binding.Data,TEXT("inspectionHidden")));
         Binding.Component->SetVisibility(Visible&&!(bSection&&Binding.bInspectionBuilt),false);
         if(Binding.InspectionMesh)Binding.InspectionMesh->SetVisibility(Visible&&bSection,false);
         if(Binding.Marker) Binding.Marker->SetVisibility(Visible&&bRollingMarkers,false);

@@ -80,7 +80,7 @@ export class CadJointView {
     const sphere = new T.SphereGeometry(1, 8, 6),
       material = new T.MeshBasicMaterial({ color: '#ff6840' });
     for (const e of this.entries)
-      if (e.binding.role === 'ball') {
+      if (e.binding.role === 'ball' && !e.binding.displayHidden) {
         const b = config.bearings.find((b) => b.id === e.binding.bearingId)!;
         const marker = new T.Mesh(sphere, material);
         marker.name = 'rolling-marker';
@@ -166,7 +166,9 @@ export class CadJointView {
       e.object.matrixWorldNeedsUpdate = true;
       // Browser inspection hides selected occluders; native derives capped sections.
       e.object.visible =
-        e.visible && !(section && (e.binding.inspectionHidden || e.binding.inspectionCut));
+        e.visible &&
+        !e.binding.displayHidden &&
+        !(section && (e.binding.inspectionHidden || e.binding.inspectionCut));
     }
     if (this.principleEnabled && this.config.principle && this.flex && this.ring) {
       this.strip(this.flex, false, angle);

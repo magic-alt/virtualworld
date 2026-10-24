@@ -191,6 +191,15 @@ bool FVirtualWorldCadJointSectionVisibilityTest::RunTest(const FString& Paramete
         R->Command(TEXT("section"));TestNull(TEXT("Section close releases copy under hidden ancestor"),R->CadBindings[0].InspectionMesh);TestFalse(TEXT("Closing section cannot reveal hidden markers"),Marker->IsVisible());
         Native->SetBoolField(TEXT("visible"),true);R->ApplyVisibility();TestTrue(TEXT("Full source geometry restored after unhide"),Original->IsVisible()&&!Model->IsHidden());
     }
+    // Authored omitted internals must stay absent even when section/markers are toggled.
+    R->CadBindings[0].Data->SetBoolField(TEXT("displayHidden"),true);
+    for(bool Section:{false,true,false})
+    {
+        R->bSection=Section;R->ApplyMechanism();R->ApplyVisibility();
+        TestFalse(TEXT("Omitted bearing internal stays hidden in assembly and section"),Original->IsVisible());
+        TestFalse(TEXT("Omitted bearing internal has no visible motion marker"),Marker->IsVisible());
+        TestNull(TEXT("Omitted bearing internal does not create a cut mesh"),R->CadBindings[0].InspectionMesh);
+    }
     R->ReleaseCadSections();World->DestroyWorld(false);return true;
 }
 
@@ -291,8 +300,10 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
             {
                 const auto B=Entry.Data;const FString Role=VW::String(B,TEXT("role"));const auto Actual=Entry.Component->GetComponentTransform().GetRelativeTransform(R->CadModelRoot->GetComponentTransform());
                 TestTrue(Name+TEXT(" original scale"),Actual.GetScale3D().Equals(Entry.Original.GetScale3D(),1e-8));
-                TestEqual(Name+TEXT(" section affects only documented components"),Entry.Component->IsVisible(),Entry.bOriginalVisible&&!VW::Bool(B,TEXT("inspectionHidden"))&&!Entry.bInspectionBuilt);
-                if(VW::Bool(B,TEXT("inspectionCut"))&&!VW::Bool(B,TEXT("inspectionHidden")))TestNotNull(Name+TEXT(" selected occluder is actually cut"),Entry.InspectionMesh);
+                const bool Omitted=VW::Bool(B,TEXT("displayHidden"));
+                TestEqual(Name+TEXT(" section affects only documented components"),Entry.Component->IsVisible(),Entry.bOriginalVisible&&!Omitted&&!VW::Bool(B,TEXT("inspectionHidden"))&&!Entry.bInspectionBuilt);
+                if(Omitted){TestNull(Name+TEXT(" omitted internals have no cut mesh"),Entry.InspectionMesh);TestNull(Name+TEXT(" omitted internals have no motion marker"),Entry.Marker);}
+                if(VW::Bool(B,TEXT("inspectionCut"))&&!VW::Bool(B,TEXT("inspectionHidden"))&&!Omitted)TestNotNull(Name+TEXT(" selected occluder is actually cut"),Entry.InspectionMesh);
                 const double Factor=Role==TEXT("output")?Factors.output:Role==TEXT("flexspline")?Factors.flex:Role==TEXT("circular-spline")?Factors.circular:Role==TEXT("input")?1:0;
                 if(Factor!=0)
                 {
@@ -319,7 +330,8 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
                 }
                 const VW::Json Record=MakeShared<FJsonObject>();Record->SetNumberField(TEXT("nodeIndex"),VW::Number(B,TEXT("gltfNodeIndex")));Record->SetNumberField(TEXT("centerResidualCm"),Error);Record->SetNumberField(TEXT("worldBallAngle"),Rolling.worldBallAngle);Record->SetNumberField(TEXT("cageAngle"),Rolling.cageAngle);const FVector P=Actual.GetTranslation();Record->SetArrayField(TEXT("translationCm"),{MakeShared<FJsonValueNumber>(P.X),MakeShared<FJsonValueNumber>(P.Y),MakeShared<FJsonValueNumber>(P.Z)});Readbacks.Add(MakeShared<FJsonValueObject>(Record));
             }
-            TestTrue(TEXT("Actual imported balls were read"),Balls>0);TestTrue(TEXT("Actual imported output components were read"),Factors.resolved&&Outputs>0);TestTrue(TEXT("Principle sampled gap finite and nonnegative"),FMath::IsFinite(R->PrincipleMinGap)&&R->PrincipleMinGap>=-1e-10);
+            int32 ExpectedBalls=0;for(const auto& Entry:R->CadBindings)if(VW::String(Entry.Data,TEXT("role"))==TEXT("ball"))++ExpectedBalls;
+            TestEqual(TEXT("Every configured rolling ball was read; exterior-only profile has none"),Balls,ExpectedBalls);TestTrue(TEXT("Actual imported output components were read"),Factors.resolved&&Outputs>0);TestTrue(TEXT("Principle sampled gap finite and nonnegative"),FMath::IsFinite(R->PrincipleMinGap)&&R->PrincipleMinGap>=-1e-10);
             if(TestNotNull(TEXT("Actual principle procedural component"),R->PrincipleMesh))
             {
                 const auto* Flex=R->PrincipleMesh->GetProcMeshSection(0);const auto* Ring=R->PrincipleMesh->GetProcMeshSection(1);
