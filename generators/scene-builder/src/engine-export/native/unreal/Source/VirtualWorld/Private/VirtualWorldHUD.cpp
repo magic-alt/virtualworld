@@ -34,6 +34,7 @@ TArray<FString> AVirtualWorldRuntime::StatusLines() const
             const bool Markers=VW::Bool(Mechanism,TEXT("motionMarkers"),true);
             Lines.Add(Markers?TEXT("M markers | C section | G principle | H assembly | T clock"):TEXT("C motor window | G principle | H assembly | T clock"));
             if(Markers)Lines.Add(TEXT("Orange input / blue output."));
+            if(bSection){bool Transparent=false;for(const auto& B:CadBindings)Transparent|=B.Data->HasField(TEXT("inspectionOpacity"));if(Transparent)Lines.Add(TEXT("Harmonic inspection: transparent outer parts."));}
             Lines.Add(TEXT("Demonstration dynamics; actual teeth and brake performance unmeasured."));
             if(bPrinciple)
             {
@@ -103,7 +104,8 @@ TArray<FVirtualWorldAction> AVirtualWorldRuntime::Actions() const
         const bool Locked=JointDynamics?(!JointDynamics->snapshot().powered||(JointDynamics->snapshot().installed&&(JointDynamics->snapshot().closure!=0||FString(UTF8_TO_TCHAR(JointDynamics->snapshot().brakePhase))!=TEXT("released")))):bBrakeInstalled&&!bBrakePowered;
         Result.Add({TEXT("run"),bRunning?TEXT("Stop [Space]"):TEXT("Run [Space]"),!Locked||bRunning});
         const bool MotorWindow=VW::String(Mechanism,TEXT("inspectionCutaway"))==TEXT("quarter-window");
-        Result.Add({TEXT("section"),bSection?TEXT("Full housing [C]"):(MotorWindow?TEXT("Motor window [C]"):TEXT("Section view [C]")),true});
+        bool Transparent=false;for(const auto& B:CadBindings)Transparent|=B.Data->HasField(TEXT("inspectionOpacity"));
+        Result.Add({TEXT("section"),bSection?TEXT("Full housing [C]"):(Transparent?TEXT("Motor / harmonic inspection [C]"):(MotorWindow?TEXT("Motor window [C]"):TEXT("Section view [C]"))),true});
         Result.Add({TEXT("step-back"),TEXT("Step -15 degrees [ ]"),!Locked&&!bRunning&&!bPaused&&(!JointDynamics||JointDynamics->snapshot().omega==0)});
         Result.Add({TEXT("step"),TEXT("Step +15 degrees [ ]"),!Locked&&!bRunning&&!bPaused&&(!JointDynamics||JointDynamics->snapshot().omega==0)});
         Result.Add({TEXT("speed-down"),TEXT("RPM -1 [-]"),true});Result.Add({TEXT("speed-up"),TEXT("RPM +1 [+]"),true});

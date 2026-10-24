@@ -457,3 +457,68 @@ it('omits the illustrative cam when legacy principle dimensions leave no room fo
   expect(view.principleObject!.getObjectByName('illustrative-wave-cam')).toBeUndefined();
   view.dispose();
 });
+
+it('validates reversible inspection opacity without permitting ambiguous cut materials', () => {
+  const binding = { ...inputBinding(1), inspectionOpacity: 0.18 };
+  expect(CadMechanismSchema.safeParse(inspectionConfig([binding])).success).toBe(true);
+  for (const opacity of [0, 1, -0.1, Infinity, NaN])
+    expect(
+      CadMechanismSchema.safeParse(inspectionConfig([{ ...binding, inspectionOpacity: opacity }]))
+        .success,
+    ).toBe(false);
+  expect(
+    CadMechanismSchema.safeParse(inspectionConfig([{ ...binding, inspectionCut: true }])).success,
+  ).toBe(false);
+});
+it('ghosts only selected occluder materials, retains complete geometry and restores multi-material sources', () => {
+  const { model, parent, child, primitive } = nestedCad(),
+    geometry = parent.geometry;
+  const original = [
+    new T.MeshStandardMaterial({ color: '#667788', metalness: 0.8 }),
+    new T.MeshStandardMaterial({ color: '#c6c7c8' }),
+  ];
+  original[0].alphaTest = 0.5;
+  original[1].alphaHash = true;
+  parent.material = original;
+  parent.castShadow = true;
+  primitive.material = original[0];
+  child.material = original[1];
+  const binding = { ...inputBinding(1), inspectionOpacity: 0.18 };
+  const view = new CadJointView(model, inspectionConfig([binding]), new T.Group());
+  view.update(0.7, 0, true);
+  const copies = parent.material as T.Material[],
+    childMaterial = child.material;
+  expect(parent.castShadow).toBe(false);
+  expect(copies).not.toBe(original);
+  expect(copies).toHaveLength(2);
+  for (const m of copies) {
+    expect(m.transparent).toBe(true);
+    expect(m.opacity).toBe(0.18);
+    expect(m.depthWrite).toBe(false);
+    expect(m.alphaTest).toBe(0);
+    expect(m.alphaHash).toBe(false);
+  }
+  expect(primitive.material).not.toBe(original[0]);
+  expect(childMaterial).toBe(original[1]);
+  expect(parent.geometry).toBe(geometry);
+  expect(original.every((m) => m.opacity === 1 && !m.transparent)).toBe(true);
+  view.update(1, 0, true);
+  expect(parent.material).toBe(copies);
+  view.update(1, 0, false);
+  expect(parent.material).toBe(original);
+  expect(parent.castShadow).toBe(true);
+  expect(primitive.material).toBe(original[0]);
+  view.update(2, 0, true);
+  expect(parent.material).toBe(copies);
+  let sourceDisposed = 0,
+    copyDisposed = 0;
+  original.forEach((m) => m.addEventListener('dispose', () => sourceDisposed++));
+  copies.forEach((m) => m.addEventListener('dispose', () => copyDisposed++));
+  view.dispose();
+  expect(parent.material).toBe(original);
+  expect(child.material).toBe(original[1]);
+  expect(copyDisposed).toBe(2);
+  expect(sourceDisposed).toBe(0);
+  expect(original[0].alphaTest).toBe(0.5);
+  expect(original[1].alphaHash).toBe(true);
+});

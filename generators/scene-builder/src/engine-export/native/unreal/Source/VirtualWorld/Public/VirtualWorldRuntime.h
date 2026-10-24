@@ -7,6 +7,8 @@
 #include "VirtualWorldData.h"
 #include "VirtualWorldJointDynamics.h"
 #include "VirtualWorldJointTransmission.h"
+#include "UObject/StrongObjectPtr.h"
+#include "Materials/MaterialInterface.h"
 #include "VirtualWorldRuntime.generated.h"
 
 class AVirtualWorldModel;
@@ -22,6 +24,9 @@ struct FVirtualWorldCadBinding
     UPrimitiveComponent* Component = nullptr;
     USceneComponent* Marker = nullptr;
     UProceduralMeshComponent* InspectionMesh = nullptr;
+    TArray<TStrongObjectPtr<UMaterialInterface>> OriginalInspectionMaterials;
+    TArray<TStrongObjectPtr<UMaterialInterface>> TransparentInspectionMaterials;
+    bool bOriginalCastShadow = true;
     FTransform InspectionPose;
     bool bInspectionBuilt = false;
     uint64 InspectionRevision = 0;
@@ -92,6 +97,7 @@ private:
     void ApplyCadJoint();
     VWJoint::Transmission CadTransmission() const;
     void UpdateCadSections();
+    void UpdateCadTransparency();
     void ReleaseCadSections();
     void SelectCadSectionCamera();
     void BuildCadPrinciple();

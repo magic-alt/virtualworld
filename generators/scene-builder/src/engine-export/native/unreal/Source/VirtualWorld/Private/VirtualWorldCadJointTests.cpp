@@ -2,6 +2,7 @@
 #include "VirtualWorldRuntime.h"
 #include "VirtualWorldModel.h"
 #include "Components/PrimitiveComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Components/StaticMeshComponent.h"
 #include "ProceduralMeshComponent.h"
 #include "Engine/Engine.h"
@@ -237,7 +238,16 @@ bool FVirtualWorldCadJointSectionVisibilityTest::RunTest(const FString& Paramete
         TestFalse(TEXT("Omitted bearing internal has no visible motion marker"),Marker->IsVisible());
         TestNull(TEXT("Omitted bearing internal does not create a cut mesh"),R->CadBindings[0].InspectionMesh);
     }
-    R->ReleaseCadSections();World->DestroyWorld(false);return true;
+    auto& Transparent=R->CadBindings[0];Transparent.Data->SetBoolField(TEXT("displayHidden"),false);Transparent.Data->SetBoolField(TEXT("inspectionCut"),false);Transparent.Data->SetNumberField(TEXT("inspectionOpacity"),.18);
+    auto* SourceMaterial=Original->GetMaterial(0);UStaticMesh* SourceMesh=Original->GetStaticMesh();const bool SourceShadow=Original->CastShadow;
+    R->bSection=true;R->ApplyVisibility();auto* Ghost=Cast<UMaterialInstanceDynamic>(Original->GetMaterial(0));
+    if(TestNotNull(TEXT("Selected real mesh receives transient inspection material"),Ghost))
+    {FLinearColor Color;Ghost->GetVectorParameterValue(FMaterialParameterInfo(TEXT("baseColorFactor")),Color);TestTrue(TEXT("Actual material is translucent with authored opacity"),Ghost->GetBlendMode()==BLEND_Translucent&&FMath::IsNearlyEqual(Color.A,.18f,1e-6f));}
+    TestTrue(TEXT("Transparent inspection retains complete original mesh"),Original->GetStaticMesh()==SourceMesh&&Original->IsVisible());TestNull(TEXT("Transparency does not cut the circular spline"),Transparent.InspectionMesh);
+    R->ApplyVisibility();TestTrue(TEXT("Material instance reused without per-frame allocation"),Original->GetMaterial(0)==Ghost);
+    R->bSection=false;R->ApplyVisibility();TestTrue(TEXT("Leaving inspection restores source material and shadow"),Original->GetMaterial(0)==SourceMaterial&&Original->CastShadow==SourceShadow);
+    R->bSection=true;R->ApplyVisibility();R->ReleaseCadSections();TestTrue(TEXT("Scene disposal restores retained source material"),Original->GetMaterial(0)==SourceMaterial);
+    World->DestroyWorld(false);return true;
 }
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FVirtualWorldCadJointInspectionTest,"VirtualWorld.CadJoint.InstallationControls",EAutomationTestFlags_ApplicationContextMask|EAutomationTestFlags::EngineFilter)
@@ -359,6 +369,8 @@ bool FVirtualWorldCadJointComponentTest::RunTest(const FString& Parameters)
                 TestEqual(Name+TEXT(" section affects only documented components"),Entry.Component->IsVisible(),Entry.bOriginalVisible&&!Omitted&&!VW::Bool(B,TEXT("inspectionHidden"))&&!Entry.bInspectionBuilt);
                 if(Omitted){TestNull(Name+TEXT(" omitted internals have no cut mesh"),Entry.InspectionMesh);TestNull(Name+TEXT(" omitted internals have no motion marker"),Entry.Marker);}
                 if(VW::Bool(B,TEXT("inspectionCut"))&&!VW::Bool(B,TEXT("inspectionHidden"))&&!Omitted)TestNotNull(Name+TEXT(" selected occluder is actually cut"),Entry.InspectionMesh);
+                double Opacity=0;if(B->TryGetNumberField(TEXT("inspectionOpacity"),Opacity)&&!Omitted&&!VW::Bool(B,TEXT("inspectionHidden")))
+                {auto* Ghost=Cast<UMaterialInstanceDynamic>(Entry.Component->GetMaterial(0));if(TestNotNull(Name+TEXT(" real reducer transparency"),Ghost)){FLinearColor Color;Ghost->GetVectorParameterValue(FMaterialParameterInfo(TEXT("baseColorFactor")),Color);TestTrue(Name+TEXT(" real reducer has translucent blend and authored opacity"),Ghost->GetBlendMode()==BLEND_Translucent&&FMath::IsNearlyEqual(double(Color.A),Opacity,1e-6));}TestNull(Name+TEXT(" real transparent body remains complete"),Entry.InspectionMesh);}
                 const double Factor=Role==TEXT("output")?Factors.output:Role==TEXT("flexspline")?Factors.flex:Role==TEXT("circular-spline")?Factors.circular:Role==TEXT("input")?1:0;
                 if(Factor!=0)
                 {

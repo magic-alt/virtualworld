@@ -68,6 +68,8 @@ bool AVirtualWorldRuntime::BindCadJoint()
         if(Matches.IsEmpty()) return Fail(TEXT("CAD binding does not resolve to a real mesh component: ")+Tag.ToString());
         const FString Role=VW::String(Binding,TEXT("role"));
         if(VW::Array(Binding,TEXT("pivot")).Num()!=3||VW::Vector(Binding,TEXT("pivot")).ContainsNaN()||VW::Vector(Binding,TEXT("center")).ContainsNaN())return Fail(TEXT("Invalid CAD SI pivot/center."));
+        double Opacity;
+        if(Binding->TryGetNumberField(TEXT("inspectionOpacity"),Opacity)&&(!FMath::IsFinite(Opacity)||Opacity<=0||Opacity>=1||VW::Bool(Binding,TEXT("inspectionCut"))))return Fail(TEXT("Invalid or ambiguous CAD inspection opacity."));
         if(!VW::Vector(Binding,TEXT("axis")).IsUnit(1e-6)) return Fail(TEXT("CAD axis must have unit length."));
         if(Role==TEXT("ball")&&VW::Array(Binding,TEXT("center")).Num()!=3) return Fail(TEXT("A ball requires its measured center; motion was not guessed."));
         if(Role==TEXT("ball")||Role==TEXT("inner-race")||Role==TEXT("outer-race"))
@@ -202,7 +204,38 @@ void AVirtualWorldRuntime::ReleaseCadSections()
     for(auto& Entry:CadBindings)
     {
         if(Entry.InspectionMesh){SceneComponents.Remove(Entry.InspectionMesh);Entry.InspectionMesh->DestroyComponent();Entry.InspectionMesh=nullptr;}
+        for(int I=0;I<Entry.OriginalInspectionMaterials.Num();++I)Entry.Component->SetMaterial(I,Entry.OriginalInspectionMaterials[I].Get());
+        if(!Entry.OriginalInspectionMaterials.IsEmpty())Entry.Component->SetCastShadow(Entry.bOriginalCastShadow);
+        Entry.OriginalInspectionMaterials.Reset();Entry.TransparentInspectionMaterials.Reset();
         Entry.bInspectionBuilt=false;
+    }
+}
+
+void AVirtualWorldRuntime::UpdateCadTransparency()
+{
+    if(!bSection)return;
+    for(auto& Entry:CadBindings)
+    {
+        double Opacity=0;
+        if(!Entry.Data->TryGetNumberField(TEXT("inspectionOpacity"),Opacity)||VW::Bool(Entry.Data,TEXT("displayHidden"))||VW::Bool(Entry.Data,TEXT("inspectionHidden")))continue;
+        if(Entry.OriginalInspectionMaterials.IsEmpty())
+        {
+            auto* Base=LoadObject<UMaterialInterface>(nullptr,TEXT("/glTFRuntime/M_glTFRuntimeTranslucent_Inst.M_glTFRuntimeTranslucent_Inst"));
+            if(!Base){Notice=TEXT("Harmonic transparency material unavailable; original surfaces retained.");continue;}
+            Entry.bOriginalCastShadow=Entry.Component->CastShadow;
+            for(int I=0;I<Entry.Component->GetNumMaterials();++I)
+            {
+                auto* Original=Entry.Component->GetMaterial(I);Entry.OriginalInspectionMaterials.Emplace(Original);
+                auto* Ghost=UMaterialInstanceDynamic::Create(Base,this);
+                FLinearColor Color(.7,.8,.9,1);
+                if(Original){Ghost->CopyMaterialUniformParameters(Original);Original->GetVectorParameterValue(FMaterialParameterInfo(TEXT("baseColorFactor")),Color);}
+                Color.A=Opacity;Ghost->SetVectorParameterValue(TEXT("baseColorFactor"),Color);
+                Ghost->SetScalarParameterValue(TEXT("metallicFactor"),0);Ghost->SetScalarParameterValue(TEXT("roughnessFactor"),.65);
+                Entry.TransparentInspectionMaterials.Emplace(Ghost);
+            }
+        }
+        for(int I=0;I<Entry.TransparentInspectionMaterials.Num();++I)Entry.Component->SetMaterial(I,Entry.TransparentInspectionMaterials[I].Get());
+        Entry.Component->SetCastShadow(false);
     }
 }
 

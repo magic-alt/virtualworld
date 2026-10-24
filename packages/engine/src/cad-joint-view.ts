@@ -13,6 +13,12 @@ type Entry = {
   initial: T.Matrix4;
   visible: boolean;
   binding: CadMechanism['bindings'][number];
+  inspectionMaterials?: {
+    mesh: T.Mesh;
+    castShadow: boolean;
+    original: T.Material | T.Material[];
+    ghost: T.Material | T.Material[];
+  }[];
 };
 /** A transient inspection instance. Authored CAD geometry, materials and SceneSpec remain untouched. */
 export class CadJointView {
@@ -30,7 +36,8 @@ export class CadJointView {
     private config: CadMechanism,
     private content: T.Object3D,
   ) {
-    if (config.driveChain) CadMechanismSchema.parse(config);
+    if (config.driveChain || config.bindings.some((b) => b.inspectionOpacity !== undefined))
+      CadMechanismSchema.parse(config);
     if (model.userData.glbSha256 !== config.modelSha256)
       throw new Error('CAD model hash does not match motion bindings');
     model.updateWorldMatrix(true, true);
@@ -179,6 +186,36 @@ export class CadJointView {
       );
       e.object.matrix.copy(delta.multiply(e.initial));
       e.object.matrixWorldNeedsUpdate = true;
+      if (e.binding.inspectionOpacity !== undefined) {
+        if (section && !e.inspectionMaterials) {
+          e.inspectionMaterials = [];
+          e.object.traverse((object) => {
+            if (!(object instanceof T.Mesh)) return;
+            const original = object.material as T.Material | T.Material[],
+              clone = (source: T.Material) => {
+                const m = source.clone();
+                m.transparent = true;
+                // Imported MASK/hashed materials must blend rather than discard the ghost surface.
+                m.alphaTest = 0;
+                m.alphaHash = false;
+                m.opacity = e.binding.inspectionOpacity!;
+                m.depthWrite = false;
+                return m;
+              },
+              ghost = Array.isArray(original) ? original.map(clone) : clone(original);
+            e.inspectionMaterials!.push({
+              mesh: object,
+              original,
+              ghost,
+              castShadow: object.castShadow,
+            });
+          });
+        }
+        for (const m of e.inspectionMaterials ?? []) {
+          m.mesh.material = section ? m.ghost : m.original;
+          m.mesh.castShadow = section ? false : m.castShadow;
+        }
+      }
       // Browser inspection hides selected occluders; native derives capped sections.
       e.object.visible =
         e.visible &&
@@ -246,6 +283,13 @@ export class CadJointView {
       materials.add(m.material as T.Material);
     }
     this.markers = [];
+    for (const e of this.entries)
+      for (const m of e.inspectionMaterials ?? []) {
+        m.mesh.material = m.original;
+        m.mesh.castShadow = m.castShadow;
+        for (const material of Array.isArray(m.ghost) ? m.ghost : [m.ghost])
+          materials.add(material);
+      }
     this.principle?.traverse((o) => {
       if (o instanceof T.Mesh) {
         geometries.add(o.geometry);

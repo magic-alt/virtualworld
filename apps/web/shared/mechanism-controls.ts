@@ -163,9 +163,16 @@ export function mountMechanismControls(
     },
     { signal: listeners.signal },
   );
-  const section = input('剖视', 'checkbox');
+  const transparentInspection =
+    m.kind === 'cad-joint' && m.bindings.some((b) => b.inspectionOpacity !== undefined);
+  const section = input(transparentInspection ? '电机剖口／谐波透明' : '剖视', 'checkbox');
   if (m.kind === 'cad-joint' && m.bindings.some((binding) => binding.inspectionCut))
-    text('p', '浏览器剖视隐藏选定遮挡件；原生版保留切面。').className = 'joint-note';
+    text(
+      'p',
+      transparentInspection
+        ? '谐波外层遮挡件半透明；原生电机视图保留局部剖口。'
+        : '浏览器剖视隐藏选定遮挡件；原生版保留切面。',
+    ).className = 'joint-note';
   section.addEventListener(
     'change',
     () => {
